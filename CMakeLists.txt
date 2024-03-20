@@ -13,9 +13,30 @@ find_package(std_msgs REQUIRED) # 自作msgのHeaderのために必要
 
 # 以下の部分は自作ｍｓｇの定義のために必要
 set(msg_files
-#   "msg/DynamixelState.msg"
-  "msg/DynamixelInfo.msg"
-  "msg/DynamixelCmd.msg"
+  # read専用
+  "msg/DynamixelState.msg"
+  "msg/DynamixelError.msg"
+
+  # read/write
+  "msg/DynamixelOptionConfig.msg"
+  "msg/DynamixelOptionExtra.msg"
+  "msg/DynamixelOptionGain.msg"
+  "msg/DynamixelOptionGoal.msg"
+  "msg/DynamixelOptionLimit.msg"
+  "msg/DynamixelOptionMode.msg"
+    
+  # write専用
+  "msg/DynamixelCommand.msg"
+  "msg/DynamixelCommandProfile.msg"
+  "msg/DynamixelCommandXControlCurrent.msg"
+  "msg/DynamixelCommandXControlCurrentPosition.msg"
+  "msg/DynamixelCommandXControlExtendedPosition.msg"
+  "msg/DynamixelCommandXControlPosition.msg"
+  "msg/DynamixelCommandXControlVelocity.msg"
+  "msg/DynamixelCommandPControlCurrent.msg"
+  "msg/DynamixelCommandPControlExtendedPosition.msg"
+  "msg/DynamixelCommandPControlPosition.msg"
+  "msg/DynamixelCommandPControlVelocity.msg"
 )
 set(srv_files
 # rebootとかはこっちかな？
@@ -29,33 +50,38 @@ ament_export_dependencies(rosidl_default_runtime)
 ## ここまで
 
 # ノードの定義
-add_executable(dynamixel_handler_node 
-	src/download/port_handler_linux.cpp
-	src/download/port_handler.cpp
-	src/dynamixel_parameters.cpp
-	src/dynamixel_serialport.cpp
-	src/dynamixel_handler_ROS2.cpp
-	src/main.cpp
-)
-target_include_directories(dynamixel_handler_node PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-target_compile_features(dynamixel_handler_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
-ament_target_dependencies(
-	dynamixel_handler_node
-  "rclcpp"
-  "rosidl_default_generators"
-)
+# add_executable(
+  # dynamixel_handler_node 
+	# src/download/port_handler_linux.cpp
+	# src/download/port_handler.cpp
+	# src/dynamixel_parameters.cpp
+	# src/dynamixel_serialport.cpp
+	# src/dynamixel_handler_ROS2.cpp
+	# src/main.cpp
+# )
+# target_include_directories(
+  # dynamixel_handler_node PUBLIC
+  # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  # $<INSTALL_INTERFACE:include>
+  # )
+# target_compile_features(
+#   # dynamixel_handler_node 
+#   PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+# ament_target_dependencies(
+# 	dynamixel_handler_node
+#   "rclcpp"
+#   "rosidl_default_generators"
+# )
 
-install(TARGETS dynamixel_handler_node
-  DESTINATION lib/${PROJECT_NAME})
+# install(TARGETS dynamixel_handler_node
+#   DESTINATION lib/${PROJECT_NAME})
 ## ここまで
 
 # 以下の部分は同じPkg内でmsgを定義＆使用を行う場合にい必要な追記
-rosidl_get_typesupport_target(cpp_typesupport_target
-  ${PROJECT_NAME} rosidl_typesupport_cpp)
+# rosidl_get_typesupport_target(cpp_typesupport_target
+#   ${PROJECT_NAME} rosidl_typesupport_cpp)
 
-target_link_libraries(dynamixel_handler_node "${cpp_typesupport_target}")
+# target_link_libraries(dynamixel_handler_node "${cpp_typesupport_target}")
 ## ここまで
 
 if(BUILD_TESTING)
