@@ -1,26 +1,26 @@
 #ifndef DYNAMIXEL_HANDLER_H_
 #define DYNAMIXEL_HANDLER_H_
 
-#include <ros/ros.h>
-using ros::Time;
-#include <std_msgs/String.h>
+// using ros::Time;
+#include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/string.hpp"
 
 #include "dynamixel_communicator.h"
-#include <dynamixel_handler/DynamixelState.h>
-#include <dynamixel_handler/DynamixelError.h>
-#include <dynamixel_handler/DynamixelOption_Config.h>
-#include <dynamixel_handler/DynamixelOption_Extra.h>
-#include <dynamixel_handler/DynamixelOption_Gain.h>
-#include <dynamixel_handler/DynamixelOption_Limit.h>
-#include <dynamixel_handler/DynamixelOption_Mode.h>
-#include <dynamixel_handler/DynamixelOption_Goal.h>
-#include <dynamixel_handler/DynamixelCommand.h>
-#include <dynamixel_handler/DynamixelCommand_Profile.h>
-#include <dynamixel_handler/DynamixelCommand_X_ControlPosition.h>
-#include <dynamixel_handler/DynamixelCommand_X_ControlVelocity.h>
-#include <dynamixel_handler/DynamixelCommand_X_ControlCurrent.h>
-#include <dynamixel_handler/DynamixelCommand_X_ControlCurrentPosition.h>
-#include <dynamixel_handler/DynamixelCommand_X_ControlExtendedPosition.h>
+#include "dynamixel_handler/msg/dynamixel_state.hpp"
+#include "dynamixel_handler/msg/dynamixel_error.hpp"
+#include "dynamixel_handler/msg/dynamixel_option_config.hpp"
+#include "dynamixel_handler/msg/dynamixel_option_extra.hpp"
+#include "dynamixel_handler/msg/dynamixel_option_gain.hpp"
+#include "dynamixel_handler/msg/dynamixel_option_limit.hpp"
+#include "dynamixel_handler/msg/dynamixel_option_mode.hpp"
+#include "dynamixel_handler/msg/dynamixel_option_goal.hpp"
+#include "dynamixel_handler/msg/dynamixel_command.hpp"
+#include "dynamixel_handler/msg/dynamixel_command_profile.hpp"
+#include "dynamixel_handler/msg/dynamixel_command_x_control_position.hpp"
+#include "dynamixel_handler/msg/dynamixel_command_x_control_velocity.hpp"
+#include "dynamixel_handler/msg/dynamixel_command_x_control_current.hpp"
+#include "dynamixel_handler/msg/dynamixel_command_x_control_current_position.hpp"
+#include "dynamixel_handler/msg/dynamixel_command_x_control_extended_position.hpp"
 
 #include <string>
 using std::string;
@@ -44,7 +44,7 @@ using std::max;
 static const double DEG = M_PI/180.0; // degを単位に持つ数字に掛けるとradになる
 static double deg2rad(double deg){ return deg*DEG; }
 static double rad2deg(double rad){ return rad/DEG; }
-static void rsleep(double sec) { ros::Duration(sec).sleep(); }
+static void rsleep(int millisec) { std::this_thread::sleep_for(std::chrono::milliseconds(millisec));}
 
 /**
  * DynamixelをROSで動かすためのクラス．本pkgのメインクラス． 
@@ -58,8 +58,8 @@ class DynamixelHandler {
     public:
         //* ROS 初期設定とメインループ
         static bool TmpTest();
-        static bool Initialize(ros::NodeHandle& nh);
-        static void MainLoop(const ros::TimerEvent& e);
+        static bool Initialize(std::shared_ptr<rclcpp::Node>& nh);
+        static void MainLoop();
         static void Terminate(int sig);
         static inline int loop_rate_ = 50;
 
@@ -71,35 +71,36 @@ class DynamixelHandler {
         static void BroadcastDxlOpt_Limit();
         static void BroadcastDxlOpt_Gain(); 
         static void BroadcastDxlOpt_Mode(); 
-        static void CallBackDxlOpt_Limit (const dynamixel_handler::DynamixelOption_Limit& msg); // todo
-        static void CallBackDxlOpt_Gain  (const dynamixel_handler::DynamixelOption_Gain& msg);  // todo
-        static void CallBackDxlOpt_Mode  (const dynamixel_handler::DynamixelOption_Mode& msg);  // todo
-        static void CallBackDxlCommand                   (const dynamixel_handler::DynamixelCommand& msg);    // todo
-        static void CallBackDxlCmd_Profile           (const dynamixel_handler::DynamixelCommand_Profile& msg); // todo
-        static void CallBackDxlCmd_X_Position        (const dynamixel_handler::DynamixelCommand_X_ControlPosition& msg);
-        static void CallBackDxlCmd_X_Velocity        (const dynamixel_handler::DynamixelCommand_X_ControlVelocity& msg);
-        static void CallBackDxlCmd_X_Current         (const dynamixel_handler::DynamixelCommand_X_ControlCurrent& msg);
-        static void CallBackDxlCmd_X_CurrentPosition (const dynamixel_handler::DynamixelCommand_X_ControlCurrentPosition& msg);
-        static void CallBackDxlCmd_X_ExtendedPosition(const dynamixel_handler::DynamixelCommand_X_ControlExtendedPosition& msg);
+        static void CallBackDxlOpt_Limit (const dynamixel_handler::msg::DynamixelOptionLimit& msg); // todo
+        static void CallBackDxlOpt_Gain  (const dynamixel_handler::msg::DynamixelOptionGain& msg);  // todo
+        static void CallBackDxlOpt_Mode  (const dynamixel_handler::msg::DynamixelOptionMode& msg);  // todo
+        static void CallBackDxlCommand                   (const dynamixel_handler::msg::DynamixelCommand& msg);    // todo
+        static void CallBackDxlCmd_Profile           (const dynamixel_handler::msg::DynamixelCommandProfile& msg); // todo
+        static void CallBackDxlCmd_X_Position        (const dynamixel_handler::msg::DynamixelCommandXControlPosition& msg);
+        static void CallBackDxlCmd_X_Velocity        (const dynamixel_handler::msg::DynamixelCommandXControlVelocity& msg);
+        static void CallBackDxlCmd_X_Current         (const dynamixel_handler::msg::DynamixelCommandXControlCurrent& msg);
+        static void CallBackDxlCmd_X_CurrentPosition (const dynamixel_handler::msg::DynamixelCommandXControlCurrentPosition& msg);
+        static void CallBackDxlCmd_X_ExtendedPosition(const dynamixel_handler::msg::DynamixelCommandXControlExtendedPosition& msg);
         //* ROS publisher subscriber instance
-        static inline ros::Publisher  pub_state_;
-        static inline ros::Publisher  pub_error_;
-        static inline ros::Publisher  pub_opt_limit_;
-        static inline ros::Publisher  pub_opt_gain_;
-        static inline ros::Publisher  pub_opt_mode_;
-        static inline ros::Publisher  pub_opt_goal_;
-        static inline ros::Subscriber sub_command_;
-        static inline ros::Subscriber sub_cmd_profile_;
-        static inline ros::Subscriber sub_cmd_x_pos_;
-        static inline ros::Subscriber sub_cmd_x_vel_;
-        static inline ros::Subscriber sub_cmd_x_cur_;
-        static inline ros::Subscriber sub_cmd_x_cpos_;
-        static inline ros::Subscriber sub_cmd_x_epos_;
-        static inline ros::Subscriber sub_opt_limit_;
-        static inline ros::Subscriber sub_opt_gain_;
-        static inline ros::Subscriber sub_opt_mode_;
+        static inline rclcpp::Publisher<dynamixel_handler::msg::DynamixelState>::SharedPtr pub_state_;
+        static inline rclcpp::Publisher<dynamixel_handler::msg::DynamixelError>::SharedPtr pub_error_;
+        static inline rclcpp::Publisher<dynamixel_handler::msg::DynamixelOptionLimit>::SharedPtr pub_opt_limit_;
+        static inline rclcpp::Publisher<dynamixel_handler::msg::DynamixelOptionGain>::SharedPtr pub_opt_gain_;
+        static inline rclcpp::Publisher<dynamixel_handler::msg::DynamixelOptionMode>::SharedPtr pub_opt_mode_;
+        static inline rclcpp::Publisher<dynamixel_handler::msg::DynamixelOptionGoal>::SharedPtr pub_opt_goal_;
+        static inline rclcpp::Subscription<dynamixel_handler::msg::DynamixelCommand>::SharedPtr sub_command_;
+        static inline rclcpp::Subscription<dynamixel_handler::msg::DynamixelCommandProfile>::SharedPtr sub_cmd_profile_;
+        static inline rclcpp::Subscription<dynamixel_handler::msg::DynamixelCommandXControlPosition>::SharedPtr sub_cmd_x_pos_;
+        static inline rclcpp::Subscription<dynamixel_handler::msg::DynamixelCommandXControlVelocity>::SharedPtr sub_cmd_x_vel_;
+        static inline rclcpp::Subscription<dynamixel_handler::msg::DynamixelCommandXControlCurrent>::SharedPtr sub_cmd_x_cur_;
+        static inline rclcpp::Subscription<dynamixel_handler::msg::DynamixelCommandXControlCurrentPosition>::SharedPtr sub_cmd_x_cpos_;
+        static inline rclcpp::Subscription<dynamixel_handler::msg::DynamixelCommandXControlExtendedPosition>::SharedPtr sub_cmd_x_epos_;
+        static inline rclcpp::Subscription<dynamixel_handler::msg::DynamixelOptionGain>::SharedPtr sub_opt_gain_;
+        static inline rclcpp::Subscription<dynamixel_handler::msg::DynamixelOptionMode>::SharedPtr sub_opt_mode_;
+        static inline rclcpp::Subscription<dynamixel_handler::msg::DynamixelOptionLimit>::SharedPtr sub_opt_limit_;
 
     private:
+
         DynamixelHandler() = delete;
         //* 単体通信を組み合わせた上位機能
         static uint8_t ScanDynamixels(uint8_t id_max);
@@ -218,7 +219,7 @@ class DynamixelHandler {
         static inline map<uint8_t, array<int64_t,7>> option_gain_; // 各dynamixelの id と サーボの各種制限値のマップ, 中身の並びはOptGainIndexに対応する 
         static inline map<uint8_t, array<int64_t,7>> option_goal_; // 各dynamixelの id と サーボの各種制限値のマップ, 中身の並びはOptGainIndexに対応する 
         // 上記の変数を適切に使うための補助的なフラグ
-        static inline map<uint8_t, Time> when_op_mode_updated_; // 各dynamixelの id と op_mode_ が更新された時刻のマップ
+        static inline map<uint8_t, rclcpp::Time> when_op_mode_updated_; // 各dynamixelの id と op_mode_ が更新された時刻のマップ
         static inline map<uint8_t, bool> is_cmd_updated_;      // topicのcallbackによって，cmd_valuesが更新されたかどうかを示すマップ
         static inline bool has_hardware_err_ = false; // 連結しているDynamixelのうち，どれか一つでもハードウェアエラーを起こしているかどうか
         // 各周期で実行するserial通信の内容を決めるためのset

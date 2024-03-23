@@ -6,24 +6,24 @@ using namespace dyn_x;
 
 // 各シリーズのDynamixelを検出する．
 uint8_t DynamixelHandler::ScanDynamixels(uint8_t id_max) {
-    ROS_INFO("Auto scanning Dynamixel (id range 1 to [%d])", id_max);
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Auto scanning Dynamixel (id range 1 to [%d])", id_max);
     id_list_.clear();
     for (int id = 0; id <= id_max; id++) {
         if ( !dyn_comm_.tryPing(id) ) continue;
         auto dyn_model = dyn_comm_.tryRead(model_number, id);
         switch ( dynamixel_series(dyn_model) ) { 
-            case SERIES_X: ROS_INFO(" * X series servo id [%d] is found", id);
+            case SERIES_X: RCLCPP_INFO(rclcpp::get_logger("rclcpp"), " * X series servo id [%d] is found", id);
                 model_[id] = dyn_model;
                 series_[id] = SERIES_X;
                 id_list_.push_back(id); break;
-            case SERIES_P: ROS_INFO(" * P series servo id [%d] is found", id);
+            case SERIES_P: RCLCPP_INFO(rclcpp::get_logger("rclcpp"), " * P series servo id [%d] is found", id);
                 model_[id] = dyn_model;
                 series_[id] = SERIES_P;
                 id_list_.push_back(id); break;
-            default: ROS_WARN(" * Unkwon model [%d] servo id [%d] is found", (int)dyn_model, id);
+            default: RCLCPP_WARN(rclcpp::get_logger("rclcpp"), " * Unkwon model [%d] servo id [%d] is found", (int)dyn_model, id);
         }
     }
-    ROS_INFO("Finish scanning Dynamixel");
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Finish scanning Dynamixel");
     return id_list_.size();
 }
 
@@ -35,7 +35,7 @@ void DynamixelHandler::StopDynamixels(){
     dyn_comm_.SyncWrite(homing_offset ,id_list, offset_pulse); // マジで謎だが，BusWatchdogを設定するとHomingOffset分だけ回転してしまう...多分ファームrウェアのバグ
     vector<int64_t> bus_watchtime_pulse(id_list.size(), 1);
     dyn_comm_.SyncWrite(bus_watchdog, id_list, bus_watchtime_pulse);
-    ROS_INFO("All servo will be stopped");
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "All servo will be stopped");
 }
 
 // 回転数が消えることを考慮して，モータをリブートする．
@@ -53,20 +53,22 @@ bool DynamixelHandler::ClearHardwareError(uint8_t id){
         const double offset = now_offset+now_rot*(2*M_PI);
         /*リブート処理*/dyn_comm_.Reboot(id); //** RAMのデータが消えるが，この処理の後は電源喪失と同じ扱いなので，ここでは気にしない．
         // homing offsetが書き込めるまで待機する．
-        while ( !WriteHomingOffset(id, offset) && ros::ok() ) rsleep(0.01);
+        while ( !WriteHomingOffset(id, offset) && rclcpp::ok() ) rsleep(10);
     }
     // 結果を確認
     bool is_clear = (ReadHardwareError(id) == 0b00000000);
-    if (is_clear) ROS_INFO ("ID [%d] is cleared error", id);
-    else          ROS_ERROR("ID [%d] failed to clear error", id);
+    if (is_clear) RCLCPP_INFO (rclcpp::get_logger("rclcpp"), "ID [%d] is cleared error", id);
+    else          RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "ID [%d] failed to clear error", id);
     return is_clear;
 }
 
 // モータの動作モードを変更する．連続で変更するときは1秒のインターバルを入れる
 bool DynamixelHandler::ChangeOperatingMode(uint8_t id, DynamixelOperatingMode mode){
+    
+    rclcpp::Clock ros_clock(RCL_ROS_TIME);
     if ( series_[id] != SERIES_X ) return false; // Xシリーズ以外は対応していない
     if ( op_mode_[id] == mode ) return true; // 既に同じモードの場合は何もしない
-    if ( fabs((when_op_mode_updated_[id] - Time::now()).toSec()) < 1.0 ) rsleep(1.0); // 1秒以内に変更した場合は1秒待つ
+    if ( fabs((when_op_mode_updated_[id] - ros_clock.now()).seconds()) < 1.0 ) rsleep(1000); // 1秒以内に変更した場合は1秒待つ
     // 変更前のトルク状態を確認
     const bool is_enable = (ReadTorqueEnable(id) == TORQUE_ENABLE); // read失敗しても0が返ってくるので問題ない
     WriteTorqueEnable(id, false);
@@ -84,12 +86,14 @@ bool DynamixelHandler::ChangeOperatingMode(uint8_t id, DynamixelOperatingMode mo
     bool is_changed = (ReadOperatingMode(id) == mode);
     if ( is_changed ) {
         op_mode_[id] = mode;
-        when_op_mode_updated_[id] = Time::now();
+        // when_op_mode_updated_[id] = Time::now();
+        
+        when_op_mode_updated_[id] = ros_clock.now();
         // if ( mode==OPERATING_MODE_CURRENT ) WriteBusWatchdog(id, 2500 /*ms*/);
         // if ( mode==OPERATING_MODE_VELOCITY) WriteBusWatchdog(id, 2500 /*ms*/);
-        ROS_INFO("ID [%d] is changed operating mode [%d]", id, mode);
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ID [%d] is changed operating mode [%d]", id, mode);
     } else {
-        ROS_ERROR("ID [%d] failed to change operating mode", id); 
+        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "ID [%d] failed to change operating mode", id); 
     }
     return is_changed;
 }
@@ -117,7 +121,7 @@ bool DynamixelHandler::TorqueOn(uint8_t id){
     }
     // 結果を確認
     tq_mode_[id] = (ReadTorqueEnable(id) == TORQUE_ENABLE);
-    if ( !tq_mode_[id] ) ROS_ERROR("ID [%d] failed to enable torque", id);
+    if ( !tq_mode_[id] ) RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "ID [%d] failed to enable torque", id);
     return tq_mode_[id];
 }
 
@@ -128,7 +132,7 @@ bool DynamixelHandler::TorqueOff(uint8_t id){
     WriteTorqueEnable(id, false);
     // 結果を確認
     tq_mode_[id] = (ReadTorqueEnable(id) == TORQUE_DISABLE);
-    if ( !tq_mode_[id] ) ROS_ERROR("ID [%d] failed to disable torque", id);
+    if ( !tq_mode_[id] ) RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "ID [%d] failed to disable torque", id);
     return tq_mode_[id];
 }
 

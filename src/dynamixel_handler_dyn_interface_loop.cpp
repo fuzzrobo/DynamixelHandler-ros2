@@ -45,7 +45,7 @@ void DynamixelHandler::SyncWriteCommandValues(set<CmdValueIndex>& list_write_cmd
     if ( varbose_write_cmd_ ) {
         char header[100]; sprintf(header, "[%d] servo(s) will be written", (int)id_cmd_vec_map.size());
         auto ss = control_table_layout(width_log_, id_cmd_vec_map, cmd_dp_list, string(header));
-        ROS_INFO_STREAM(ss);
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), ss);
     }
     // SyncWriteでまとめて書き込み
     dyn_comm_.SyncWrite(cmd_dp_list, id_cmd_vec_map);
@@ -114,14 +114,14 @@ double DynamixelHandler::SyncReadStateValues(set<StValueIndex> list_read_state){
         for ( auto id : target_id_list ) if ( id_st_vec_map.find(id) == id_st_vec_map.end() ) failed_id_list.push_back(id);
         char header[99]; sprintf(header, "[%d] servo(s) failed to read", (int)(N_total - N_suc));
         auto ss = id_list_layout(failed_id_list, string(header)+( is_timeout_ ? " (time out)" : " (some kind packet error)"));
-        ROS_WARN_STREAM(ss);
+        RCLCPP_WARN_STREAM(rclcpp::get_logger("rclcpp"), ss);
     }
     // id_st_vec_mapの中身を確認
     if ( varbose_read_st_ ) if ( N_suc>0 ) {
         char header[99]; sprintf(header, "[%d] servo(s) are read", (int)N_suc);
         auto ss = control_table_layout(width_log_, id_st_vec_map, state_dp_list, string(header));
-        ROS_INFO_STREAM(ss);
-        if ( has_hardware_err_ ) ROS_WARN("Hardware Error are detected");
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), ss);
+        if ( has_hardware_err_ ) RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Hardware Error are detected");
     }
     // state_values_に反映
     const int num_state = *end-*start+1;
@@ -165,14 +165,14 @@ double DynamixelHandler::SyncReadHardwareErrors(){
 
     // コンソールへの表示
     if ( varbose_read_hwerr_ ) {
-        ROS_WARN("Hardware error are Checked");
+        RCLCPP_WARN(rclcpp::get_logger("rclcpp"), "Hardware error are Checked");
         for (auto id : target_id_list) {
-            if (hardware_error_[id][INPUT_VOLTAGE     ]) ROS_ERROR(" * servo id [%d] has INPUT_VOLTAGE error",      id);
-            if (hardware_error_[id][MOTOR_HALL_SENSOR ]) ROS_ERROR(" * servo id [%d] has MOTOR_HALL_SENSOR error",  id);
-            if (hardware_error_[id][OVERHEATING       ]) ROS_ERROR(" * servo id [%d] has OVERHEATING error",        id);
-            if (hardware_error_[id][MOTOR_ENCODER     ]) ROS_ERROR(" * servo id [%d] has MOTOR_ENCODER error",      id);
-            if (hardware_error_[id][ELECTRONICAL_SHOCK]) ROS_ERROR(" * servo id [%d] has ELECTRONICAL_SHOCK error", id);
-            if (hardware_error_[id][OVERLOAD          ]) ROS_ERROR(" * servo id [%d] has OVERLOAD error",           id);
+            if (hardware_error_[id][INPUT_VOLTAGE     ]) RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), " * servo id [%d] has INPUT_VOLTAGE error",      id);
+            if (hardware_error_[id][MOTOR_HALL_SENSOR ]) RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), " * servo id [%d] has MOTOR_HALL_SENSOR error",  id);
+            if (hardware_error_[id][OVERHEATING       ]) RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), " * servo id [%d] has OVERHEATING error",        id);
+            if (hardware_error_[id][MOTOR_ENCODER     ]) RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), " * servo id [%d] has MOTOR_ENCODER error",      id);
+            if (hardware_error_[id][ELECTRONICAL_SHOCK]) RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), " * servo id [%d] has ELECTRONICAL_SHOCK error", id);
+            if (hardware_error_[id][OVERLOAD          ]) RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), " * servo id [%d] has OVERLOAD error",           id);
         }
     }
     return id_error_map.size()/double(target_id_list.size());
@@ -222,13 +222,13 @@ double DynamixelHandler::SyncReadOption_Gain(){
         for ( auto id : target_id_list ) if ( id_gain_vec_map.find(id) == id_gain_vec_map.end() ) failed_id_list.push_back(id);
         char header[100]; sprintf(header, "[%d] servo(s) failed to read", (int)(target_id_list.size() - id_gain_vec_map.size()));
         auto ss = id_list_layout(failed_id_list, string(header) + (is_timeout? " (time out)" : " (some kind packet error)"));
-        ROS_WARN_STREAM(ss);
+        RCLCPP_WARN_STREAM(rclcpp::get_logger("rclcpp"), ss);
     }
     // id_gain_vec_mapの中身を確認
     if ( varbose_read_opt_ ) if ( id_gain_vec_map.size()>0 ) {
         char header[100]; sprintf(header, "[%d] servo(s) are read", (int)id_gain_vec_map.size());
         auto ss = control_table_layout(width_log_, id_gain_vec_map, opt_gain_dp_list, string(header));
-        ROS_INFO_STREAM(ss);
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), ss);
     }
     // option_gain_に反映
     for ( auto opt_gain=0; opt_gain<opt_gain_dp_list.size(); opt_gain++) {
@@ -270,7 +270,7 @@ double DynamixelHandler::SyncReadOption_Limit(){
         for ( auto id : target_id_list ) if ( id_limit_vec_map.find(id) == id_limit_vec_map.end() ) failed_id_list.push_back(id);
         char header[100]; sprintf(header, "[%d] servo(s) failed to read", (int)(target_id_list.size() - id_limit_vec_map.size()));
         auto ss = id_list_layout(failed_id_list, string(header) + (is_timeout? " (time out)" : " (some kind packet error)"));
-        ROS_WARN_STREAM(ss);
+        RCLCPP_WARN_STREAM(rclcpp::get_logger("rclcpp"), ss);
     }
     // ACCELERATION_LIMITに関してだけ修正を入れる．0はほぼあり得ないかつ0の時profile_accの設定ができないので，適当に大きな値に変更する．
     vector<uint8_t> fixed_id_list;
@@ -284,11 +284,11 @@ double DynamixelHandler::SyncReadOption_Limit(){
     if ( varbose_read_opt_ ) if ( id_limit_vec_map.size()>0 ) {
         char header[100]; sprintf(header, "[%d] servo(s) are read", (int)id_limit_vec_map.size());
         auto ss = control_table_layout(width_log_, id_limit_vec_map, opt_limit_dp_list, string(header));
-        ROS_INFO_STREAM(ss);
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), ss);
         if ( !fixed_id_list.empty() ) {
             char header[100]; sprintf(header,"\n[%d] servo(s)' accelerarion_limit is 0, change to 32767", (int)fixed_id_list.size());
             auto ss = id_list_layout(fixed_id_list, string(header));
-            ROS_WARN_STREAM(ss);
+            RCLCPP_WARN_STREAM(rclcpp::get_logger("rclcpp"), ss);
         }
     }
     // option_limit_に反映
@@ -328,12 +328,12 @@ double DynamixelHandler::SyncReadOption_Goal() {
         for ( auto id : target_id_list ) if ( id_goal_vec_map.find(id) == id_goal_vec_map.end() ) failed_id_list.push_back(id);
         char header[100]; sprintf(header, "[%d] servo(s) failed to read", (int)(target_id_list.size() - id_goal_vec_map.size()));
         auto ss = id_list_layout(failed_id_list, string(header) + (is_timeout? " (time out)" : " (some kind packet error)"));
-        ROS_WARN_STREAM(ss);
+        RCLCPP_WARN_STREAM(rclcpp::get_logger("rclcpp"), ss);
     }
     if ( varbose_read_opt_ ) if ( id_goal_vec_map.size()>0 ) {
         char header[100]; sprintf(header, "[%d] servo(s) are read", (int)id_goal_vec_map.size());
         auto ss = control_table_layout(width_log_, id_goal_vec_map, opt_goal_dp_list, string(header));
-        ROS_INFO_STREAM(ss);
+        RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), ss);
     }
     // option_goal_に反映
     for ( auto opt_goal=0; opt_goal<opt_goal_dp_list.size(); opt_goal++) {

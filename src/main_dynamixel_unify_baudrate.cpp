@@ -12,20 +12,20 @@ using std::string;
 int main(int argc, char **argv) {
     rclcpp::init(argc, argv);
 	// *** init node
-	std::shared_ptr<rclcpp::Node> node_ = rclcpp::Node::make_shared("dynamixel_change_baudrate_node");
+	std::shared_ptr<rclcpp::Node> nh = rclcpp::Node::make_shared("dynamixel_change_baudrate_node");
 
 
     int id_max, id_min;
     int baudrate_max, baudrate_min, baudrate_target; 
     int latency_timer;
 	string device_name;
-    if (!node_->get_parameter("min_id", id_min )) id_min =  0;
-    if (!node_->get_parameter("max_id", id_max )) id_max =  50;
-    if (!node_->get_parameter("device_name", device_name    )) device_name = "/dev/ttyUSB0";
-    if (!node_->get_parameter("min_search_baudrate", baudrate_min)) baudrate_min = 57600;
-    if (!node_->get_parameter("max_search_baudrate", baudrate_max)) baudrate_max = 4000000;
-    if (!node_->get_parameter("target_baudrate",baudrate_target)) baudrate_target = 1000000;
-    if (!node_->get_parameter("latency_timer", latency_timer)) latency_timer = 16;
+    if (!nh->get_parameter("min_id", id_min )) id_min =  0;
+    if (!nh->get_parameter("max_id", id_max )) id_max =  50;
+    if (!nh->get_parameter("device_name", device_name    )) device_name = "/dev/ttyUSB0";
+    if (!nh->get_parameter("min_search_baudrate", baudrate_min)) baudrate_min = 57600;
+    if (!nh->get_parameter("max_search_baudrate", baudrate_max)) baudrate_max = 4000000;
+    if (!nh->get_parameter("target_baudrate",baudrate_target)) baudrate_target = 1000000;
+    if (!nh->get_parameter("latency_timer", latency_timer)) latency_timer = 16;
 
     auto dyn_comm = DynamixelCommunicator();
     dyn_comm.GetPortHandler(device_name.c_str());
