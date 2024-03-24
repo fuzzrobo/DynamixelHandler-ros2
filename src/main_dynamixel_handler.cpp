@@ -27,7 +27,7 @@ bool DynamixelHandler::Initialize(std::shared_ptr<rclcpp::Node>& nh){
     pub_opt_mode_  = nh->create_publisher<dynamixel_handler::msg::DynamixelOptionMode>("/dynamixel/opt/mode/r", 10);
     pub_opt_goal_  = nh->create_publisher<dynamixel_handler::msg::DynamixelOptionGoal>("/dynamixel/opt/goal/r", 10);
 
-    std::shared_ptr<rclcpp::Node> nh_p = rclcpp::Node::make_shared("~");
+    std::shared_ptr<rclcpp::Node> nh_p = rclcpp::Node::make_shared("_");
 
     // 通信の開始
     int baudrate, latency_timer; string device_name;
@@ -206,7 +206,7 @@ void DynamixelHandler::MainLoop(){
 
 void DynamixelHandler::Terminate(int sig){
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Terminating DynamixelHandler ...");
-	std::shared_ptr<rclcpp::Node> nh_p = rclcpp::Node::make_shared("~");
+	std::shared_ptr<rclcpp::Node> nh_p = rclcpp::Node::make_shared("_");
     bool do_torque_off;
     if (!nh_p->get_parameter("term/torque_auto_disable", do_torque_off  )) do_torque_off  = true;
     if ( do_torque_off ) for ( auto id : id_list_ ) if (series_[id] == SERIES_X) TorqueOff(id);
@@ -239,7 +239,7 @@ int main(int argc, char **argv) {
       );
 
     rclcpp::spin(nh);
-    
+    nh.reset();
     rclcpp::shutdown();
     return 0;
 }
