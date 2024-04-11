@@ -170,8 +170,8 @@ bool DynamixelHandler::Initialize(std::shared_ptr<rclcpp::Node>& nh){
 
     // 状態のreadの後にやるべき初期化
     bool do_clean_hwerr, do_torque_on;
-    nh_p->get_parameter("init/hardware_error_auto_clean", true);
-    nh_p->get_parameter("init/torque_auto_enable", true);
+    nh_p->declare_parameter("init/hardware_error_auto_clean", true);
+    nh_p->declare_parameter("init/torque_auto_enable", true);
     do_clean_hwerr = nh_p->get_parameter("init/hardware_error_auto_clean").as_bool();
     do_torque_on = nh_p->get_parameter("init/torque_auto_enable").as_bool();
     // if (!nh_p->get_parameter("init/hardware_error_auto_clean",do_clean_hwerr)) do_clean_hwerr= true;
