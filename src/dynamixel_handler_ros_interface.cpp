@@ -220,7 +220,7 @@ double round4(double val) { return round(val*10000.0)/10000.0; }
 
 void DynamixelHandler::BroadcastDxlState(){
     dynamixel_handler::msg::DynamixelState msg;
-    rclcpp::Clock ros_clock(RCL_ROS_TIME);
+    rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
     msg.stamp = ros_clock.now();
     for (const auto& [id, value] : state_values_) {
         msg.id_list.push_back(id);
@@ -240,7 +240,7 @@ void DynamixelHandler::BroadcastDxlState(){
 
 void DynamixelHandler::BroadcastDxlError(){
     dynamixel_handler::msg::DynamixelError msg;
-    rclcpp::Clock ros_clock(RCL_ROS_TIME);
+    rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
     msg.stamp = ros_clock.now();
     for (const auto& [id, error]: hardware_error_) {
         if (error[INPUT_VOLTAGE     ]) msg.input_voltage.push_back     (id);
@@ -255,7 +255,7 @@ void DynamixelHandler::BroadcastDxlError(){
 
 void DynamixelHandler::BroadcastDxlOpt_Limit(){
     dynamixel_handler::msg::DynamixelOptionLimit msg;
-    rclcpp::Clock ros_clock(RCL_ROS_TIME);
+    rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
     msg.stamp = ros_clock.now();
     for (const auto& [id, limit] : option_limit_) {
         msg.id_list.push_back(id);
@@ -274,7 +274,7 @@ void DynamixelHandler::BroadcastDxlOpt_Limit(){
 
 void DynamixelHandler::BroadcastDxlOpt_Gain(){
     dynamixel_handler::msg::DynamixelOptionGain msg;
-    rclcpp::Clock ros_clock(RCL_ROS_TIME);
+    rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
     msg.stamp = ros_clock.now();
     for ( const auto& [id, gain] : option_gain_ ) {
         msg.id_list.push_back(id);
@@ -291,7 +291,7 @@ void DynamixelHandler::BroadcastDxlOpt_Gain(){
 
 void DynamixelHandler::BroadcastDxlOpt_Mode(){
     dynamixel_handler::msg::DynamixelOptionMode msg;
-    rclcpp::Clock ros_clock(RCL_ROS_TIME);
+    rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
     msg.stamp = ros_clock.now();
     for ( const auto& id : id_list_ ) {
         msg.id_list.push_back(id);
@@ -312,7 +312,7 @@ void DynamixelHandler::BroadcastDxlOpt_Mode(){
 
 void DynamixelHandler::BroadcastDxlOpt_Goal(){
     dynamixel_handler::msg::DynamixelOptionGoal msg;
-    rclcpp::Clock ros_clock(RCL_ROS_TIME);
+    rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
     msg.stamp = ros_clock.now();
     for ( const auto& [id, goal] : option_goal_ ) {
         msg.id_list.push_back(id);

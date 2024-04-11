@@ -65,7 +65,7 @@ bool DynamixelHandler::ClearHardwareError(uint8_t id){
 // モータの動作モードを変更する．連続で変更するときは1秒のインターバルを入れる
 bool DynamixelHandler::ChangeOperatingMode(uint8_t id, DynamixelOperatingMode mode){
     
-    rclcpp::Clock ros_clock(RCL_ROS_TIME);
+    rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
     if ( series_[id] != SERIES_X ) return false; // Xシリーズ以外は対応していない
     if ( op_mode_[id] == mode ) return true; // 既に同じモードの場合は何もしない
     if ( fabs((when_op_mode_updated_[id] - ros_clock.now()).seconds()) < 1.0 ) rsleep(1000); // 1秒以内に変更した場合は1秒待つ
