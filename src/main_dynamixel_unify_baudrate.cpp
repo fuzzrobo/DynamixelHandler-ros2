@@ -19,13 +19,29 @@ int main(int argc, char **argv) {
     int baudrate_max, baudrate_min, baudrate_target; 
     int latency_timer;
 	string device_name;
-    if (!nh->get_parameter("min_id", id_min )) id_min =  0;
-    if (!nh->get_parameter("max_id", id_max )) id_max =  50;
-    if (!nh->get_parameter("device_name", device_name    )) device_name = "/dev/ttyUSB0";
-    if (!nh->get_parameter("min_search_baudrate", baudrate_min)) baudrate_min = 57600;
-    if (!nh->get_parameter("max_search_baudrate", baudrate_max)) baudrate_max = 4000000;
-    if (!nh->get_parameter("target_baudrate",baudrate_target)) baudrate_target = 1000000;
-    if (!nh->get_parameter("latency_timer", latency_timer)) latency_timer = 16;
+    nh->declare_parameter("min_id", 0);
+    nh->declare_parameter("max_id", 50);
+    nh->declare_parameter("device_name", "/dev/ttyUSB0");
+    nh->declare_parameter("min_search_baudrate", 57600);
+    nh->declare_parameter("max_search_baudrate", 4000000);
+    nh->declare_parameter("target_baudrate", 1000000);
+    nh->declare_parameter("latency_timer", 16);
+
+    id_min = nh->get_parameter("min_id").as_int();
+    id_max = nh->get_parameter("max_id").as_int();
+    device_name = nh->get_parameter("device_name").as_string();
+    baudrate_min = nh->get_parameter("min_search_baudrate").as_int();
+    baudrate_max = nh->get_parameter("max_search_baudrate").as_int();
+    baudrate_target = nh->get_parameter("target_baudrate").as_int();
+    latency_timer = nh->get_parameter("latency_timer").as_int();
+
+    // if (!nh->get_parameter("min_id", id_min )) id_min =  0;
+    // if (!nh->get_parameter("max_id", id_max )) id_max =  50;
+    // if (!nh->get_parameter("device_name", device_name    )) device_name = "/dev/ttyUSB0";
+    // if (!nh->get_parameter("min_search_baudrate", baudrate_min)) baudrate_min = 57600;
+    // if (!nh->get_parameter("max_search_baudrate", baudrate_max)) baudrate_max = 4000000;
+    // if (!nh->get_parameter("target_baudrate",baudrate_target)) baudrate_target = 1000000;
+    // if (!nh->get_parameter("latency_timer", latency_timer)) latency_timer = 16;
 
     auto dyn_comm = DynamixelCommunicator();
     dyn_comm.GetPortHandler(device_name.c_str());

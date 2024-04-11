@@ -81,8 +81,19 @@ ament_target_dependencies(
   "rosidl_default_generators"
 )
 
-install(TARGETS dynamixel_unify_baudrate_node
-  DESTINATION lib/${PROJECT_NAME})
+install(
+  TARGETS dynamixel_unify_baudrate_node
+  DESTINATION lib/${PROJECT_NAME}
+  )
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
+install(DIRECTORY
+  config
+  DESTINATION share/${PROJECT_NAME}
+)
 # ここまで
 
 # 以下の部分は同じPkg内でmsgを定義＆使用を行う場合にい必要な追記

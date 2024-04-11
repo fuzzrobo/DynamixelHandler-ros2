@@ -31,9 +31,15 @@ bool DynamixelHandler::Initialize(std::shared_ptr<rclcpp::Node>& nh){
 
     // 通信の開始
     int baudrate, latency_timer; string device_name;
-    if (!nh_p->get_parameter("baudrate",         baudrate   ) ) baudrate    =  57600;
-    if (!nh_p->get_parameter("device_name",      device_name) ) device_name = "/dev/ttyUSB0";
-    if (!nh_p->get_parameter("latency_timer",    latency_timer) ) latency_timer = 16;
+    nh_p->declare_parameter("baudrate", 57600);
+    nh_p->declare_parameter("device_name", "/dev/ttyUSB0");
+    nh_p->declare_parameter("latency_timer", 16);
+    baudrate = nh_p->get_parameter("baudrate").as_int();
+    device_name = nh_p->get_parameter("device_name").as_string();
+    latency_timer = nh_p->get_parameter("latency_timer").as_int();
+    // if (!nh_p->get_parameter("baudrate",         baudrate   ) ) baudrate    =  57600;
+    // if (!nh_p->get_parameter("device_name",      device_name) ) device_name = "/dev/ttyUSB0";
+    // if (!nh_p->get_parameter("latency_timer",    latency_timer) ) latency_timer = 16;
     dyn_comm_ = DynamixelCommunicator(device_name.c_str(), baudrate, latency_timer);
     if ( !dyn_comm_.OpenPort() ) {
         RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to open USB device [%s]", dyn_comm_.port_name().c_str()); 
@@ -42,40 +48,87 @@ bool DynamixelHandler::Initialize(std::shared_ptr<rclcpp::Node>& nh){
 
     // serial通信のvarbose設定
     bool serial_varbose;
-    if (!nh_p->get_parameter("dyn_comm/varbose", serial_varbose)) serial_varbose = false;
+    nh_p->declare_parameter("dyn_comm/varbose", false);
+    serial_varbose = nh_p->get_parameter("dyn_comm/varbose").as_bool();
+    // if (!nh_p->get_parameter("dyn_comm/varbose", serial_varbose)) serial_varbose = false;
     dyn_comm_.set_varbose(serial_varbose);
 
     // serial通信のretry設定
     int num_try, msec_interval;
-    if (!nh_p->get_parameter("dyn_comm/retry_num",     num_try      )) num_try       = 5;
-    if (!nh_p->get_parameter("dyn_comm/inerval_msec",  msec_interval)) msec_interval = 10;
+    nh_p->declare_parameter("dyn_comm/retry_num", 5);
+    nh_p->declare_parameter("dyn_comm/inerval_msec", 10);
+    num_try = nh_p->get_parameter("dyn_comm/retry_num").as_int();
+    msec_interval = nh_p->get_parameter("dyn_comm/inerval_msec").as_int();
+    // if (!nh_p->get_parameter("dyn_comm/retry_num",     num_try      )) num_try       = 5;
+    // if (!nh_p->get_parameter("dyn_comm/inerval_msec",  msec_interval)) msec_interval = 10;
     dyn_comm_.set_retry_config(num_try, msec_interval);
     // return TmpTest();
 
     // main loop の設定
-    if (!nh_p->get_parameter("loop_rate",        loop_rate_ ))        loop_rate_ =  50;
-    if (!nh_p->get_parameter("ratio/state_read",  ratio_state_pub_ )) ratio_state_pub_  =  1;
-    if (!nh_p->get_parameter("ratio/option_read", ratio_option_pub_)) ratio_option_pub_ =  0;
-    if (!nh_p->get_parameter("ratio/error_read",  ratio_error_pub_ )) ratio_error_pub_  =  100;
-    if (!nh_p->get_parameter("ratio/varbose_loop", ratio_mainloop_ )) ratio_mainloop_   =  100;
-    if (!nh_p->get_parameter("max_log_width",      width_log_      )) width_log_        = 7;
-    if (!nh_p->get_parameter("use/split_write", use_split_write_)) use_split_write_ =  false;
-    if (!nh_p->get_parameter("use/split_read",  use_split_read_ )) use_split_read_  =  false;
-    if (!nh_p->get_parameter("use/fast_read",   use_fast_read_  )) use_fast_read_   =  true;
-    if (!nh_p->get_parameter("varbose/callback",     varbose_callback_  )) varbose_callback_  =  false;
-    if (!nh_p->get_parameter("varbose/write_commad", varbose_write_cmd_ )) varbose_write_cmd_ =  false;
-    if (!nh_p->get_parameter("varbose/write_option", varbose_write_opt_ )) varbose_write_opt_ =  false;
-    if (!nh_p->get_parameter("varbose/read_state/raw", varbose_read_st_     )) varbose_read_st_     =  false;
-    if (!nh_p->get_parameter("varbose/read_state/err", varbose_read_st_err_ )) varbose_read_st_err_ =  false;
-    if (!nh_p->get_parameter("varbose/read_option/raw",varbose_read_opt_    )) varbose_read_opt_    =  false;
-    if (!nh_p->get_parameter("varbose/read_option/err",varbose_read_opt_err_)) varbose_read_opt_err_=  false;
-    if (!nh_p->get_parameter("varbose/read_hardware_error",varbose_read_hwerr_  )) varbose_read_hwerr_  =  false;
+    nh_p->declare_parameter("loop_rate", 50);
+    nh_p->declare_parameter("ratio/state_read", 1);
+    nh_p->declare_parameter("ratio/option_read", 0);
+    nh_p->declare_parameter("ratio/error_read", 100);
+    nh_p->declare_parameter("ratio/varbose_loop", 100);
+    nh_p->declare_parameter("max_log_width", 7);
+    nh_p->declare_parameter("use/split_write", false);
+    nh_p->declare_parameter("use/split_read", false);
+    nh_p->declare_parameter("use/fast_read", true);
+    nh_p->declare_parameter("varbose/callback", false);
+    nh_p->declare_parameter("varbose/write_commad", false);
+    nh_p->declare_parameter("varbose/write_option", false);
+    nh_p->declare_parameter("varbose/read_state/raw", false);
+    nh_p->declare_parameter("varbose/read_state/err", false);
+    nh_p->declare_parameter("varbose/read_option/raw", false);
+    nh_p->declare_parameter("varbose/read_option/err", false);
+    nh_p->declare_parameter("varbose/read_hardware_error",false);
+    
+    loop_rate_              = nh_p->get_parameter("loop_rate").as_int();
+    ratio_state_pub_        = nh_p->get_parameter("ratio/state_read").as_int();
+    ratio_option_pub_       = nh_p->get_parameter("ratio/option_read").as_int();
+    ratio_error_pub_        = nh_p->get_parameter("ratio/error_read").as_int();
+    ratio_mainloop_         = nh_p->get_parameter("ratio/varbose_loop").as_int();
+    width_log_              = nh_p->get_parameter("max_log_width").as_int();
+    use_split_write_        = nh_p->get_parameter("use/split_write").as_bool();
+    use_split_read_         = nh_p->get_parameter("use/split_read").as_bool();
+    use_fast_read_          = nh_p->get_parameter("use/fast_read").as_bool();
+    varbose_callback_       = nh_p->get_parameter("varbose/callback").as_bool();
+    varbose_write_cmd_      = nh_p->get_parameter("varbose/write_commad").as_bool();
+    varbose_write_opt_      = nh_p->get_parameter("varbose/write_option").as_bool();
+    varbose_read_st_        = nh_p->get_parameter("varbose/read_state/raw").as_bool();
+    varbose_read_st_err_    = nh_p->get_parameter("varbose/read_state/err").as_bool();
+    varbose_read_opt_       = nh_p->get_parameter("varbose/read_option/raw").as_bool();
+    varbose_read_opt_err_   = nh_p->get_parameter("varbose/read_option/err").as_bool();
+    varbose_read_hwerr_     = nh_p->get_parameter("varbose/read_hardware_error").as_bool();
+
+    
+    // if (!nh_p->get_parameter("loop_rate",        loop_rate_ ))        loop_rate_ =  50;
+    // if (!nh_p->get_parameter("ratio/state_read",  ratio_state_pub_ )) ratio_state_pub_  =  1;
+    // if (!nh_p->get_parameter("ratio/option_read", ratio_option_pub_)) ratio_option_pub_ =  0;
+    // if (!nh_p->get_parameter("ratio/error_read",  ratio_error_pub_ )) ratio_error_pub_  =  100;
+    // if (!nh_p->get_parameter("ratio/varbose_loop", ratio_mainloop_ )) ratio_mainloop_   =  100;
+    // if (!nh_p->get_parameter("max_log_width",      width_log_      )) width_log_        = 7;
+    // if (!nh_p->get_parameter("use/split_write", use_split_write_)) use_split_write_ =  false;
+    // if (!nh_p->get_parameter("use/split_read",  use_split_read_ )) use_split_read_  =  false;
+    // if (!nh_p->get_parameter("use/fast_read",   use_fast_read_  )) use_fast_read_   =  true;
+    // if (!nh_p->get_parameter("varbose/callback",     varbose_callback_  )) varbose_callback_  =  false;
+    // if (!nh_p->get_parameter("varbose/write_commad", varbose_write_cmd_ )) varbose_write_cmd_ =  false;
+    // if (!nh_p->get_parameter("varbose/write_option", varbose_write_opt_ )) varbose_write_opt_ =  false;
+    // if (!nh_p->get_parameter("varbose/read_state/raw", varbose_read_st_     )) varbose_read_st_     =  false;
+    // if (!nh_p->get_parameter("varbose/read_state/err", varbose_read_st_err_ )) varbose_read_st_err_ =  false;
+    // if (!nh_p->get_parameter("varbose/read_option/raw",varbose_read_opt_    )) varbose_read_opt_    =  false;
+    // if (!nh_p->get_parameter("varbose/read_option/err",varbose_read_opt_err_)) varbose_read_opt_err_=  false;
+    // if (!nh_p->get_parameter("varbose/read_hardware_error",varbose_read_hwerr_  )) varbose_read_hwerr_  =  false;
 
 
     // id_listの作成
     int num_expexted, id_max; 
-    if (!nh_p->get_parameter("init/expected_servo_num",       num_expexted  )) num_expexted  = 0; // 0のときはチェックしない
-    if (!nh_p->get_parameter("init/auto_search_max_id",       id_max        )) id_max        = 35;
+    nh_p->declare_parameter("init/expected_servo_num", 0); // 0のときはチェックしない
+    nh_p->declare_parameter("init/auto_search_max_id", 35);
+    num_expexted = nh_p->get_parameter("init/expected_servo_num").as_int();
+    id_max = nh_p->get_parameter("init/auto_search_max_id").as_int();
+    // if (!nh_p->get_parameter("init/expected_servo_num",       num_expexted  )) num_expexted  = 0; // 0のときはチェックしない
+    // if (!nh_p->get_parameter("init/auto_search_max_id",       id_max        )) id_max        = 35;
     auto num_found = ScanDynamixels(id_max);
     if( num_found==0 ) { // 見つからなかった場合は初期化失敗で終了
         RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Dynamixel is not found in USB device [%s]", dyn_comm_.port_name().c_str());
@@ -117,8 +170,12 @@ bool DynamixelHandler::Initialize(std::shared_ptr<rclcpp::Node>& nh){
 
     // 状態のreadの後にやるべき初期化
     bool do_clean_hwerr, do_torque_on;
-    if (!nh_p->get_parameter("init/hardware_error_auto_clean",do_clean_hwerr)) do_clean_hwerr= true;
-    if (!nh_p->get_parameter("init/torque_auto_enable",       do_torque_on  )) do_torque_on  = true;
+    nh_p->get_parameter("init/hardware_error_auto_clean", true);
+    nh_p->get_parameter("init/torque_auto_enable", true);
+    do_clean_hwerr = nh_p->get_parameter("init/hardware_error_auto_clean").as_bool();
+    do_torque_on = nh_p->get_parameter("init/torque_auto_enable").as_bool();
+    // if (!nh_p->get_parameter("init/hardware_error_auto_clean",do_clean_hwerr)) do_clean_hwerr= true;
+    // if (!nh_p->get_parameter("init/torque_auto_enable",       do_torque_on  )) do_torque_on  = true;
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Initializing dynamixel state  ...");
     for (auto id : id_list_) if (series_[id] == SERIES_X) {
         if ( do_clean_hwerr ) ClearHardwareError(id); // 現在の状態を変えない
@@ -127,14 +184,33 @@ bool DynamixelHandler::Initialize(std::shared_ptr<rclcpp::Node>& nh){
 
     //  readする情報の設定
     bool read_pwm, read_cur, read_vel, read_pos, read_vel_traj, read_pos_traj, read_volt, read_temp;
-    if (!nh_p->get_parameter("read/present_pwm",          read_pwm))      read_pwm = false;
-    if (!nh_p->get_parameter("read/present_current",      read_cur))      read_cur = true;
-    if (!nh_p->get_parameter("read/present_velocity",     read_vel))      read_vel = true;
-    if (!nh_p->get_parameter("read/present_position",     read_pos))      read_pos = true;
-    if (!nh_p->get_parameter("read/velocity_trajectory",  read_vel_traj)) read_vel_traj = false;
-    if (!nh_p->get_parameter("read/position_trajectory",  read_pos_traj)) read_pos_traj = false;
-    if (!nh_p->get_parameter("read/present_input_voltage",read_volt))     read_volt = false;
-    if (!nh_p->get_parameter("read/present_temperature",  read_temp))     read_temp = false;
+    nh_p->declare_parameter("read/present_pwm", false);
+    nh_p->declare_parameter("read/present_current", true);
+    nh_p->declare_parameter("read/present_velocity", true);
+    nh_p->declare_parameter("read/present_position", true);
+    nh_p->declare_parameter("read/velocity_trajectory", false);
+    nh_p->declare_parameter("read/position_trajectory", false);
+    nh_p->declare_parameter("read/present_input_voltage", false);
+    nh_p->declare_parameter("read/present_temperature", false);
+
+    read_pwm        = nh_p->get_parameter("read/present_pwm").as_bool();
+    read_cur        = nh_p->get_parameter("read/present_current").as_bool();
+    read_vel        = nh_p->get_parameter("read/present_velocity").as_bool();
+    read_pos        = nh_p->get_parameter("read/present_position").as_bool();
+    read_vel_traj   = nh_p->get_parameter("read/velocity_trajectory").as_bool();
+    read_pos_traj   = nh_p->get_parameter("read/position_trajectory").as_bool();
+    read_volt       = nh_p->get_parameter("read/present_input_voltage").as_bool();
+    read_temp       = nh_p->get_parameter("read/present_temperature").as_bool();
+    
+
+    // if (!nh_p->get_parameter("read/present_pwm",          read_pwm))      read_pwm = false;
+    // if (!nh_p->get_parameter("read/present_current",      read_cur))      read_cur = true;
+    // if (!nh_p->get_parameter("read/present_velocity",     read_vel))      read_vel = true;
+    // if (!nh_p->get_parameter("read/present_position",     read_pos))      read_pos = true;
+    // if (!nh_p->get_parameter("read/velocity_trajectory",  read_vel_traj)) read_vel_traj = false;
+    // if (!nh_p->get_parameter("read/position_trajectory",  read_pos_traj)) read_pos_traj = false;
+    // if (!nh_p->get_parameter("read/present_input_voltage",read_volt))     read_volt = false;
+    // if (!nh_p->get_parameter("read/present_temperature",  read_temp))     read_temp = false;
     if ( read_pwm ) list_read_state_.insert(PRESENT_PWM);
     if ( read_cur ) list_read_state_.insert(PRESENT_CURRENT);
     if ( read_vel ) list_read_state_.insert(PRESENT_VELOCITY);
@@ -208,7 +284,9 @@ void DynamixelHandler::Terminate(int sig){
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Terminating DynamixelHandler ...");
 	std::shared_ptr<rclcpp::Node> nh_p = rclcpp::Node::make_shared("_");
     bool do_torque_off;
-    if (!nh_p->get_parameter("term/torque_auto_disable", do_torque_off  )) do_torque_off  = true;
+    nh_p->declare_parameter("term/torque_auto_disable", true);
+    do_torque_off  = nh_p->get_parameter("term/torque_auto_disable").as_bool();
+    // if (!nh_p->get_parameter("term/torque_auto_disable", do_torque_off  )) do_torque_off  = true;
     if ( do_torque_off ) for ( auto id : id_list_ ) if (series_[id] == SERIES_X) TorqueOff(id);
     StopDynamixels();
     RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Terminating DynamixelHandler Finished");
