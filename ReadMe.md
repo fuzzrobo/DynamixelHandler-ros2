@@ -49,6 +49,21 @@ ros2 run dynamixel_handler dynamixel_handler_node
 ``cannot publish data``といったようなエラーが出た場合，\
 後述の「implementation DDSについて」を参照
 
+## Launchファイルと設定（yaml）
+### dynamixel_unify_baudrate_launch.py
+```
+ros2 launch dynamixel_handler dynamixel_unify_baudrate_launch.py
+```
+対応する``yaml``は``config/dynamixel_handler.yaml``
+
+### dynamixel_handler_launch.py
+```
+ros2 launch dynamixel_handler dynamixel_handler_launch.py
+```
+対応する``yaml``は``config/dynamixel_unify_baudrate.yaml``
+
+※ 一度ビルドしていれば，yamlファイルの変更に伴うビルドは不要
+
 ## 初期設定と注意事項
 
 ### latencyについて
