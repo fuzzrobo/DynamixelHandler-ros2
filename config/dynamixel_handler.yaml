@@ -2,7 +2,7 @@ ns2:
   dxl_handler:
     ros__parameters:
     # 通信の設定
-      device_name: "/dev/ttyUSB30"
+      device_name: "/dev/ttyUSB0"
       baudrate: 1000000
       latency_timer: 16
       dyn_comm/retry_num: 10

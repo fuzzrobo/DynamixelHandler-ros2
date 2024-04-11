@@ -2,7 +2,7 @@ ns1:
   dxl_unify_handler:
     ros__parameters:
       target_baudrate: 1000000
-      device_name: "/dev/ttyUSB2"
+      device_name: "/dev/ttyUSB0"
       latency_timer: 4
       min_id: 0
       max_id: 45
