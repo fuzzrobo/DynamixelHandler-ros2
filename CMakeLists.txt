@@ -27,7 +27,6 @@ set(msg_files
     
   # write専用
   "msg/DynamixelCommand.msg"
-  "msg/DynamixelCommandProfile.msg"
   "msg/DynamixelCommandXControlCurrent.msg"
   "msg/DynamixelCommandXControlCurrentPosition.msg"
   "msg/DynamixelCommandXControlExtendedPosition.msg"

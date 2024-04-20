@@ -10,7 +10,6 @@ bool DynamixelHandler::TmpTest(){
 bool DynamixelHandler::Initialize(std::shared_ptr<rclcpp::Node>& nh){
     // Subscriber / Publisherの設定
     sub_command_    = nh->create_subscription<dynamixel_handler::msg::DynamixelCommand>("/dynamixel/command",    10, DynamixelHandler::CallBackDxlCommand);
-    sub_cmd_profile_= nh->create_subscription<dynamixel_handler::msg::DynamixelCommandProfile>("/dynamixel/cmd/profile", 10, DynamixelHandler::CallBackDxlCmd_Profile);
     sub_cmd_x_pos_  = nh->create_subscription<dynamixel_handler::msg::DynamixelCommandXControlPosition>("/dynamixel/cmd/x/position", 10, DynamixelHandler::CallBackDxlCmd_X_Position);
     sub_cmd_x_vel_  = nh->create_subscription<dynamixel_handler::msg::DynamixelCommandXControlVelocity>("/dynamixel/cmd/x/velocity", 10, DynamixelHandler::CallBackDxlCmd_X_Velocity);
     sub_cmd_x_cur_  = nh->create_subscription<dynamixel_handler::msg::DynamixelCommandXControlCurrent>("/dynamixel/cmd/x/current",  10, DynamixelHandler::CallBackDxlCmd_X_Current);
@@ -306,6 +305,7 @@ int main(int argc, char **argv) {
         RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to initialize DynamixelHandler");
         return 0;
     }
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "DynamixelHandler is initialized");
     signal(SIGINT, DynamixelHandler::Terminate);
 
     // ros::Timer timer = nh.createTimerを使って書き換え
