@@ -1,0 +1,9 @@
+<launch>
+    <!-- 変数 -->
+    <arg name="name_space" default="ns1"/>
+    <arg name="pkg_name" default="dynamixel_handler"/>
+    
+    <node pkg="$(var pkg_name)" exec="dynamixel_unify_baudrate_node">
+        <param from="$(find-pkg-share $(var pkg_name))/config/dynamixel_unify_baudrate.yaml"/>
+    </node>
+</launch>
