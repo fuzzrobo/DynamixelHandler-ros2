@@ -11,10 +11,8 @@ note: ROS2のみ対応
 ### パッケージをgit clone
 ```
 cd ~/ros2_ws/src
-git clone git@github.com:SHINOBI-organization/DynamixelHandler-ros2.git
-mv DynamixelHandler-ros2 dynamixel_handler
+git clone git@github.com:SHINOBI-organization/DynamixelHandler-ros2.git dynamixel_handler
 ```
-※レポジトリの名前とパッケージ名が一致していない（後に変更する？）
 
 ### submoduleによって，別途参照しているパッケージをダウンロード
 ```
@@ -87,7 +85,7 @@ $ echo 4 | sudo tee /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
 $ cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
 ```
 
-<!-- コピペ用
+コピペ用
 
 ```
 echo ACTION==\"add\", SUBSYSTEM==\"usb-serial\", DRIVER==\"ftdi_sio\", ATTR{latency_timer}=\"4\" > 99-dynamixelsdk-usb.rules
@@ -100,7 +98,7 @@ cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
 ```
 echo 4 | sudo tee /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
 cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
-``` -->
+```
 
 ### implementation DDSについて
 デフォルトのDDSはFast-RTPSであるが，固有のバグを持っているらしく，実行時にエラーが発生する．
@@ -111,13 +109,13 @@ $ sudo apt update
 $ sudo apt install ros-humble-rmw-cyclonedds-cpp
 $ export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 ```
-<!-- 
+
 コピペ用
 ```
 sudo apt update
 sudo apt install ros-humble-rmw-cyclonedds-cpp
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
-``` -->
+```
 
 ※ ~/.bashrcの下部に``export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp``を追記しておくことで，\
 ターミナルの立ち上げ時に毎回コマンドを打たなくて済む．
