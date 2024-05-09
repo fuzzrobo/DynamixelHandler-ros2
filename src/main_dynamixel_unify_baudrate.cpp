@@ -43,9 +43,9 @@ int main(int argc, char **argv) {
     // if (!nh->get_parameter("target_baudrate",baudrate_target)) baudrate_target = 1000000;
     // if (!nh->get_parameter("latency_timer", latency_timer)) latency_timer = 16;
 
-    auto dyn_comm = DynamixelCommunicator();
-    dyn_comm.GetPortHandler(device_name.c_str());
-    dyn_comm.set_retry_config(5, 20);
+    auto dyn_comm = DynamixelCommunicator(); fflush(stdout);
+    dyn_comm.GetPortHandler(device_name.c_str()); fflush(stdout);
+    dyn_comm.set_retry_config(5, 20);  fflush(stdout); // printfのバッファを吐き出す． これがないと printfの表示が遅延する
 
     uint64_t dyn_baudrate;
     switch (baudrate_target) {
@@ -78,8 +78,8 @@ int main(int argc, char **argv) {
     vector<int> found_ids;
     for ( auto br : baudrate_list ) {
         if ( br < baudrate_min || br > baudrate_max) continue;
-        dyn_comm.set_baudrate(br);
-        dyn_comm.set_latency_timer( (br<=57600) ? 16 : latency_timer);
+        dyn_comm.set_baudrate(br); fflush(stdout);
+        dyn_comm.set_latency_timer( (br<=57600) ? 16 : latency_timer); fflush(stdout);
         RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Searching Dynamixel baudrate [%d] ...", br);
         if ( !dyn_comm.OpenPort() ) { RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to open"); continue; }
         RCLCPP_INFO(rclcpp::get_logger("rclcpp"), " ...");
@@ -91,11 +91,11 @@ int main(int argc, char **argv) {
             dyn_comm.tryWrite(baudrate, i, dyn_baudrate);
             found_ids.push_back(i);
         }
-        dyn_comm.ClosePort();
+        dyn_comm.ClosePort(); fflush(stdout);
     }
 
-    dyn_comm.set_baudrate(baudrate_target);
-    dyn_comm.set_latency_timer( (baudrate_target<=57600) ? 16 : latency_timer);
+    dyn_comm.set_baudrate(baudrate_target); fflush(stdout);
+    dyn_comm.set_latency_timer( (baudrate_target<=57600) ? 16 : latency_timer); fflush(stdout);
     if ( !dyn_comm.OpenPort() ) {
         RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to open USB device [%s]", dyn_comm.port_name().c_str()); 
         return false;

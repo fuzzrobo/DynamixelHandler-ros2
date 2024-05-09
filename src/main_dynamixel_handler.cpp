@@ -44,6 +44,7 @@ bool DynamixelHandler::Initialize(std::shared_ptr<rclcpp::Node>& nh){
         RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to open USB device [%s]", dyn_comm_.port_name().c_str()); 
         return false;
     }
+	fflush(stdout); // printfのバッファを吐き出す． これがないと printfの表示が遅延する
 
     // serial通信のvarbose設定
     bool serial_varbose;
@@ -276,7 +277,8 @@ void DynamixelHandler::MainLoop(){
     }
     if ( cnt % max({loop_rate_, ratio_mainloop_, 10}) == 0) // stateのreadの周期で行われてる処理の初期化
         rtime = num_st_suc_p = num_st_suc_f = num_st_read=0.00001;
-        
+
+	fflush(stdout); // printfのバッファを吐き出す． これがないと printfの表示が遅延する
 }
 
 void DynamixelHandler::Terminate(int sig){
