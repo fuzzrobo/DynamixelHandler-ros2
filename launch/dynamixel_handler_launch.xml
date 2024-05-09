@@ -4,7 +4,7 @@
     <arg name="name_pkg1" default="dynamixel_handler"/>
     
     
-    <node pkg="$(var name_pkg1)" exec="dynamixel_handler_node" namespace="ns2">
+    <node pkg="$(var name_pkg1)" exec="dynamixel_handler_node" name="dxl_handler" namespace="$(var name_space1)" output="screen">
         <param from="$(find-pkg-share $(var name_pkg1))/config/dynamixel_handler.yaml"/>
     </node>
 </launch>

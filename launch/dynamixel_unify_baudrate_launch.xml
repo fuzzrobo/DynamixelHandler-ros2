@@ -3,7 +3,7 @@
     <arg name="name_space" default="ns1"/>
     <arg name="pkg_name" default="dynamixel_handler"/>
     
-    <node pkg="$(var pkg_name)" exec="dynamixel_unify_baudrate_node">
+    <node pkg="$(var pkg_name)" exec="dynamixel_unify_baudrate_node" name="dxl_unify_handler" namespace="$(var name_space)" output="screen">
         <param from="$(find-pkg-share $(var pkg_name))/config/dynamixel_unify_baudrate.yaml"/>
     </node>
 </launch>
