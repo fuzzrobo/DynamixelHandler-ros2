@@ -23,8 +23,9 @@ def generate_launch_description():
         emulate_tty=True,
         parameters=[config1]
     )
+    # emulate_ttyについては以下参照 https://answers.ros.org/question/332829/no-stdout-logging-output-in-ros2-using-launch/
 
     ld.add_action(node1)
-# 複数ノードを追加する場合は，configN,nodeNを作ってld.add_action(nodeN)?
+    # 複数ノードを追加する場合は，configN,nodeNを作ってld.add_action(nodeN)?
 
     return ld
