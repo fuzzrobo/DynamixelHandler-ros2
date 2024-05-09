@@ -9,22 +9,22 @@ bool DynamixelHandler::TmpTest(){
 
 bool DynamixelHandler::Initialize(std::shared_ptr<rclcpp::Node>& nh){
     // Subscriber / Publisherの設定
-    sub_command_    = nh->create_subscription<dynamixel_handler::msg::DynamixelCommand>("/dynamixel/command",    10, DynamixelHandler::CallBackDxlCommand);
-    sub_cmd_x_pos_  = nh->create_subscription<dynamixel_handler::msg::DynamixelCommandXControlPosition>("/dynamixel/cmd/x/position", 10, DynamixelHandler::CallBackDxlCmd_X_Position);
-    sub_cmd_x_vel_  = nh->create_subscription<dynamixel_handler::msg::DynamixelCommandXControlVelocity>("/dynamixel/cmd/x/velocity", 10, DynamixelHandler::CallBackDxlCmd_X_Velocity);
-    sub_cmd_x_cur_  = nh->create_subscription<dynamixel_handler::msg::DynamixelCommandXControlCurrent>("/dynamixel/cmd/x/current",  10, DynamixelHandler::CallBackDxlCmd_X_Current);
-    sub_cmd_x_cpos_ = nh->create_subscription<dynamixel_handler::msg::DynamixelCommandXControlCurrentPosition>("/dynamixel/cmd/x/current_position",  10, DynamixelHandler::CallBackDxlCmd_X_CurrentPosition);
-    sub_cmd_x_epos_ = nh->create_subscription<dynamixel_handler::msg::DynamixelCommandXControlExtendedPosition>("/dynamixel/cmd/x/extended_position", 10, DynamixelHandler::CallBackDxlCmd_X_ExtendedPosition);
-    sub_opt_gain_ = nh->create_subscription<dynamixel_handler::msg::DynamixelOptionGain>("/dynamixel/opt/gain/w", 10, DynamixelHandler::CallBackDxlOpt_Gain);
-    sub_opt_mode_ = nh->create_subscription<dynamixel_handler::msg::DynamixelOptionMode>("/dynamixel/opt/mode/w", 10, DynamixelHandler::CallBackDxlOpt_Mode);
-    sub_opt_limit_= nh->create_subscription<dynamixel_handler::msg::DynamixelOptionLimit>("/dynamixel/opt/limit/w",10, DynamixelHandler::CallBackDxlOpt_Limit);
+    sub_command_    = nh->create_subscription<dynamixel_handler::msg::DynamixelCommand>("dynamixel/command",    10, DynamixelHandler::CallBackDxlCommand);
+    sub_cmd_x_pos_  = nh->create_subscription<dynamixel_handler::msg::DynamixelCommandXControlPosition>("dynamixel/cmd/x/position", 10, DynamixelHandler::CallBackDxlCmd_X_Position);
+    sub_cmd_x_vel_  = nh->create_subscription<dynamixel_handler::msg::DynamixelCommandXControlVelocity>("dynamixel/cmd/x/velocity", 10, DynamixelHandler::CallBackDxlCmd_X_Velocity);
+    sub_cmd_x_cur_  = nh->create_subscription<dynamixel_handler::msg::DynamixelCommandXControlCurrent>("dynamixel/cmd/x/current",  10, DynamixelHandler::CallBackDxlCmd_X_Current);
+    sub_cmd_x_cpos_ = nh->create_subscription<dynamixel_handler::msg::DynamixelCommandXControlCurrentPosition>("dynamixel/cmd/x/current_position",  10, DynamixelHandler::CallBackDxlCmd_X_CurrentPosition);
+    sub_cmd_x_epos_ = nh->create_subscription<dynamixel_handler::msg::DynamixelCommandXControlExtendedPosition>("dynamixel/cmd/x/extended_position", 10, DynamixelHandler::CallBackDxlCmd_X_ExtendedPosition);
+    sub_opt_gain_ = nh->create_subscription<dynamixel_handler::msg::DynamixelOptionGain>("dynamixel/opt/gain/w", 10, DynamixelHandler::CallBackDxlOpt_Gain);
+    sub_opt_mode_ = nh->create_subscription<dynamixel_handler::msg::DynamixelOptionMode>("dynamixel/opt/mode/w", 10, DynamixelHandler::CallBackDxlOpt_Mode);
+    sub_opt_limit_= nh->create_subscription<dynamixel_handler::msg::DynamixelOptionLimit>("dynamixel/opt/limit/w",10, DynamixelHandler::CallBackDxlOpt_Limit);
 
-    pub_state_     = nh->create_publisher<dynamixel_handler::msg::DynamixelState>("/dynamixel/state", 10);
-    pub_error_     = nh->create_publisher<dynamixel_handler::msg::DynamixelError>("/dynamixel/error", 10);
-    pub_opt_limit_ = nh->create_publisher<dynamixel_handler::msg::DynamixelOptionLimit>("/dynamixel/opt/limit/r", 10);
-    pub_opt_gain_  = nh->create_publisher<dynamixel_handler::msg::DynamixelOptionGain>("/dynamixel/opt/gain/r", 10);
-    pub_opt_mode_  = nh->create_publisher<dynamixel_handler::msg::DynamixelOptionMode>("/dynamixel/opt/mode/r", 10);
-    pub_opt_goal_  = nh->create_publisher<dynamixel_handler::msg::DynamixelOptionGoal>("/dynamixel/opt/goal/r", 10);
+    pub_state_     = nh->create_publisher<dynamixel_handler::msg::DynamixelState>("dynamixel/state", 10);
+    pub_error_     = nh->create_publisher<dynamixel_handler::msg::DynamixelError>("dynamixel/error", 10);
+    pub_opt_limit_ = nh->create_publisher<dynamixel_handler::msg::DynamixelOptionLimit>("dynamixel/opt/limit/r", 10);
+    pub_opt_gain_  = nh->create_publisher<dynamixel_handler::msg::DynamixelOptionGain>("dynamixel/opt/gain/r", 10);
+    pub_opt_mode_  = nh->create_publisher<dynamixel_handler::msg::DynamixelOptionMode>("dynamixel/opt/mode/r", 10);
+    pub_opt_goal_  = nh->create_publisher<dynamixel_handler::msg::DynamixelOptionGoal>("dynamixel/opt/goal/r", 10);
 
     std::shared_ptr<rclcpp::Node> nh_p = rclcpp::Node::make_shared("_");
 
