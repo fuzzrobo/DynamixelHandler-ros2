@@ -1,5 +1,5 @@
-ns:
-  dxl_handler:
+# /ns/dyn_handler:
+/**:
     ros__parameters:
     # 通信の設定
       dyn_comm/retry_num: 10

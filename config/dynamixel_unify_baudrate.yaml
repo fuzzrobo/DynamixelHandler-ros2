@@ -1,5 +1,5 @@
-ns:
-  dxl_unify_handler:
+# /ns/dyn_unify_baudrate:
+/**:
     ros__parameters:
       min_id: 0
       max_id: 45

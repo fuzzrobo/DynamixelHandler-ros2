@@ -84,10 +84,6 @@ install(
   TARGETS dynamixel_unify_baudrate_node
   DESTINATION lib/${PROJECT_NAME}
   )
-install(DIRECTORY
-  launch
-  DESTINATION share/${PROJECT_NAME}
-)
 
 # ここまで
 
@@ -127,8 +123,10 @@ ament_target_dependencies(
   "rosidl_default_generators"
 )
 
-install(TARGETS dynamixel_handler_node
-  DESTINATION lib/${PROJECT_NAME})
+install(
+  TARGETS dynamixel_handler_node
+  DESTINATION lib/${PROJECT_NAME}
+)
 # ここまで
 
 # 以下の部分は同じPkg内でmsgを定義＆使用を行う場合にい必要な追記
@@ -138,9 +136,13 @@ rosidl_get_typesupport_target(cpp_typesupport_target
 target_link_libraries(dynamixel_handler_node "${cpp_typesupport_target}")
 # ==================================================================================
 
-
-
 ## ここまで
+
+install(DIRECTORY
+  launch
+  config
+  DESTINATION share/${PROJECT_NAME}
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

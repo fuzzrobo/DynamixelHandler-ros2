@@ -239,7 +239,7 @@ int main(int argc, char **argv) {
     auto node = std::make_shared<DynamixelHandler>();
     /*Mainloop*/
     auto timer_ = node.get()->create_wall_timer(
-        1s/(node->loop_rate_),
+        1.0s/(node->loop_rate_),
         std::bind(&DynamixelHandler::MainLoop, node.get())
     ); // 変数に保存する必要あり
     /*Interruption*/
