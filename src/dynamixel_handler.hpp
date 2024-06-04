@@ -3,7 +3,7 @@
 
 // using ros::Time;
 #include "rclcpp/rclcpp.hpp"
-using rclcpp::Time
+using rclcpp::Time;
 
 #include "std_msgs/msg/string.hpp"
 

@@ -215,7 +215,7 @@ void DynamixelHandler::MainLoop(){
         if (full_suc < 80) ROS_ERROR("%s", msg); else if (partial_suc < 99) ROS_WARN("%s", msg); else ROS_INFO("%s", msg);
         wtime = 0.0; /* mainloopで行われてる処理の計測時間を初期化 */
     }
-    if ( cnt % max({loop_rate_, ratio_mainloop_, 10}) == 0)
+    if ( cnt % max({(int)loop_rate_, (int)ratio_mainloop_, 10}) == 0)
         rtime = num_st_suc_p = num_st_suc_f = num_st_read=0.00001; /* stateのreadの周期で行われてる処理の初期化 */ 
 
 	fflush(stdout); // printfのバッファを吐き出す． これがないと printfの表示が遅延する
