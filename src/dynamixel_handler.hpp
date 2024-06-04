@@ -101,6 +101,104 @@ class DynamixelHandler : public rclcpp::Node {
         rclcpp::Subscription<DynamixelOptionMode>::SharedPtr sub_opt_mode_;
         rclcpp::Subscription<DynamixelOptionLimit>::SharedPtr sub_opt_limit_;
 
+  
+        //* 各種のフラグとパラメータ
+        unsigned int loop_rate_ = 50;
+        unsigned int ratio_state_pub_  = 1; 
+        unsigned int ratio_option_pub_ = 100; // 0の時は初回のみ
+        unsigned int ratio_error_pub_  = 100; // 0の時は初回のみ
+        unsigned int ratio_mainloop_   = 100; // 0の時は初回のみ
+        unsigned int width_log_ = 7;
+        bool use_split_write_ = false;
+        bool use_split_read_  = false;
+        bool use_fast_read_   = false;
+        bool varbose_callback_  = false;
+        bool varbose_write_cmd_ = false;
+        bool varbose_write_opt_ = false;
+        bool varbose_read_st_      = false;
+        bool varbose_read_st_err_  = false;
+        bool varbose_read_hwerr_   = false;
+        bool varbose_read_opt_     = false;
+        bool varbose_read_opt_err_ = false;
+
+        //* Dynamixelとの通信
+        DynamixelCommunicator dyn_comm_;
+
+        //* Dynamixelを扱うための変数群 
+        enum CmdValueIndex { //　cmd_values_のIndex, サーボに毎周期で書き込むことができる値
+            GOAL_PWM     ,
+            GOAL_CURRENT ,
+            GOAL_VELOCITY,
+            PROFILE_ACC  ,
+            PROFILE_VEL  ,
+            GOAL_POSITION,
+            /*Indexの最大値*/_num_cmd_value
+        };
+        enum StValueIndex { // state_values_のIndex, サーボから毎周期で読み込むことができる値
+            PRESENT_PWM          ,
+            PRESENT_CURRENT      ,
+            PRESENT_VELOCITY     ,
+            PRESENT_POSITION     ,
+            VELOCITY_TRAJECTORY  ,
+            POSITION_TRAJECTORY  ,
+            PRESENT_INPUT_VOLTAGE,
+            PRESENT_TEMPERTURE   ,
+            /*Indexの最大値*/_num_state_value
+        };
+        enum HWErrIndex { // hardware_error_のIndex, サーボが起こしたハードウェアエラー
+            INPUT_VOLTAGE     ,
+            MOTOR_HALL_SENSOR ,
+            OVERHEATING       ,
+            MOTOR_ENCODER     ,
+            ELECTRONICAL_SHOCK,
+            OVERLOAD          ,
+            /*Indexの最大値*/_num_hw_err
+        };
+        enum OptLimitIndex { // opt_limit_のIndex, 各種の制限値
+            NONE = -1, // Indexには使わない特殊値
+            TEMPERATURE_LIMIT ,
+            MAX_VOLTAGE_LIMIT ,
+            MIN_VOLTAGE_LIMIT ,
+            PWM_LIMIT         ,
+            CURRENT_LIMIT     ,
+            ACCELERATION_LIMIT,
+            VELOCITY_LIMIT    ,
+            MAX_POSITION_LIMIT,
+            MIN_POSITION_LIMIT,
+            /*Indexの最大値*/_num_opt_limit
+        };
+        enum OptGainIndex { // opt_gain_のIndex, 各種のゲイン値
+            VELOCITY_I_GAIN     ,
+            VELOCITY_P_GAIN     ,
+            POSITION_D_GAIN     ,
+            POSITION_I_GAIN     ,
+            POSITION_P_GAIN     ,
+            FEEDFORWARD_ACC_GAIN,
+            FEEDFORWARD_VEL_GAIN, 
+            /*Indexの最大値*/_num_opt_gain           
+        };
+        // 連結したサーボの基本情報
+        vector<uint8_t> id_list_; // chained dynamixel id list
+        map<uint8_t, uint16_t> model_; // 各dynamixelの id と model のマップ
+        map<uint8_t, uint16_t> series_; // 各dynamixelの id と series のマップ
+        // 連結しているサーボの個々の状態を保持するmap
+        static inline map<uint8_t, bool> tq_mode_;    // 各dynamixelの id と トルクON/OFF のマップ
+        static inline map<uint8_t, uint8_t> op_mode_; // 各dynamixelの id と 制御モード のマップ
+        static inline map<uint8_t, uint8_t> dv_mode_; // 各dynamixelの id と ドライブモード のマップ
+        static inline map<uint8_t, array<bool,   _num_hw_err     >> hardware_error_; // 各dynamixelの id と サーボが起こしたハードウェアエラーのマップ, 中身の並びはHWErrIndexに対応する
+        static inline map<uint8_t, array<double, _num_state_value>> state_values_;   // 各dynamixelの id と サーボから毎周期で読み込むことができる値のマップ, 中身の並びはStValueIndexに対応する
+        static inline map<uint8_t, array<double, _num_cmd_value  >> cmd_values_;     // 各dynamixelの id と サーボに毎周期で書き込むことができる値のマップ, 中身の並びはCmdValueIndexに対応する
+        static inline map<uint8_t, array<double ,_num_cmd_value  >> option_goal_;    // 各dynamixelの id と サーボの各種制限値のマップ, 中身の並びはCmdValueIndexに対応する
+        static inline map<uint8_t, array<double, _num_opt_limit  >> option_limit_;   // 各dynamixelの id と サーボの各種制限値のマップ, 中身の並びはOptLimitIndexに対応する 
+        static inline map<uint8_t, array<int64_t,_num_opt_gain   >> option_gain_;    // 各dynamixelの id と サーボの各種制限値のマップ, 中身の並びはOptGainIndexに対応する 
+        // 上記の変数を適切に使うための補助的なフラグ
+        static inline map<uint8_t, Time> when_op_mode_updated_; // 各dynamixelの id と op_mode_ が更新された時刻のマップ
+        static inline map<uint8_t, bool> is_cmd_updated_;       // topicのcallbackによって，cmd_valuesが更新されたかどうかを示すマップ
+        static inline bool has_hardware_err_ = false; // 連結しているDynamixelのうち，どれか一つでもハードウェアエラーを起こしているかどうか
+        // 各周期で実行するserial通信の内容を決めるためのset
+        static inline set<CmdValueIndex> list_write_cmd_ ;
+        static inline set<StValueIndex>  list_read_state_;
+
         //* 単体通信を組み合わせた上位機能
         uint8_t ScanDynamixels(uint8_t id_max);
         void StopDynamixels();
@@ -133,100 +231,8 @@ class DynamixelHandler : public rclcpp::Node {
         bool WriteHomingOffset(uint8_t servo_id, double offset);
         bool WriteOperatingMode(uint8_t servo_id, uint8_t mode);
         bool WriteBusWatchdog(uint8_t servo_id, double time);
-        bool WriteGains(uint8_t servo_id, array<int64_t, 7> gains);
-    
-        //* 各種のフラグとパラメータ
-        unsigned int loop_rate_ = 50;
-        unsigned int ratio_state_pub_  = 1; 
-        unsigned int ratio_option_pub_ = 100; // 0の時は初回のみ
-        unsigned int ratio_error_pub_  = 100; // 0の時は初回のみ
-        unsigned int ratio_mainloop_   = 100; // 0の時は初回のみ
-        unsigned int width_log_ = 7;
-        bool use_split_write_ = false;
-        bool use_split_read_  = false;
-        bool use_fast_read_   = false;
-        bool varbose_callback_  = false;
-        bool varbose_write_cmd_ = false;
-        bool varbose_write_opt_ = false;
-        bool varbose_read_st_      = false;
-        bool varbose_read_st_err_  = false;
-        bool varbose_read_hwerr_   = false;
-        bool varbose_read_opt_     = false;
-        bool varbose_read_opt_err_ = false;
-
-        //* Dynamixelとの通信
-        DynamixelCommunicator dyn_comm_;
-
-        //* Dynamixelを扱うための変数群 
-        enum CmdValueIndex { //　cmd_values_のIndex, サーボに毎周期で書き込むことができる値
-            GOAL_PWM      = 0,
-            GOAL_CURRENT  = 1,
-            GOAL_VELOCITY = 2,
-            PROFILE_ACC   = 3,
-            PROFILE_VEL   = 4,
-            GOAL_POSITION = 5,
-        };
-        enum StValueIndex { // state_values_のIndex, サーボから毎周期で読み込むことができる値
-            PRESENT_PWM          = 0,
-            PRESENT_CURRENT      = 1,
-            PRESENT_VELOCITY     = 2,
-            PRESENT_POSITION     = 3,
-            VELOCITY_TRAJECTORY  = 4,
-            POSITION_TRAJECTORY  = 5,
-            PRESENT_INPUT_VOLTAGE= 6,
-            PRESENT_TEMPERTURE   = 7,
-        };
-        enum HWErrIndex { // hardware_error_のIndex, サーボが起こしたハードウェアエラー
-            INPUT_VOLTAGE      = 0,
-            MOTOR_HALL_SENSOR  = 1,
-            OVERHEATING        = 2,
-            MOTOR_ENCODER      = 3,
-            ELECTRONICAL_SHOCK = 4,
-            OVERLOAD           = 5,
-        };
-        enum OptLimitIndex { // opt_limit_のIndex, 各種の制限値
-            NONE = -1, // Indexには使わない特殊値
-            TEMPERATURE_LIMIT  = 0,
-            MAX_VOLTAGE_LIMIT  = 1,
-            MIN_VOLTAGE_LIMIT  = 2,
-            PWM_LIMIT          = 3,
-            CURRENT_LIMIT      = 4,
-            ACCELERATION_LIMIT = 5,
-            VELOCITY_LIMIT     = 6,
-            MAX_POSITION_LIMIT = 7,
-            MIN_POSITION_LIMIT = 8,
-        };
-        enum OptGainIndex { // opt_gain_のIndex, 各種のゲイン値
-            VELOCITY_I_GAIN      = 0,
-            VELOCITY_P_GAIN      = 1,
-            POSITION_D_GAIN      = 2,
-            POSITION_I_GAIN      = 3,
-            POSITION_P_GAIN      = 4,
-            FEEDFORWARD_ACC_GAIN = 5,
-            FEEDFORWARD_VEL_GAIN = 6,            
-        };
-        // 連結したサーボの基本情報
-        vector<uint8_t> id_list_; // chained dynamixel id list
-        map<uint8_t, uint16_t> model_; // 各dynamixelの id と model のマップ
-        map<uint8_t, uint16_t> series_; // 各dynamixelの id と series のマップ
-        // 連結しているサーボの個々の状態を保持するmap
-        static inline map<uint8_t, bool> tq_mode_;    // 各dynamixelの id と トルクON/OFF のマップ
-        static inline map<uint8_t, uint8_t> op_mode_; // 各dynamixelの id と 制御モード のマップ
-        static inline map<uint8_t, uint8_t> dv_mode_; // 各dynamixelの id と ドライブモード のマップ
-        static inline map<uint8_t, array<bool,   6>> hardware_error_; // 各dynamixelの id と サーボが起こしたハードウェアエラーのマップ, 中身の並びはHWErrIndexに対応する
-        static inline map<uint8_t, array<double, 8>> state_values_;// 各dynamixelの id と サーボから毎周期で読み込むことができる値のマップ, 中身の並びはStValueIndexに対応する
-        static inline map<uint8_t, array<double, 6>> cmd_values_;  // 各dynamixelの id と サーボに毎周期で書き込むことができる値のマップ, 中身の並びはCmdValueIndexに対応する
-        static inline map<uint8_t, array<double ,6>> option_goal_; // 各dynamixelの id と サーボの各種制限値のマップ, 中身の並びはOptGainIndexに対応する
-        static inline map<uint8_t, array<double, 9>> option_limit_; // 各dynamixelの id と サーボの各種制限値のマップ, 中身の並びはOptLimitIndexに対応する 
-        static inline map<uint8_t, array<int64_t,7>> option_gain_; // 各dynamixelの id と サーボの各種制限値のマップ, 中身の並びはOptGainIndexに対応する 
-        // 上記の変数を適切に使うための補助的なフラグ
-        static inline map<uint8_t, Time> when_op_mode_updated_; // 各dynamixelの id と op_mode_ が更新された時刻のマップ
-        static inline map<uint8_t, bool> is_cmd_updated_;      // topicのcallbackによって，cmd_valuesが更新されたかどうかを示すマップ
-        static inline bool has_hardware_err_ = false; // 連結しているDynamixelのうち，どれか一つでもハードウェアエラーを起こしているかどうか
-        // 各周期で実行するserial通信の内容を決めるためのset
-        static inline set<CmdValueIndex> list_write_cmd_ ;
-        static inline set<StValueIndex>  list_read_state_;
-        //* 連結しているDynamixelに一括で読み書きする関数
+        bool WriteGains(uint8_t servo_id, array<int64_t, _num_opt_gain> gains);
+        //* 連結しているDynamixelに一括で読み書きするloopで使用する機能
         void SyncWriteCommandValues(set<CmdValueIndex>& list_wirte_cmd=list_write_cmd_);
         void SyncWriteOption_Mode();  // todo 
         void SyncWriteOption_Gain();  // todo 
