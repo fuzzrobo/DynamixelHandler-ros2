@@ -1,5 +1,4 @@
-builtin_interfaces/Time stamp
-
+# builtin_interfaces/Time stamp
 uint16[] id_list
 float64[] position_deg
 float64[] profile_vel_deg_s
