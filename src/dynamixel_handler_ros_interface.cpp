@@ -32,12 +32,12 @@ vector<uint8_t> store_cmd(
 
 //* ROS関係
 
-void DynamixelHandler::CallBackDxlCommand(const dynamixel_handler::msg::DynamixelCommand& msg) {
+void DynamixelHandler::CallBackDxlCommand(const DynamixelCommand& msg) {
     vector<uint8_t> id_list;
     if ( msg.id_list.empty() || msg.id_list[0]==0xFE) for (auto id : id_list_) id_list.push_back(id);
                                                  else for (auto id : msg.id_list) id_list.push_back(id);
     char header[100]; sprintf(header, "Command [%s] \n (id_list=[] or [254] means all IDs)", msg.command.c_str());
-    RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), id_list_layout(id_list, string(header)));
+    ROS_INFO_STREAM(id_list_layout(id_list, string(header)));
     if (msg.command == "clear_error" || msg.command == "CE")
         for (auto id : id_list) { ClearHardwareError(id); TorqueOn(id);}
     if (msg.command == "torque_on"   || msg.command == "TON") 
@@ -52,82 +52,82 @@ void DynamixelHandler::CallBackDxlCommand(const dynamixel_handler::msg::Dynamixe
         for (auto id : id_list) dyn_comm_.Reboot(id);
 }
 
-void DynamixelHandler::CallBackDxlCmd_X_Position(const dynamixel_handler::msg::DynamixelCommandXControlPosition& msg) {
-    for ( const uint8_t& id : msg.id_list ) ChangeOperatingMode(id, OPERATING_MODE_POSITION);
+void DynamixelHandler::CallBackDxlCmd_X_Position(const DynamixelCommandXControlPosition& msg) {
+    for ( const uint8_t id : msg.id_list ) ChangeOperatingMode(id, OPERATING_MODE_POSITION);
     vector<uint8_t> stored_pos = store_cmd( msg.id_list, msg.position_deg, true,
                                             GOAL_POSITION, {MIN_POSITION_LIMIT, MAX_POSITION_LIMIT} );
-    if (varbose_callback_ && !stored_pos.empty()) RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), update_info(stored_pos, "goal_position"));
+    if (varbose_callback_ && !stored_pos.empty()) ROS_INFO_STREAM(update_info(stored_pos, "goal_position"));
     vector<uint8_t> stored_pv = store_cmd(  msg.id_list, msg.profile_vel_deg_s, true,
                                             PROFILE_VEL, {VELOCITY_LIMIT, VELOCITY_LIMIT} );
-    if (varbose_callback_ && !stored_pv.empty()) RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), update_info(stored_pv, "profile_velocity"));
+    if (varbose_callback_ && !stored_pv.empty()) ROS_INFO_STREAM(update_info(stored_pv, "profile_velocity"));
     vector<uint8_t> stored_pa = store_cmd(  msg.id_list, msg.profile_acc_deg_ss, true,
                                             PROFILE_ACC, {ACCELERATION_LIMIT, ACCELERATION_LIMIT} );
-    if (varbose_callback_ && !stored_pa.empty()) RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), update_info(stored_pa, "profile_acceleration"));
+    if (varbose_callback_ && !stored_pa.empty()) ROS_INFO_STREAM(update_info(stored_pa, "profile_acceleration"));
     if ( stored_pos.empty() && stored_pv.empty() && stored_pa.empty() ) 
-        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Element size all dismatch; skiped callback");
+        ROS_ERROR("Element size all dismatch; skiped callback");
 }
 
-void DynamixelHandler::CallBackDxlCmd_X_Velocity(const dynamixel_handler::msg::DynamixelCommandXControlVelocity& msg) {
-    for ( const uint8_t& id : msg.id_list ) ChangeOperatingMode(id, OPERATING_MODE_VELOCITY);
+void DynamixelHandler::CallBackDxlCmd_X_Velocity(const DynamixelCommandXControlVelocity& msg) {
+    for ( const uint8_t id : msg.id_list ) ChangeOperatingMode(id, OPERATING_MODE_VELOCITY);
     vector<uint8_t> stored_vel = store_cmd( msg.id_list, msg.velocity_deg_s, true,
                                             GOAL_VELOCITY, {VELOCITY_LIMIT, VELOCITY_LIMIT} );
-    if (varbose_callback_ && !stored_vel.empty()) RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), update_info(stored_vel, "goal_velocity"));
+    if (varbose_callback_ && !stored_vel.empty()) ROS_INFO_STREAM(update_info(stored_vel, "goal_velocity"));
     vector<uint8_t> stored_p = store_cmd(   msg.id_list, msg.profile_acc_deg_ss, true,
                                             PROFILE_ACC, {ACCELERATION_LIMIT, ACCELERATION_LIMIT} );
-    if (varbose_callback_ && !stored_p.empty()) RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), update_info(stored_p, "profile_acceleration"));
+    if (varbose_callback_ && !stored_p.empty()) ROS_INFO_STREAM(update_info(stored_p, "profile_acceleration"));
     if ( stored_vel.empty() && stored_p.empty() ) 
-        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Element size all dismatch; skiped callback");
+        ROS_ERROR("Element size all dismatch; skiped callback");
 }
 
-void DynamixelHandler::CallBackDxlCmd_X_Current(const dynamixel_handler::msg::DynamixelCommandXControlCurrent& msg) {
-    for ( const uint8_t& id : msg.id_list ) ChangeOperatingMode(id, OPERATING_MODE_CURRENT);
+void DynamixelHandler::CallBackDxlCmd_X_Current(const DynamixelCommandXControlCurrent& msg) {
+    for ( const uint8_t id : msg.id_list ) ChangeOperatingMode(id, OPERATING_MODE_CURRENT);
     vector<uint8_t> stored_cur = store_cmd( msg.id_list, msg.current_ma, false,
                                             GOAL_CURRENT, {CURRENT_LIMIT, CURRENT_LIMIT} );
-    if (varbose_callback_ && !stored_cur.empty()) RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), update_info(stored_cur, "goal_current"));
-    if ( stored_cur.empty() ) RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Element size all dismatch; skiped callback");
+    if (varbose_callback_ && !stored_cur.empty()) ROS_INFO_STREAM(update_info(stored_cur, "goal_current"));
+    if ( stored_cur.empty() ) ROS_ERROR("Element size all dismatch; skiped callback");
 }
 
-void DynamixelHandler::CallBackDxlCmd_X_CurrentPosition(const dynamixel_handler::msg::DynamixelCommandXControlCurrentPosition& msg) {
-    for ( const uint8_t& id : msg.id_list ) ChangeOperatingMode(id, OPERATING_MODE_CURRENT_BASE_POSITION); 
+void DynamixelHandler::CallBackDxlCmd_X_CurrentPosition(const DynamixelCommandXControlCurrentPosition& msg) {
+    for ( const uint8_t id : msg.id_list ) ChangeOperatingMode(id, OPERATING_MODE_CURRENT_BASE_POSITION); 
     vector<double> ext_pos(max(msg.position_deg.size(), msg.rotation.size()), 0.0);
     for (size_t i=0; i<ext_pos.size(); i++) ext_pos[i] = (msg.position_deg.size() == ext_pos.size() ? msg.position_deg[i] : 0.0 )
                                                             + (msg.rotation.size() == ext_pos.size() ? msg.rotation[i]*360  : 0.0 );
     vector<uint8_t> stored_pos = store_cmd(  msg.id_list, ext_pos, true,
                                              GOAL_POSITION, {NONE, NONE} );
-    if (varbose_callback_ && !stored_pos.empty()) RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), update_info(stored_pos, "goal_position"));
+    if (varbose_callback_ && !stored_pos.empty()) ROS_INFO_STREAM(update_info(stored_pos, "goal_position"));
     vector<uint8_t> stored__cur = store_cmd( msg.id_list, msg.current_ma, false,
                                              GOAL_CURRENT, {CURRENT_LIMIT, CURRENT_LIMIT} );
-    if (varbose_callback_ && !stored__cur.empty()) RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), update_info(stored__cur, "goal_current"));
+    if (varbose_callback_ && !stored__cur.empty()) ROS_INFO_STREAM(update_info(stored__cur, "goal_current"));
     vector<uint8_t> stored_pv = store_cmd(   msg.id_list, msg.profile_vel_deg_s, true,
                                              PROFILE_VEL, {VELOCITY_LIMIT, VELOCITY_LIMIT} );
-    if (varbose_callback_ && !stored_pv.empty()) RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), update_info(stored_pv, "profile_velocity"));
+    if (varbose_callback_ && !stored_pv.empty()) ROS_INFO_STREAM(update_info(stored_pv, "profile_velocity"));
     vector<uint8_t> stored_pa = store_cmd(   msg.id_list, msg.profile_acc_deg_ss, true,
                                              PROFILE_ACC, {ACCELERATION_LIMIT, ACCELERATION_LIMIT} );
-    if (varbose_callback_ && !stored_pa.empty()) RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), update_info(stored_pa, "profile_acceleration"));
+    if (varbose_callback_ && !stored_pa.empty()) ROS_INFO_STREAM(update_info(stored_pa, "profile_acceleration"));
     if ( stored_pos.empty() && stored__cur.empty() && stored_pv.empty() && stored_pa.empty() ) 
-        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Element size all dismatch; skiped callback");
+        ROS_ERROR("Element size all dismatch; skiped callback");
 }
 
-void DynamixelHandler::CallBackDxlCmd_X_ExtendedPosition(const dynamixel_handler::msg::DynamixelCommandXControlExtendedPosition& msg) {
-    for ( const uint8_t& id : msg.id_list ) ChangeOperatingMode(id, OPERATING_MODE_EXTENDED_POSITION);
+void DynamixelHandler::CallBackDxlCmd_X_ExtendedPosition(const DynamixelCommandXControlExtendedPosition& msg) {
+    for ( const uint8_t id : msg.id_list ) ChangeOperatingMode(id, OPERATING_MODE_EXTENDED_POSITION);
     vector<double> ext_pos(max(msg.position_deg.size(), msg.rotation.size()), 0.0);
     for (size_t i=0; i<ext_pos.size(); i++) ext_pos[i] = (msg.position_deg.size() == ext_pos.size() ? msg.position_deg[i] : 0.0 )
                                                             + (msg.rotation.size() == ext_pos.size() ? msg.rotation[i]*360  : 0.0 );
     vector<uint8_t> stored_pos = store_cmd( msg.id_list, ext_pos, true,
                                             GOAL_POSITION, {NONE, NONE} );
-    if (varbose_callback_ && !stored_pos.empty()) RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), update_info(stored_pos, "goal_position"));
+    if (varbose_callback_ && !stored_pos.empty()) ROS_INFO_STREAM(update_info(stored_pos, "goal_position"));
     vector<uint8_t> stored_pv = store_cmd( msg.id_list, msg.profile_vel_deg_s, true,
                                             PROFILE_VEL, {VELOCITY_LIMIT, VELOCITY_LIMIT} );
-    if (varbose_callback_ && !stored_pv.empty()) RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), update_info(stored_pv, "profile_velocity"));
+    if (varbose_callback_ && !stored_pv.empty()) ROS_INFO_STREAM(update_info(stored_pv, "profile_velocity"));
     vector<uint8_t> stored_pa = store_cmd( msg.id_list, msg.profile_acc_deg_ss, true,
                                             PROFILE_ACC, {ACCELERATION_LIMIT, ACCELERATION_LIMIT} );
-    if (varbose_callback_ && !stored_pa.empty()) RCLCPP_INFO_STREAM(rclcpp::get_logger("rclcpp"), update_info(stored_pa, "profile_acceleration"));
+    if (varbose_callback_ && !stored_pa.empty()) ROS_INFO_STREAM(update_info(stored_pa, "profile_acceleration"));
     if ( stored_pos.empty() && stored_pv.empty() && stored_pa.empty() ) 
-        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Element size all dismatch; skiped callback");
+        ROS_ERROR("Element size all dismatch; skiped callback");
 }
 
-void DynamixelHandler::CallBackDxlOpt_Gain(const dynamixel_handler::msg::DynamixelOptionGain& msg) {
-    // if (varbose_callback_) RCLCPP_INFO("CallBackDxlOpt_Gain");
+void DynamixelHandler::CallBackDxlOpt_Gain(const DynamixelOptionGain& msg) {
+    // if (varbose_callback_) ROS_INFO("CallBackDxlOpt_Gain");
     bool is_any = false;
     if (msg.id_list.size() == msg.velocity_i_gain_pulse.size()){ is_any=true;}
     if (msg.id_list.size() == msg.velocity_p_gain_pulse.size()){ is_any=true;}
@@ -137,13 +137,13 @@ void DynamixelHandler::CallBackDxlOpt_Gain(const dynamixel_handler::msg::Dynamix
     if (msg.id_list.size() == msg.feedforward_acc_gain_pulse.size()){ is_any=true;}
     if (msg.id_list.size() == msg.feedforward_vel_gain_pulse.size()){ is_any=true;}
     if (varbose_callback_) {
-        //  if (is_any) RCLCPP_INFO(" - %d servo(s) gain are updated", (int)msg.id_list.size());
-        //  else                  RCLCPP_ERROR("Element size all dismatch; skiped callback");
+        //  if (is_any) ROS_INFO(" - %d servo(s) gain are updated", (int)msg.id_list.size());
+        //  else                  ROS_ERROR("Element size all dismatch; skiped callback");
     }
 }
 
-void DynamixelHandler::CallBackDxlOpt_Limit(const dynamixel_handler::msg::DynamixelOptionLimit& msg) {
-    // if (varbose_callback_) RCLCPP_INFO("CallBackDxlOpt_Limit");
+void DynamixelHandler::CallBackDxlOpt_Limit(const DynamixelOptionLimit& msg) {
+    // if (varbose_callback_) ROS_INFO("CallBackDxlOpt_Limit");
     bool is_any = false;
 
     if (msg.id_list.size() == msg.temperature_limit_deg_c.size()   ){is_any=true;}
@@ -157,19 +157,19 @@ void DynamixelHandler::CallBackDxlOpt_Limit(const dynamixel_handler::msg::Dynami
     if (msg.id_list.size() == msg.min_position_limit_deg.size()   ){is_any=true;}
 
     if (varbose_callback_) {
-        //  if (is_any) RCLCPP_INFO(" - %d servo(s) limit are updated", (int)msg.id_list.size());
-        //  else                  RCLCPP_ERROR("Element size all dismatch; skiped callback");
+        //  if (is_any) ROS_INFO(" - %d servo(s) limit are updated", (int)msg.id_list.size());
+        //  else                  ROS_ERROR("Element size all dismatch; skiped callback");
     }
 }
 
-void DynamixelHandler::CallBackDxlOpt_Mode(const dynamixel_handler::msg::DynamixelOptionMode& msg) {
+void DynamixelHandler::CallBackDxlOpt_Mode(const DynamixelOptionMode& msg) {
  
 }
 
 double round4(double val) { return round(val*10000.0)/10000.0; }
 
 void DynamixelHandler::BroadcastDxlState(){
-    dynamixel_handler::msg::DynamixelState msg;
+    DynamixelState msg;
     rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
     msg.stamp = ros_clock.now();
     for (const auto& [id, value] : state_values_) {
@@ -189,7 +189,7 @@ void DynamixelHandler::BroadcastDxlState(){
 }
 
 void DynamixelHandler::BroadcastDxlError(){
-    dynamixel_handler::msg::DynamixelError msg;
+    DynamixelError msg;
     rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
     msg.stamp = ros_clock.now();
     for (const auto& [id, error]: hardware_error_) {
@@ -204,7 +204,7 @@ void DynamixelHandler::BroadcastDxlError(){
 }
 
 void DynamixelHandler::BroadcastDxlOpt_Limit(){
-    dynamixel_handler::msg::DynamixelOptionLimit msg;
+    DynamixelOptionLimit msg;
     rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
     msg.stamp = ros_clock.now();
     for (const auto& [id, limit] : option_limit_) {
@@ -223,7 +223,7 @@ void DynamixelHandler::BroadcastDxlOpt_Limit(){
 }
 
 void DynamixelHandler::BroadcastDxlOpt_Gain(){
-    dynamixel_handler::msg::DynamixelOptionGain msg;
+    DynamixelOptionGain msg;
     rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
     msg.stamp = ros_clock.now();
     for ( const auto& [id, gain] : option_gain_ ) {
@@ -240,7 +240,7 @@ void DynamixelHandler::BroadcastDxlOpt_Gain(){
 }
 
 void DynamixelHandler::BroadcastDxlOpt_Mode(){
-    dynamixel_handler::msg::DynamixelOptionMode msg;
+    DynamixelOptionMode msg;
     rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
     msg.stamp = ros_clock.now();
     for ( const auto& id : id_list_ ) {
@@ -261,7 +261,7 @@ void DynamixelHandler::BroadcastDxlOpt_Mode(){
 }
 
 void DynamixelHandler::BroadcastDxlOpt_Goal(){
-    dynamixel_handler::msg::DynamixelOptionGoal msg;
+    DynamixelOptionGoal msg;
     rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
     msg.stamp = ros_clock.now();
     for ( const auto& [id, goal] : option_goal_ ) {
