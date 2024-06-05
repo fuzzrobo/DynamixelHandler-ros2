@@ -1,6 +1,5 @@
 #include "dynamixel_handler.hpp"
 
-using namespace dyn_x;
 template <typename T>
 bool is_in(const T& val, const vector<T>& vec) { return std::find(vec.begin(), vec.end(), val) != vec.end(); }
 
@@ -12,7 +11,7 @@ uint8_t DynamixelHandler::ScanDynamixels(uint8_t id_max) {
     id_list_.clear();
     for (int id = 0; id <= id_max; id++) {
         if ( !dyn_comm_.tryPing(id) ) continue;
-        auto dyn_model = dyn_comm_.tryRead(model_number, id);
+        auto dyn_model = dyn_comm_.tryRead(DynX::model_number, id);
         switch ( dynamixel_series(dyn_model) ) { 
             case SERIES_X: ROS_INFO(" * X series servo id [%d] is found", id);
                 model_[id] = dyn_model;
@@ -34,9 +33,9 @@ void DynamixelHandler::StopDynamixels(){
     vector<uint8_t> id_list; 
     for (auto id : id_list_) if ( is_in(id, id_list_) && series_[id]==SERIES_X ) id_list.push_back(id);
     vector<int64_t> offset_pulse(id_list.size(), 0);
-    dyn_comm_.SyncWrite(homing_offset ,id_list, offset_pulse); // マジで謎だが，BusWatchdogを設定するとHomingOffset分だけ回転してしまう...多分ファームrウェアのバグ
+    dyn_comm_.SyncWrite(DynX::homing_offset ,id_list, offset_pulse); // マジで謎だが，BusWatchdogを設定するとHomingOffset分だけ回転してしまう...多分ファームrウェアのバグ
     vector<int64_t> bus_watchtime_pulse(id_list.size(), 1);
-    dyn_comm_.SyncWrite(bus_watchdog, id_list, bus_watchtime_pulse);
+    dyn_comm_.SyncWrite(DynX::bus_watchdog, id_list, bus_watchtime_pulse);
     ROS_INFO("All servo will be stopped");
 }
 
@@ -138,130 +137,130 @@ bool DynamixelHandler::TorqueOff(uint8_t id){
 //* 基本機能たち Read
 
 uint8_t DynamixelHandler::ReadHardwareError(uint8_t id){
-    return dyn_comm_.tryRead(hardware_error_status, id);
+    return dyn_comm_.tryRead(DynX::hardware_error_status, id);
 }
 
 bool DynamixelHandler::ReadTorqueEnable(uint8_t id){
-    return dyn_comm_.tryRead(torque_enable, id);
+    return dyn_comm_.tryRead(DynX::torque_enable, id);
 }
 
 double DynamixelHandler::ReadPresentPWM(uint8_t id){
-    const auto pwm_pulse = dyn_comm_.tryRead(present_pwm, id);
-    return present_pwm.pulse2val(pwm_pulse, model_[id]);
+    const auto pwm_pulse = dyn_comm_.tryRead(DynX::present_pwm, id);
+    return DynX::present_pwm.pulse2val(pwm_pulse, model_[id]);
 }
 
 double DynamixelHandler::ReadPresentCurrent(uint8_t id){
-    const auto cur_pulse = dyn_comm_.tryRead(present_current, id);
-    return present_current.pulse2val(cur_pulse, model_[id]);
+    const auto cur_pulse = dyn_comm_.tryRead(DynX::present_current, id);
+    return DynX::present_current.pulse2val(cur_pulse, model_[id]);
 }
 
 double DynamixelHandler::ReadPresentVelocity(uint8_t id){
-    const auto vel_pulse = dyn_comm_.tryRead(present_velocity, id);
-    return present_velocity.pulse2val(vel_pulse, model_[id]);
+    const auto vel_pulse = dyn_comm_.tryRead(DynX::present_velocity, id);
+    return DynX::present_velocity.pulse2val(vel_pulse, model_[id]);
 }
 
 double DynamixelHandler::ReadPresentPosition(uint8_t id){
-    const auto pos_pulse = dyn_comm_.tryRead(present_position, id);
-    return present_position.pulse2val(pos_pulse, model_[id]);
+    const auto pos_pulse = dyn_comm_.tryRead(DynX::present_position, id);
+    return DynX::present_position.pulse2val(pos_pulse, model_[id]);
 }
 
 double DynamixelHandler::ReadGoalPWM(uint8_t id){
-    const auto pwm_pulse = dyn_comm_.tryRead(goal_pwm, id);
-    return goal_pwm.pulse2val(pwm_pulse, model_[id]);
+    const auto pwm_pulse = dyn_comm_.tryRead(DynX::goal_pwm, id);
+    return DynX::goal_pwm.pulse2val(pwm_pulse, model_[id]);
 }
 
 double DynamixelHandler::ReadGoalCurrent(uint8_t id){
-    const auto cur_pulse = dyn_comm_.tryRead(goal_current, id);
-    return goal_current.pulse2val(cur_pulse, model_[id]);
+    const auto cur_pulse = dyn_comm_.tryRead(DynX::goal_current, id);
+    return DynX::goal_current.pulse2val(cur_pulse, model_[id]);
 }
 
 double DynamixelHandler::ReadGoalVelocity(uint8_t id){
-    const auto vel_pulse = dyn_comm_.tryRead(goal_velocity, id);
-    return goal_velocity.pulse2val(vel_pulse, model_[id]);
+    const auto vel_pulse = dyn_comm_.tryRead(DynX::goal_velocity, id);
+    return DynX::goal_velocity.pulse2val(vel_pulse, model_[id]);
 }
 
 double DynamixelHandler::ReadGoalPosition(uint8_t id){
-    const auto pos_pulse = dyn_comm_.tryRead(goal_position, id);
-    return goal_position.pulse2val(pos_pulse, model_[id]);
+    const auto pos_pulse = dyn_comm_.tryRead(DynX::goal_position, id);
+    return DynX::goal_position.pulse2val(pos_pulse, model_[id]);
 }
 
 double DynamixelHandler::ReadProfileAcc(uint8_t id){
-    const auto acc_pulse = dyn_comm_.tryRead(profile_acceleration, id);
-    return profile_acceleration.pulse2val(acc_pulse, model_[id]);
+    const auto acc_pulse = dyn_comm_.tryRead(DynX::profile_acceleration, id);
+    return DynX::profile_acceleration.pulse2val(acc_pulse, model_[id]);
 }
 
 double DynamixelHandler::ReadProfileVel(uint8_t id){
-    const auto vel_pulse = dyn_comm_.tryRead(profile_velocity, id);
-    return profile_velocity.pulse2val(vel_pulse, model_[id]);
+    const auto vel_pulse = dyn_comm_.tryRead(DynX::profile_velocity, id);
+    return DynX::profile_velocity.pulse2val(vel_pulse, model_[id]);
 }
 
 double DynamixelHandler::ReadHomingOffset(uint8_t id){
-    const auto offset_pulse = dyn_comm_.tryRead(homing_offset, id);
-    return homing_offset.pulse2val(offset_pulse, model_[id]);
+    const auto offset_pulse = dyn_comm_.tryRead(DynX::homing_offset, id);
+    return DynX::homing_offset.pulse2val(offset_pulse, model_[id]);
 }
 
 uint8_t DynamixelHandler::ReadOperatingMode(uint8_t id){
-    return dyn_comm_.tryRead(operating_mode, id);
+    return dyn_comm_.tryRead(DynX::operating_mode, id);
 }
 
 //* 基本機能たち Write
 
 bool DynamixelHandler::WriteGoalPosition(uint8_t id, double pos){
-    const auto pos_pulse = goal_position.val2pulse(pos, model_[id]);
-    return dyn_comm_.tryWrite(goal_position, id, pos_pulse);
+    const auto pos_pulse = DynX::goal_position.val2pulse(pos, model_[id]);
+    return dyn_comm_.tryWrite(DynX::goal_position, id, pos_pulse);
 }
 
 bool DynamixelHandler::WriteTorqueEnable(uint8_t id, bool enable){
-    return dyn_comm_.tryWrite(torque_enable, id, enable ? TORQUE_ENABLE : TORQUE_DISABLE);
+    return dyn_comm_.tryWrite(DynX::torque_enable, id, enable ? TORQUE_ENABLE : TORQUE_DISABLE);
 }
 
 bool DynamixelHandler::WriteGoalPWM(uint8_t id, double pwm){
-    const auto pwm_pulse = goal_pwm.val2pulse(pwm, model_[id]);
-    return dyn_comm_.tryWrite(goal_pwm, id, pwm_pulse);
+    const auto pwm_pulse = DynX::goal_pwm.val2pulse(pwm, model_[id]);
+    return dyn_comm_.tryWrite(DynX::goal_pwm, id, pwm_pulse);
 }
 
 bool DynamixelHandler::WriteGoalCurrent(uint8_t id, double cur){
-    const auto cur_pulse = goal_current.val2pulse(cur, model_[id]);
-    return dyn_comm_.tryWrite(goal_current, id, cur_pulse);
+    const auto cur_pulse = DynX::goal_current.val2pulse(cur, model_[id]);
+    return dyn_comm_.tryWrite(DynX::goal_current, id, cur_pulse);
 }
 
 bool DynamixelHandler::WriteGoalVelocity(uint8_t id, double vel){
-    const auto vel_pulse = goal_velocity.val2pulse(vel, model_[id]);
-    return dyn_comm_.tryWrite(goal_velocity, id, vel_pulse);
+    const auto vel_pulse = DynX::goal_velocity.val2pulse(vel, model_[id]);
+    return dyn_comm_.tryWrite(DynX::goal_velocity, id, vel_pulse);
 }
 
 bool DynamixelHandler::WriteProfileAcc(uint8_t id, double acc){
-    const auto acc_pulse = profile_acceleration.val2pulse(acc, model_[id]);
-    return dyn_comm_.tryWrite(profile_acceleration, id, acc_pulse);
+    const auto acc_pulse = DynX::profile_acceleration.val2pulse(acc, model_[id]);
+    return dyn_comm_.tryWrite(DynX::profile_acceleration, id, acc_pulse);
 }
 
 bool DynamixelHandler::WriteProfileVel(uint8_t id, double vel){
-    const auto vel_pulse = profile_velocity.val2pulse(vel, model_[id]);
-    return dyn_comm_.tryWrite(profile_velocity, id, vel_pulse);
+    const auto vel_pulse = DynX::profile_velocity.val2pulse(vel, model_[id]);
+    return dyn_comm_.tryWrite(DynX::profile_velocity, id, vel_pulse);
 }
 
 bool DynamixelHandler::WriteHomingOffset(uint8_t id, double offset){
-    const auto offset_pulse = homing_offset.val2pulse(offset, model_[id]);
-    return dyn_comm_.tryWrite(homing_offset, id, offset_pulse);
+    const auto offset_pulse = DynX::homing_offset.val2pulse(offset, model_[id]);
+    return dyn_comm_.tryWrite(DynX::homing_offset, id, offset_pulse);
 }
 
 bool DynamixelHandler::WriteOperatingMode(uint8_t id, uint8_t mode){ 
-    return dyn_comm_.tryWrite(operating_mode, id, mode); 
+    return dyn_comm_.tryWrite(DynX::operating_mode, id, mode); 
 }
 
 bool DynamixelHandler::WriteBusWatchdog(uint8_t id, double time){
-    const auto time_pulse = bus_watchdog.val2pulse(time, model_[id]);
-    return dyn_comm_.tryWrite(bus_watchdog, id, time_pulse);
+    const auto time_pulse = DynX::bus_watchdog.val2pulse(time, model_[id]);
+    return dyn_comm_.tryWrite(DynX::bus_watchdog, id, time_pulse);
 }
 
 bool DynamixelHandler::WriteGains(uint8_t id, array<int64_t, 7> gains){
     bool is_success = true;
-    is_success &= dyn_comm_.tryWrite(velocity_i_gain, id, gains[VELOCITY_I_GAIN]);
-    is_success &= dyn_comm_.tryWrite(velocity_p_gain, id, gains[VELOCITY_P_GAIN]);
-    is_success &= dyn_comm_.tryWrite(position_d_gain, id, gains[POSITION_D_GAIN]);
-    is_success &= dyn_comm_.tryWrite(position_i_gain, id, gains[POSITION_I_GAIN]);
-    is_success &= dyn_comm_.tryWrite(position_p_gain, id, gains[POSITION_P_GAIN]);
-    is_success &= dyn_comm_.tryWrite(feedforward_acc_gain, id, gains[FEEDFORWARD_ACC_GAIN]);
-    is_success &= dyn_comm_.tryWrite(feedforward_vel_gain, id, gains[FEEDFORWARD_VEL_GAIN]);
+    is_success &= dyn_comm_.tryWrite(DynX::velocity_i_gain, id, gains[VELOCITY_I_GAIN]);
+    is_success &= dyn_comm_.tryWrite(DynX::velocity_p_gain, id, gains[VELOCITY_P_GAIN]);
+    is_success &= dyn_comm_.tryWrite(DynX::position_d_gain, id, gains[POSITION_D_GAIN]);
+    is_success &= dyn_comm_.tryWrite(DynX::position_i_gain, id, gains[POSITION_I_GAIN]);
+    is_success &= dyn_comm_.tryWrite(DynX::position_p_gain, id, gains[POSITION_P_GAIN]);
+    is_success &= dyn_comm_.tryWrite(DynX::feedforward_acc_gain, id, gains[FEEDFORWARD_ACC_GAIN]);
+    is_success &= dyn_comm_.tryWrite(DynX::feedforward_vel_gain, id, gains[FEEDFORWARD_VEL_GAIN]);
     return is_success;
 }

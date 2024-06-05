@@ -1,7 +1,5 @@
 #include "dynamixel_handler.hpp"
 
-using namespace dyn_x;
-
 // enum でインクリメントをするため
 template<typename T>
 T& operator ++ (T& v     ) { v = static_cast<T>(v + 1); return v;}
@@ -27,12 +25,12 @@ void DynamixelHandler::SyncWriteCommandValues(set<CmdValueIndex>& list_write_cmd
     map<uint8_t, vector<int64_t>> id_cmd_vec_map; // id と 書き込むデータのベクタのマップ
     for (CmdValueIndex cmd = *start; cmd <= *end; cmd++) { // アドレスのベクタと，データのベクタの並びは対応している必要があるので，同一のループで作成する．
         const auto& dp = []( CmdValueIndex c ) { switch (c) {
-            case GOAL_PWM      : return goal_pwm            ;
-            case GOAL_CURRENT  : return goal_current        ;
-            case GOAL_VELOCITY : return goal_velocity       ;
-            case PROFILE_ACC   : return profile_acceleration;
-            case PROFILE_VEL   : return profile_velocity    ;
-            case GOAL_POSITION : return goal_position       ;
+            case GOAL_PWM      : return DynX::goal_pwm            ;
+            case GOAL_CURRENT  : return DynX::goal_current        ;
+            case GOAL_VELOCITY : return DynX::goal_velocity       ;
+            case PROFILE_ACC   : return DynX::profile_acceleration;
+            case PROFILE_VEL   : return DynX::profile_velocity    ;
+            case GOAL_POSITION : return DynX::goal_position       ;
             default: /*ここに来たらエラ-*/ exit(1);
         }}(cmd);
         cmd_dp_list.push_back(dp);
@@ -87,14 +85,14 @@ double DynamixelHandler::SyncReadStateValues(set<StValueIndex> list_read_state){
     // 読み込みに必要な変数を用意
     vector<DynamixelAddress> state_dp_list;
     for (StValueIndex st=*start; st<=*end; st++) switch (st) {
-        case PRESENT_PWM          : state_dp_list.push_back(present_pwm          ); break; 
-        case PRESENT_CURRENT      : state_dp_list.push_back(present_current      ); break; 
-        case PRESENT_VELOCITY     : state_dp_list.push_back(present_velocity     ); break;    
-        case PRESENT_POSITION     : state_dp_list.push_back(present_position     ); break;   
-        case VELOCITY_TRAJECTORY  : state_dp_list.push_back(velocity_trajectory  ); break;   
-        case POSITION_TRAJECTORY  : state_dp_list.push_back(position_trajectory  ); break;  
-        case PRESENT_INPUT_VOLTAGE: state_dp_list.push_back(present_input_voltage); break; 
-        case PRESENT_TEMPERTURE   : state_dp_list.push_back(present_temperture   ); break;
+        case PRESENT_PWM          : state_dp_list.push_back(DynX::present_pwm          ); break; 
+        case PRESENT_CURRENT      : state_dp_list.push_back(DynX::present_current      ); break; 
+        case PRESENT_VELOCITY     : state_dp_list.push_back(DynX::present_velocity     ); break;    
+        case PRESENT_POSITION     : state_dp_list.push_back(DynX::present_position     ); break;   
+        case VELOCITY_TRAJECTORY  : state_dp_list.push_back(DynX::velocity_trajectory  ); break;   
+        case POSITION_TRAJECTORY  : state_dp_list.push_back(DynX::position_trajectory  ); break;  
+        case PRESENT_INPUT_VOLTAGE: state_dp_list.push_back(DynX::present_input_voltage); break; 
+        case PRESENT_TEMPERTURE   : state_dp_list.push_back(DynX::present_temperture   ); break;
         default: /*ここに来たらエラ-*/ exit(1);
     }
     vector<uint8_t> target_id_list;
@@ -148,8 +146,8 @@ double DynamixelHandler::SyncReadHardwareErrors(){
     for (int id : id_list_) if ( series_[id]==SERIES_X ) target_id_list.push_back(id);
     
     auto id_error_map =  ( use_fast_read_ ) 
-        ? dyn_comm_.SyncRead_fast(hardware_error_status, target_id_list)
-        : dyn_comm_.SyncRead     (hardware_error_status, target_id_list);
+        ? dyn_comm_.SyncRead_fast(DynX::hardware_error_status, target_id_list)
+        : dyn_comm_.SyncRead     (DynX::hardware_error_status, target_id_list);
 
     if ( dyn_comm_.timeout_last_read() ) return 0.0; // 読み込み失敗
 
@@ -182,8 +180,8 @@ double DynamixelHandler::SyncReadOption_Mode(){
     vector<uint8_t> target_id_list;
     for (int id : id_list_) if ( series_[id]==SERIES_X ) target_id_list.push_back(id);
 
-    auto id_torque_map = dyn_comm_.SyncRead(torque_enable, target_id_list);
-    auto id_dv_op_mode_map = dyn_comm_.SyncRead({drive_mode, operating_mode}, target_id_list);
+    auto id_torque_map = dyn_comm_.SyncRead(DynX::torque_enable, target_id_list);
+    auto id_dv_op_mode_map = dyn_comm_.SyncRead({DynX::drive_mode, DynX::operating_mode}, target_id_list);
 
     for ( const auto& [id, toqrue] : id_torque_map ) tq_mode_[id] = toqrue;
     for ( const auto& [id, dv_op]  : id_dv_op_mode_map ) {
@@ -198,13 +196,13 @@ double DynamixelHandler::SyncReadOption_Gain(){
     OptGainIndex end   = FEEDFORWARD_VEL_GAIN;
     vector<DynamixelAddress> opt_gain_dp_list;
     for (OptGainIndex g=start; g<=end; g++) switch ( g ) {
-        case VELOCITY_I_GAIN     : opt_gain_dp_list.push_back(velocity_i_gain     ); break;
-        case VELOCITY_P_GAIN     : opt_gain_dp_list.push_back(velocity_p_gain     ); break;
-        case POSITION_D_GAIN     : opt_gain_dp_list.push_back(position_d_gain     ); break;
-        case POSITION_I_GAIN     : opt_gain_dp_list.push_back(position_i_gain     ); break;
-        case POSITION_P_GAIN     : opt_gain_dp_list.push_back(position_p_gain     ); break;
-        case FEEDFORWARD_ACC_GAIN: opt_gain_dp_list.push_back(feedforward_acc_gain); break;
-        case FEEDFORWARD_VEL_GAIN: opt_gain_dp_list.push_back(feedforward_vel_gain); break;
+        case VELOCITY_I_GAIN     : opt_gain_dp_list.push_back(DynX::velocity_i_gain     ); break;
+        case VELOCITY_P_GAIN     : opt_gain_dp_list.push_back(DynX::velocity_p_gain     ); break;
+        case POSITION_D_GAIN     : opt_gain_dp_list.push_back(DynX::position_d_gain     ); break;
+        case POSITION_I_GAIN     : opt_gain_dp_list.push_back(DynX::position_i_gain     ); break;
+        case POSITION_P_GAIN     : opt_gain_dp_list.push_back(DynX::position_p_gain     ); break;
+        case FEEDFORWARD_ACC_GAIN: opt_gain_dp_list.push_back(DynX::feedforward_acc_gain); break;
+        case FEEDFORWARD_VEL_GAIN: opt_gain_dp_list.push_back(DynX::feedforward_vel_gain); break;
         default: /*ここに来たらエラ-*/ exit(1);
     }
 
@@ -244,15 +242,15 @@ double DynamixelHandler::SyncReadOption_Limit(){
     OptLimitIndex end   = MIN_POSITION_LIMIT;
     vector<DynamixelAddress> opt_limit_dp_list;
     for (OptLimitIndex l=start; l<=end; l++) switch ( l ) {
-        case TEMPERATURE_LIMIT : opt_limit_dp_list.push_back(temperature_limit ); break;
-        case MAX_VOLTAGE_LIMIT : opt_limit_dp_list.push_back(max_voltage_limit ); break;
-        case MIN_VOLTAGE_LIMIT : opt_limit_dp_list.push_back(min_voltage_limit ); break;
-        case PWM_LIMIT         : opt_limit_dp_list.push_back(pwm_limit         ); break;
-        case CURRENT_LIMIT     : opt_limit_dp_list.push_back(current_limit     ); break;
-        case ACCELERATION_LIMIT: opt_limit_dp_list.push_back(acceleration_limit); break;
-        case VELOCITY_LIMIT    : opt_limit_dp_list.push_back(velocity_limit    ); break;
-        case MAX_POSITION_LIMIT: opt_limit_dp_list.push_back(max_position_limit); break;
-        case MIN_POSITION_LIMIT: opt_limit_dp_list.push_back(min_position_limit); break;
+        case TEMPERATURE_LIMIT : opt_limit_dp_list.push_back(DynX::temperature_limit ); break;
+        case MAX_VOLTAGE_LIMIT : opt_limit_dp_list.push_back(DynX::max_voltage_limit ); break;
+        case MIN_VOLTAGE_LIMIT : opt_limit_dp_list.push_back(DynX::min_voltage_limit ); break;
+        case PWM_LIMIT         : opt_limit_dp_list.push_back(DynX::pwm_limit         ); break;
+        case CURRENT_LIMIT     : opt_limit_dp_list.push_back(DynX::current_limit     ); break;
+        case ACCELERATION_LIMIT: opt_limit_dp_list.push_back(DynX::acceleration_limit); break;
+        case VELOCITY_LIMIT    : opt_limit_dp_list.push_back(DynX::velocity_limit    ); break;
+        case MAX_POSITION_LIMIT: opt_limit_dp_list.push_back(DynX::max_position_limit); break;
+        case MIN_POSITION_LIMIT: opt_limit_dp_list.push_back(DynX::min_position_limit); break;
         default: /*ここに来たらエラ-*/ exit(1);
     }
 
@@ -305,12 +303,12 @@ double DynamixelHandler::SyncReadOption_Goal() {
     CmdValueIndex end   = GOAL_POSITION;
     vector<DynamixelAddress> opt_goal_dp_list;
     for (CmdValueIndex g=start; g<=end; g++) switch ( g ) {
-        case GOAL_PWM      : opt_goal_dp_list.push_back(goal_pwm      ); break;
-        case GOAL_CURRENT  : opt_goal_dp_list.push_back(goal_current  ); break;
-        case GOAL_VELOCITY : opt_goal_dp_list.push_back(goal_velocity ); break;
-        case PROFILE_ACC   : opt_goal_dp_list.push_back(profile_acceleration); break;
-        case PROFILE_VEL   : opt_goal_dp_list.push_back(profile_velocity    ); break;
-        case GOAL_POSITION : opt_goal_dp_list.push_back(goal_position       ); break;
+        case GOAL_PWM      : opt_goal_dp_list.push_back(DynX::goal_pwm      ); break;
+        case GOAL_CURRENT  : opt_goal_dp_list.push_back(DynX::goal_current  ); break;
+        case GOAL_VELOCITY : opt_goal_dp_list.push_back(DynX::goal_velocity ); break;
+        case PROFILE_ACC   : opt_goal_dp_list.push_back(DynX::profile_acceleration); break;
+        case PROFILE_VEL   : opt_goal_dp_list.push_back(DynX::profile_velocity    ); break;
+        case GOAL_POSITION : opt_goal_dp_list.push_back(DynX::goal_position       ); break;
         default: /*ここに来たらエラ-*/ exit(1);
     }
 

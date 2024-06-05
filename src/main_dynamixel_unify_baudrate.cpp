@@ -87,8 +87,8 @@ int main(int argc, char **argv) {
             if ( std::find(found_ids.begin(), found_ids.end(), i) != found_ids.end() ) continue;
             if ( !dyn_comm.tryPing(i) ) continue;
             RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ID [%d] is found, try change baudrate %d", i, baudrate_target);
-            dyn_comm.tryWrite(dyn_x::torque_enable, i, TORQUE_DISABLE);
-            dyn_comm.tryWrite(baudrate, i, dyn_baudrate);
+            dyn_comm.tryWrite(DynX::torque_enable, i, TORQUE_DISABLE);
+            dyn_comm.tryWrite(DynX::baudrate, i, dyn_baudrate);
             found_ids.push_back(i);
         }
         dyn_comm.ClosePort(); fflush(stdout);
