@@ -74,11 +74,11 @@ bool DynamixelHandler::ChangeOperatingMode(uint8_t id, DynamixelOperatingMode mo
     WriteTorqueEnable(id, false);
     /*モード変更*/WriteOperatingMode(id, mode);  //**RAMのデータが消えるので注意, これは電源喪失とは異なるのでRAMデータの回復を入れる
     // cmd_values_を全部書き込んで，本体とこのプログラムの同期行う．
-    WriteGoalPWM(id, cmd_values_[id][GOAL_PWM]);
-    WriteGoalCurrent(id, cmd_values_[id][GOAL_CURRENT]);
+    WriteGoalPWM     (id, cmd_values_[id][GOAL_PWM     ]);
+    WriteGoalCurrent (id, cmd_values_[id][GOAL_CURRENT ]);
     WriteGoalVelocity(id, cmd_values_[id][GOAL_VELOCITY]);
-    WriteProfileAcc(id, cmd_values_[id][PROFILE_ACC]);
-    WriteProfileVel(id, cmd_values_[id][PROFILE_VEL]);
+    WriteProfileAcc  (id, cmd_values_[id][PROFILE_ACC  ]);
+    WriteProfileVel  (id, cmd_values_[id][PROFILE_VEL  ]);
     WriteGoalPosition(id, cmd_values_[id][GOAL_POSITION]);
     // WriteGains(id, opt_gain_[id]);　// ** Gain値のデフォルトも変わる．面倒な．．．
     WriteTorqueEnable(id, is_enable);
@@ -105,14 +105,14 @@ bool DynamixelHandler::TorqueOn(uint8_t id){
         // 急に動き出さないように，以下のcmd_values_を設定する
         cmd_values_[id][GOAL_POSITION] = now_pos; // トルクがオフならDynamixel本体のgoal_positionはpresent_positionと一致している．
         if (op_mode_[id]==OPERATING_MODE_VELOCITY) cmd_values_[id][GOAL_VELOCITY] = 0.0;
-        if (op_mode_[id]==OPERATING_MODE_CURRENT ) cmd_values_[id][GOAL_CURRENT]  = 0.0;
-        if (op_mode_[id]==OPERATING_MODE_PWM     ) cmd_values_[id][GOAL_PWM]      = 0.0;
+        if (op_mode_[id]==OPERATING_MODE_CURRENT ) cmd_values_[id][GOAL_CURRENT ] = 0.0;
+        if (op_mode_[id]==OPERATING_MODE_PWM     ) cmd_values_[id][GOAL_PWM     ] = 0.0;
         // cmd_values_を全部書き込んで，本体とこのプログラムの同期行う．
-        WriteGoalPWM(id, cmd_values_[id][GOAL_PWM]);
-        WriteGoalCurrent(id, cmd_values_[id][GOAL_CURRENT]);
+        WriteGoalPWM     (id, cmd_values_[id][GOAL_PWM     ]);
+        WriteGoalCurrent (id, cmd_values_[id][GOAL_CURRENT ]);
         WriteGoalVelocity(id, cmd_values_[id][GOAL_VELOCITY]);
-        WriteProfileAcc(id, cmd_values_[id][PROFILE_ACC]);
-        WriteProfileVel(id, cmd_values_[id][PROFILE_VEL]);
+        WriteProfileAcc  (id, cmd_values_[id][PROFILE_ACC  ]);
+        WriteProfileVel  (id, cmd_values_[id][PROFILE_VEL  ]);
         WriteGoalPosition(id, cmd_values_[id][GOAL_POSITION]);
         // WriteGains(id, opt_gain_[id]); 　// その他電源喪失時に消えるデータを念のため書き込む
         /*トルクを入れる*/WriteTorqueEnable(id, true);
