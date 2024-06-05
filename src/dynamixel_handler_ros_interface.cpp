@@ -266,12 +266,12 @@ void DynamixelHandler::BroadcastDxlOpt_Goal(){
     msg.stamp = ros_clock.now();
     for ( const auto& [id, goal] : option_goal_ ) {
         msg.id_list.push_back(id);
-        msg.pwm_percent.push_back       (round4(goal[GOAL_PWM         ]));
-        msg.current_ma.push_back        (round4(goal[GOAL_CURRENT     ]));
-        msg.velocity_deg_s.push_back    (round4(goal[GOAL_VELOCITY    ]/DEG));
-        msg.profile_vel_deg_s.push_back (round4(goal[PROFILE_VEL      ]/DEG));
-        msg.profile_acc_deg_ss.push_back(round4(goal[PROFILE_ACC      ]/DEG));
-        msg.position_deg.push_back      (round4(goal[GOAL_POSITION    ]/DEG));
+        msg.pwm_percent.push_back       (round4(goal[GOAL_PWM     ]));
+        msg.current_ma.push_back        (round4(goal[GOAL_CURRENT ]));
+        msg.velocity_deg_s.push_back    (round4(goal[GOAL_VELOCITY]/DEG));
+        msg.profile_vel_deg_s.push_back (round4(goal[PROFILE_VEL  ]/DEG));
+        msg.profile_acc_deg_ss.push_back(round4(goal[PROFILE_ACC  ]/DEG));
+        msg.position_deg.push_back      (round4(goal[GOAL_POSITION]/DEG));
     }
     pub_opt_goal_->publish(msg);
 }

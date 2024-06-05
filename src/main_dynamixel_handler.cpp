@@ -1,20 +1,21 @@
 #include "dynamixel_handler.hpp"
 #include "rclcpp/rclcpp.hpp"
 
-using namespace dyn_x;
+using std::bind;
+using std::placeholders::_1;
 
 DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler") {
     ROS_INFO( "Initializing DynamixelHandler ...");
     // Subscriber / Publisherの設定
-    sub_command_    = create_subscription<DynamixelCommand>("dynamixel/command", 4, std::bind(&DynamixelHandler::CallBackDxlCommand, this, std::placeholders::_1));
-    sub_cmd_x_pos_  = create_subscription<DynamixelCommandXControlPosition>        ("dynamixel/cmd/x/position",          4, std::bind(&DynamixelHandler::CallBackDxlCmd_X_Position, this, std::placeholders::_1));
-    sub_cmd_x_vel_  = create_subscription<DynamixelCommandXControlVelocity>        ("dynamixel/cmd/x/velocity",          4, std::bind(&DynamixelHandler::CallBackDxlCmd_X_Velocity, this, std::placeholders::_1));
-    sub_cmd_x_cur_  = create_subscription<DynamixelCommandXControlCurrent>         ("dynamixel/cmd/x/current",           4, std::bind(&DynamixelHandler::CallBackDxlCmd_X_Current, this, std::placeholders::_1));
-    sub_cmd_x_cpos_ = create_subscription<DynamixelCommandXControlCurrentPosition> ("dynamixel/cmd/x/current_position",  4, std::bind(&DynamixelHandler::CallBackDxlCmd_X_CurrentPosition, this, std::placeholders::_1));
-    sub_cmd_x_epos_ = create_subscription<DynamixelCommandXControlExtendedPosition>("dynamixel/cmd/x/extended_position", 4, std::bind(&DynamixelHandler::CallBackDxlCmd_X_ExtendedPosition, this, std::placeholders::_1));
-    sub_opt_gain_ = create_subscription<DynamixelOptionGain> ("dynamixel/opt/gain/w", 4, std::bind(&DynamixelHandler::CallBackDxlOpt_Gain, this, std::placeholders::_1));
-    sub_opt_mode_ = create_subscription<DynamixelOptionMode> ("dynamixel/opt/mode/w", 4, std::bind(&DynamixelHandler::CallBackDxlOpt_Mode, this, std::placeholders::_1));
-    sub_opt_limit_= create_subscription<DynamixelOptionLimit>("dynamixel/opt/limit/w",4, std::bind(&DynamixelHandler::CallBackDxlOpt_Limit, this, std::placeholders::_1));
+    sub_command_    = create_subscription<DynamixelCommand>("dynamixel/command", 4, bind(&DynamixelHandler::CallBackDxlCommand, this, _1));
+    sub_cmd_x_pos_  = create_subscription<DynamixelCommandXControlPosition>        ("dynamixel/cmd/x/position",          4, bind(&DynamixelHandler::CallBackDxlCmd_X_Position, this, _1));
+    sub_cmd_x_vel_  = create_subscription<DynamixelCommandXControlVelocity>        ("dynamixel/cmd/x/velocity",          4, bind(&DynamixelHandler::CallBackDxlCmd_X_Velocity, this, _1));
+    sub_cmd_x_cur_  = create_subscription<DynamixelCommandXControlCurrent>         ("dynamixel/cmd/x/current",           4, bind(&DynamixelHandler::CallBackDxlCmd_X_Current, this, _1));
+    sub_cmd_x_cpos_ = create_subscription<DynamixelCommandXControlCurrentPosition> ("dynamixel/cmd/x/current_position",  4, bind(&DynamixelHandler::CallBackDxlCmd_X_CurrentPosition, this, _1));
+    sub_cmd_x_epos_ = create_subscription<DynamixelCommandXControlExtendedPosition>("dynamixel/cmd/x/extended_position", 4, bind(&DynamixelHandler::CallBackDxlCmd_X_ExtendedPosition, this, _1));
+    sub_opt_gain_ = create_subscription<DynamixelOptionGain> ("dynamixel/opt/gain/w", 4, bind(&DynamixelHandler::CallBackDxlOpt_Gain, this, _1));
+    sub_opt_mode_ = create_subscription<DynamixelOptionMode> ("dynamixel/opt/mode/w", 4, bind(&DynamixelHandler::CallBackDxlOpt_Mode, this, _1));
+    sub_opt_limit_= create_subscription<DynamixelOptionLimit>("dynamixel/opt/limit/w",4, bind(&DynamixelHandler::CallBackDxlOpt_Limit, this, _1));
 
     pub_state_     = create_publisher<DynamixelState>("dynamixel/state", 4);
     pub_error_     = create_publisher<DynamixelError>("dynamixel/error", 4);
@@ -151,14 +152,14 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler") {
     this->declare_parameter("read/position_trajectory",   false);
     this->declare_parameter("read/present_input_voltage", false);
     this->declare_parameter("read/present_temperature",   false);
-    if( get_parameter("read/present_pwm"          ).as_bool() ) list_read_state_.insert(PRESENT_PWM);
-    if( get_parameter("read/present_current"      ).as_bool() ) list_read_state_.insert(PRESENT_CURRENT);
-    if( get_parameter("read/present_velocity"     ).as_bool() ) list_read_state_.insert(PRESENT_VELOCITY);
-    if( get_parameter("read/present_position"     ).as_bool() ) list_read_state_.insert(PRESENT_POSITION);
-    if( get_parameter("read/velocity_trajectory"  ).as_bool() ) list_read_state_.insert(VELOCITY_TRAJECTORY);
-    if( get_parameter("read/position_trajectory"  ).as_bool() ) list_read_state_.insert(POSITION_TRAJECTORY);
+    if( get_parameter("read/present_pwm"          ).as_bool() ) list_read_state_.insert(PRESENT_PWM          );
+    if( get_parameter("read/present_current"      ).as_bool() ) list_read_state_.insert(PRESENT_CURRENT      );
+    if( get_parameter("read/present_velocity"     ).as_bool() ) list_read_state_.insert(PRESENT_VELOCITY     );
+    if( get_parameter("read/present_position"     ).as_bool() ) list_read_state_.insert(PRESENT_POSITION     );
+    if( get_parameter("read/velocity_trajectory"  ).as_bool() ) list_read_state_.insert(VELOCITY_TRAJECTORY  );
+    if( get_parameter("read/position_trajectory"  ).as_bool() ) list_read_state_.insert(POSITION_TRAJECTORY  );
     if( get_parameter("read/present_input_voltage").as_bool() ) list_read_state_.insert(PRESENT_INPUT_VOLTAGE);
-    if( get_parameter("read/present_temperature"  ).as_bool() ) list_read_state_.insert(PRESENT_TEMPERTURE);
+    if( get_parameter("read/present_temperature"  ).as_bool() ) list_read_state_.insert(PRESENT_TEMPERTURE   );
 
     ROS_INFO( " ... DynamixelHandler is initialized");
 }
@@ -240,7 +241,7 @@ int main(int argc, char **argv) {
     /*Mainloop*/
     auto timer_ = node.get()->create_wall_timer(
         1.0s/(node->loop_rate_),
-        std::bind(&DynamixelHandler::MainLoop, node.get())
+        bind(&DynamixelHandler::MainLoop, node.get())
     ); // 変数に保存する必要あり
     /*Interruption*/
     rclcpp::spin(node);

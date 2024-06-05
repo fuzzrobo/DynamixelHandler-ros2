@@ -1,10 +1,8 @@
 #include "dynamixel_handler.hpp"
 
 // enum でインクリメントをするため
-template<typename T>
-T& operator ++ (T& v     ) { v = static_cast<T>(v + 1); return v;}
-template<typename T>
-T  operator ++ (T& v, int) { T p=v; ++v; return p;}
+template<typename T> T& operator ++ (T& v     ) { v = static_cast<T>(v + 1); return v;}
+template<typename T> T  operator ++ (T& v, int) { T p=v; ++v; return p;}
 
 //* Main loop 内で使う全モータへの一括読み書き関数たち
 
@@ -121,17 +119,19 @@ double DynamixelHandler::SyncReadStateValues(set<StValueIndex> list_read_state){
         ROS_INFO_STREAM(ss);
         if ( has_hardware_err_ ) ROS_WARN( "Hardware Error are detected");
     }
-    // state_values_に反映
-    const int num_state = *end-*start+1;
-    for (int i = 0; i < num_state; i++) {
+    //* state_values_に反映
+    const int num_state_next = list_read_state.size();
+    const int num_state_now = *end-*start+1;
+    for (int i = 0; i < num_state_now; i++) {
         const auto dp = state_dp_list[i];
         for (const auto& [id, data_int] : id_st_vec_map)
             state_values_[id][*start+i] = dp.pulse2val( data_int[i], model_[id]);
     }
     // 今回読み込んだ範囲を消去して残りを再帰的に処理, use_split_read_=falseの場合は全て削除されるので,再帰しない
     list_read_state.erase(start, ++end);
-    double suc_rate_prev = SyncReadStateValues(list_read_state)*list_read_state.size() / (num_state+list_read_state.size());
-    return suc_rate_prev + N_suc/(double)N_total*num_state/(num_state+list_read_state.size());
+    double suc_rate = SyncReadStateValues(list_read_state);
+    return       suc_rate       *num_state_next / (num_state_now+num_state_next) // 再帰的な意味で前回までの成功率に重しをかけたもの
+         + N_suc/(double)N_total*num_state_now  / (num_state_now+num_state_next);// 今回の成功率に今回読み込んだデータの数を重しとしてかけたもの
 }
 
 /**
