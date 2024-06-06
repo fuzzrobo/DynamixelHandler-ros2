@@ -7,41 +7,32 @@ bool is_in(const T& val, const vector<T>& vec) { return std::find(vec.begin(), v
 
 // 各シリーズのDynamixelを検出する．
 uint8_t DynamixelHandler::ScanDynamixels(uint8_t id_max) {
-    ROS_INFO("Auto scanning Dynamixel (id range 1 to [%d])", id_max);
+    ROS_INFO("== Auto scanning Dynamixel (id range 1 to [%d]) ==", id_max);
     id_list_.clear();
     for (int id = 0; id <= id_max; id++) {
         if ( !dyn_comm_.tryPing(id) ) continue;
-        auto dyn_model = dyn_comm_.tryRead(DynX::model_number, id);
+        auto dyn_model = dyn_comm_.tryRead(AddrCommon::model_number, id);
         switch ( dynamixel_series(dyn_model) ) { 
             case SERIES_X: ROS_INFO(" * X series servo id [%d] is found", id);
                 model_[id] = dyn_model;
                 series_[id] = SERIES_X;
+                num_[SERIES_X]++;
                 id_list_.push_back(id); break;
             case SERIES_P: ROS_INFO(" * P series servo id [%d] is found", id);
                 model_[id] = dyn_model;
                 series_[id] = SERIES_P;
+                num_[SERIES_P]++;
                 id_list_.push_back(id); break;
             default: ROS_WARN(" * Unkwon model [%d] servo id [%d] is found", (int)dyn_model, id);
         }
     }
-    ROS_INFO("Finish scanning Dynamixel");
+    ROS_INFO("== Finish scanning Dynamixel ==");
     return id_list_.size();
-}
-
-// 全てのモータの動作を停止させる．
-void DynamixelHandler::StopDynamixels(){
-    vector<uint8_t> id_list; 
-    for (auto id : id_list_) if ( is_in(id, id_list_) && series_[id]==SERIES_X ) id_list.push_back(id);
-    vector<int64_t> offset_pulse(id_list.size(), 0);
-    dyn_comm_.SyncWrite(DynX::homing_offset ,id_list, offset_pulse); // マジで謎だが，BusWatchdogを設定するとHomingOffset分だけ回転してしまう...多分ファームrウェアのバグ
-    vector<int64_t> bus_watchtime_pulse(id_list.size(), 1);
-    dyn_comm_.SyncWrite(DynX::bus_watchdog, id_list, bus_watchtime_pulse);
-    ROS_INFO("All servo will be stopped");
 }
 
 // 回転数が消えることを考慮して，モータをリブートする．
 bool DynamixelHandler::ClearHardwareError(uint8_t id){
-    if ( !is_in(id, id_list_) || series_[id] != SERIES_X ) return false; // Xシリーズ以外は対応していない
+    if ( !is_in(id, id_list_) ) return false;
     if ( ReadHardwareError(id) == 0b00000000 ) return true; // エラーがない場合は何もしない
 
     const auto now_pos = ReadPresentPosition(id); // 失敗すると0が返って危ないので成功した場合だけリブート処理を行う
@@ -66,7 +57,7 @@ bool DynamixelHandler::ClearHardwareError(uint8_t id){
 // モータの動作モードを変更する．連続で変更するときは1秒のインターバルを入れる
 bool DynamixelHandler::ChangeOperatingMode(uint8_t id, DynamixelOperatingMode mode){
     rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
-    if ( !is_in(id, id_list_) || series_[id] != SERIES_X ) return false; // Xシリーズ以外は対応していない
+    if ( !is_in(id, id_list_) ) return false;
     if ( op_mode_[id] == mode ) return true; // 既に同じモードの場合は何もしない
     if ( fabs((when_op_mode_updated_[id] - ros_clock.now()).seconds()) < 1.0 ) rsleep(1000); // 1秒以内に変更した場合は1秒待つ
     // 変更前のトルク状態を確認
@@ -98,7 +89,7 @@ bool DynamixelHandler::ChangeOperatingMode(uint8_t id, DynamixelOperatingMode mo
 
 // モータを停止させてからトルクを入れる．
 bool DynamixelHandler::TorqueOn(uint8_t id){
-    if ( !is_in(id, id_list_) || series_[id] != SERIES_X ) return false; // Xシリーズ以外は対応していない
+    if ( !is_in(id, id_list_) ) return false;
     // dynamixel内のgoal値とこのプログラム内のcmd_values_を一致させる．
     const auto now_pos = ReadPresentPosition(id); // 失敗すると0が返って危ないので確認する
     if ( !( dyn_comm_.timeout_last_read() || dyn_comm_.comm_error_last_read() )){
@@ -125,7 +116,7 @@ bool DynamixelHandler::TorqueOn(uint8_t id){
 
 // トルクを切る
 bool DynamixelHandler::TorqueOff(uint8_t id){
-    if ( !is_in(id, id_list_) || series_[id] != SERIES_X ) return false; // Xシリーズ以外は対応していない
+    if ( !is_in(id, id_list_) ) return false;
     // トルクを切る
     WriteTorqueEnable(id, false);
     // 結果を確認
@@ -135,132 +126,166 @@ bool DynamixelHandler::TorqueOff(uint8_t id){
 }
 
 //* 基本機能たち Read
-
 uint8_t DynamixelHandler::ReadHardwareError(uint8_t id){
-    return dyn_comm_.tryRead(DynX::hardware_error_status, id);
+    return series_[id]==SERIES_X ? dyn_comm_.tryRead(AddrX::hardware_error_status, id) 
+          :series_[id]==SERIES_P ? dyn_comm_.tryRead(AddrP::hardware_error_status, id) : 0;
 }
 
 bool DynamixelHandler::ReadTorqueEnable(uint8_t id){
-    return dyn_comm_.tryRead(DynX::torque_enable, id);
+    return series_[id]==SERIES_X ? dyn_comm_.tryRead(AddrX::torque_enable, id) 
+          :series_[id]==SERIES_P ? dyn_comm_.tryRead(AddrP::torque_enable, id) : false;
 }
 
 double DynamixelHandler::ReadPresentPWM(uint8_t id){
-    const auto pwm_pulse = dyn_comm_.tryRead(DynX::present_pwm, id);
-    return DynX::present_pwm.pulse2val(pwm_pulse, model_[id]);
+    auto addr = series_[id]==SERIES_X ? AddrX::present_pwm
+               :series_[id]==SERIES_P ? AddrP::present_pwm : AddrX::present_pwm;
+    return addr.pulse2val(dyn_comm_.tryRead(addr, id), model_[id]);
 }
 
 double DynamixelHandler::ReadPresentCurrent(uint8_t id){
-    const auto cur_pulse = dyn_comm_.tryRead(DynX::present_current, id);
-    return DynX::present_current.pulse2val(cur_pulse, model_[id]);
+    auto addr = series_[id]==SERIES_X ? AddrX::present_current
+               :series_[id]==SERIES_P ? AddrP::present_current : AddrX::present_current;
+    return addr.pulse2val(dyn_comm_.tryRead(addr, id), model_[id]);
 }
 
 double DynamixelHandler::ReadPresentVelocity(uint8_t id){
-    const auto vel_pulse = dyn_comm_.tryRead(DynX::present_velocity, id);
-    return DynX::present_velocity.pulse2val(vel_pulse, model_[id]);
+    auto addr = series_[id]==SERIES_X ? AddrX::present_velocity
+               :series_[id]==SERIES_P ? AddrP::present_velocity : AddrX::present_velocity;
+    return addr.pulse2val(dyn_comm_.tryRead(addr, id), model_[id]);
 }
 
 double DynamixelHandler::ReadPresentPosition(uint8_t id){
-    const auto pos_pulse = dyn_comm_.tryRead(DynX::present_position, id);
-    return DynX::present_position.pulse2val(pos_pulse, model_[id]);
+    auto addr = series_[id]==SERIES_X ? AddrX::present_position
+               :series_[id]==SERIES_P ? AddrP::present_position : AddrX::present_position;
+    return addr.pulse2val(dyn_comm_.tryRead(addr, id), model_[id]);
 }
 
 double DynamixelHandler::ReadGoalPWM(uint8_t id){
-    const auto pwm_pulse = dyn_comm_.tryRead(DynX::goal_pwm, id);
-    return DynX::goal_pwm.pulse2val(pwm_pulse, model_[id]);
+    auto addr = series_[id]==SERIES_X ? AddrX::goal_pwm
+               :series_[id]==SERIES_P ? AddrP::goal_pwm : AddrX::goal_pwm;
+    return addr.pulse2val(dyn_comm_.tryRead(addr, id), model_[id]);
 }
 
 double DynamixelHandler::ReadGoalCurrent(uint8_t id){
-    const auto cur_pulse = dyn_comm_.tryRead(DynX::goal_current, id);
-    return DynX::goal_current.pulse2val(cur_pulse, model_[id]);
+    auto addr = series_[id]==SERIES_X ? AddrX::goal_current
+               :series_[id]==SERIES_P ? AddrP::goal_current : AddrX::goal_current;
+    return addr.pulse2val(dyn_comm_.tryRead(addr, id), model_[id]);
 }
 
 double DynamixelHandler::ReadGoalVelocity(uint8_t id){
-    const auto vel_pulse = dyn_comm_.tryRead(DynX::goal_velocity, id);
-    return DynX::goal_velocity.pulse2val(vel_pulse, model_[id]);
+    auto addr = series_[id]==SERIES_X ? AddrX::goal_velocity
+               :series_[id]==SERIES_P ? AddrP::goal_velocity : AddrX::goal_velocity;
+    return addr.pulse2val(dyn_comm_.tryRead(addr, id), model_[id]);
 }
 
 double DynamixelHandler::ReadGoalPosition(uint8_t id){
-    const auto pos_pulse = dyn_comm_.tryRead(DynX::goal_position, id);
-    return DynX::goal_position.pulse2val(pos_pulse, model_[id]);
+    auto addr = series_[id]==SERIES_X ? AddrX::goal_position
+               :series_[id]==SERIES_P ? AddrP::goal_position : AddrX::goal_position;
+    return addr.pulse2val(dyn_comm_.tryRead(addr, id), model_[id]);
 }
 
 double DynamixelHandler::ReadProfileAcc(uint8_t id){
-    const auto acc_pulse = dyn_comm_.tryRead(DynX::profile_acceleration, id);
-    return DynX::profile_acceleration.pulse2val(acc_pulse, model_[id]);
+    auto addr = series_[id]==SERIES_X ? AddrX::profile_acceleration
+               :series_[id]==SERIES_P ? AddrP::profile_acceleration : AddrX::profile_acceleration;
+    return addr.pulse2val(dyn_comm_.tryRead(addr, id), model_[id]);
 }
 
 double DynamixelHandler::ReadProfileVel(uint8_t id){
-    const auto vel_pulse = dyn_comm_.tryRead(DynX::profile_velocity, id);
-    return DynX::profile_velocity.pulse2val(vel_pulse, model_[id]);
+    auto addr = series_[id]==SERIES_X ? AddrX::profile_velocity
+               :series_[id]==SERIES_P ? AddrP::profile_velocity : AddrX::profile_velocity;
+    return addr.pulse2val(dyn_comm_.tryRead(addr, id), model_[id]);
 }
 
 double DynamixelHandler::ReadHomingOffset(uint8_t id){
-    const auto offset_pulse = dyn_comm_.tryRead(DynX::homing_offset, id);
-    return DynX::homing_offset.pulse2val(offset_pulse, model_[id]);
+    auto addr = series_[id]==SERIES_X ? AddrX::homing_offset
+               :series_[id]==SERIES_P ? AddrP::homing_offset : AddrX::homing_offset;
+    return addr.pulse2val(dyn_comm_.tryRead(addr, id), model_[id]);
 }
 
 uint8_t DynamixelHandler::ReadOperatingMode(uint8_t id){
-    return dyn_comm_.tryRead(DynX::operating_mode, id);
+    return series_[id]==SERIES_X ? dyn_comm_.tryRead(AddrX::operating_mode, id) 
+          :series_[id]==SERIES_P ? dyn_comm_.tryRead(AddrP::operating_mode, id) : 0;
 }
 
 //* 基本機能たち Write
 
-bool DynamixelHandler::WriteGoalPosition(uint8_t id, double pos){
-    const auto pos_pulse = DynX::goal_position.val2pulse(pos, model_[id]);
-    return dyn_comm_.tryWrite(DynX::goal_position, id, pos_pulse);
+bool DynamixelHandler::WriteTorqueEnable(uint8_t id, bool enable){
+    auto addr = series_[id]==SERIES_X ? AddrX::torque_enable
+               :series_[id]==SERIES_P ? AddrP::torque_enable : AddrX::torque_enable;
+    return dyn_comm_.tryWrite(addr, id, enable ? TORQUE_ENABLE : TORQUE_DISABLE);
 }
 
-bool DynamixelHandler::WriteTorqueEnable(uint8_t id, bool enable){
-    return dyn_comm_.tryWrite(DynX::torque_enable, id, enable ? TORQUE_ENABLE : TORQUE_DISABLE);
+bool DynamixelHandler::WriteGoalPosition(uint8_t id, double pos){
+    auto addr = series_[id]==SERIES_X ? AddrX::goal_position
+               :series_[id]==SERIES_P ? AddrP::goal_position : AddrX::goal_position;
+    return dyn_comm_.tryWrite(addr, id, addr.val2pulse(pos, model_[id]));
 }
 
 bool DynamixelHandler::WriteGoalPWM(uint8_t id, double pwm){
-    const auto pwm_pulse = DynX::goal_pwm.val2pulse(pwm, model_[id]);
-    return dyn_comm_.tryWrite(DynX::goal_pwm, id, pwm_pulse);
+    auto addr = series_[id]==SERIES_X ? AddrX::goal_pwm
+               :series_[id]==SERIES_P ? AddrP::goal_pwm : AddrX::goal_pwm;
+    return dyn_comm_.tryWrite(addr, id, addr.val2pulse(pwm, model_[id]));
 }
 
 bool DynamixelHandler::WriteGoalCurrent(uint8_t id, double cur){
-    const auto cur_pulse = DynX::goal_current.val2pulse(cur, model_[id]);
-    return dyn_comm_.tryWrite(DynX::goal_current, id, cur_pulse);
+    auto addr = series_[id]==SERIES_X ? AddrX::goal_current
+               :series_[id]==SERIES_P ? AddrP::goal_current : AddrX::goal_current;
+    return dyn_comm_.tryWrite(addr, id, addr.val2pulse(cur, model_[id]));
 }
 
 bool DynamixelHandler::WriteGoalVelocity(uint8_t id, double vel){
-    const auto vel_pulse = DynX::goal_velocity.val2pulse(vel, model_[id]);
-    return dyn_comm_.tryWrite(DynX::goal_velocity, id, vel_pulse);
+    auto addr = series_[id]==SERIES_X ? AddrX::goal_velocity
+               :series_[id]==SERIES_P ? AddrP::goal_velocity : AddrX::goal_velocity;
+    return dyn_comm_.tryWrite(addr, id, addr.val2pulse(vel, model_[id]));
 }
 
 bool DynamixelHandler::WriteProfileAcc(uint8_t id, double acc){
-    const auto acc_pulse = DynX::profile_acceleration.val2pulse(acc, model_[id]);
-    return dyn_comm_.tryWrite(DynX::profile_acceleration, id, acc_pulse);
+    auto addr = series_[id]==SERIES_X ? AddrX::profile_acceleration
+               :series_[id]==SERIES_P ? AddrP::profile_acceleration : AddrX::profile_acceleration;
+    return dyn_comm_.tryWrite(addr, id, addr.val2pulse(acc, model_[id]));
 }
 
 bool DynamixelHandler::WriteProfileVel(uint8_t id, double vel){
-    const auto vel_pulse = DynX::profile_velocity.val2pulse(vel, model_[id]);
-    return dyn_comm_.tryWrite(DynX::profile_velocity, id, vel_pulse);
+    auto addr = series_[id]==SERIES_X ? AddrX::profile_velocity
+               :series_[id]==SERIES_P ? AddrP::profile_velocity : AddrX::profile_velocity;
+    return dyn_comm_.tryWrite(addr, id, addr.val2pulse(vel, model_[id]));
 }
 
 bool DynamixelHandler::WriteHomingOffset(uint8_t id, double offset){
-    const auto offset_pulse = DynX::homing_offset.val2pulse(offset, model_[id]);
-    return dyn_comm_.tryWrite(DynX::homing_offset, id, offset_pulse);
+    auto addr = series_[id]==SERIES_X ? AddrX::homing_offset
+               :series_[id]==SERIES_P ? AddrP::homing_offset : AddrX::homing_offset;
+    return dyn_comm_.tryWrite(addr, id, addr.val2pulse(offset, model_[id]));
 }
 
 bool DynamixelHandler::WriteOperatingMode(uint8_t id, uint8_t mode){ 
-    return dyn_comm_.tryWrite(DynX::operating_mode, id, mode); 
+    return series_[id]==SERIES_X ? dyn_comm_.tryWrite(AddrX::operating_mode, id, mode) 
+          :series_[id]==SERIES_P ? dyn_comm_.tryWrite(AddrP::operating_mode, id, mode) : false;
 }
 
 bool DynamixelHandler::WriteBusWatchdog(uint8_t id, double time){
-    const auto time_pulse = DynX::bus_watchdog.val2pulse(time, model_[id]);
-    return dyn_comm_.tryWrite(DynX::bus_watchdog, id, time_pulse);
+    auto addr = series_[id]==SERIES_X ? AddrX::bus_watchdog
+               :series_[id]==SERIES_P ? AddrP::bus_watchdog : AddrX::bus_watchdog;
+    return dyn_comm_.tryWrite(addr, id, addr.val2pulse(time, model_[id]));
 }
 
-bool DynamixelHandler::WriteGains(uint8_t id, array<int64_t, 7> gains){
+bool DynamixelHandler::WriteGains(uint8_t id, array<int64_t, _num_opt_gain> gains){
     bool is_success = true;
-    is_success &= dyn_comm_.tryWrite(DynX::velocity_i_gain, id, gains[VELOCITY_I_GAIN]);
-    is_success &= dyn_comm_.tryWrite(DynX::velocity_p_gain, id, gains[VELOCITY_P_GAIN]);
-    is_success &= dyn_comm_.tryWrite(DynX::position_d_gain, id, gains[POSITION_D_GAIN]);
-    is_success &= dyn_comm_.tryWrite(DynX::position_i_gain, id, gains[POSITION_I_GAIN]);
-    is_success &= dyn_comm_.tryWrite(DynX::position_p_gain, id, gains[POSITION_P_GAIN]);
-    is_success &= dyn_comm_.tryWrite(DynX::feedforward_acc_gain, id, gains[FEEDFORWARD_ACC_GAIN]);
-    is_success &= dyn_comm_.tryWrite(DynX::feedforward_vel_gain, id, gains[FEEDFORWARD_VEL_GAIN]);
+    if ( series_[id] != SERIES_X ) {
+        is_success &= dyn_comm_.tryWrite(AddrX::velocity_i_gain, id, gains[VELOCITY_I_GAIN]);
+        is_success &= dyn_comm_.tryWrite(AddrX::velocity_p_gain, id, gains[VELOCITY_P_GAIN]);
+        is_success &= dyn_comm_.tryWrite(AddrX::position_d_gain, id, gains[POSITION_D_GAIN]);
+        is_success &= dyn_comm_.tryWrite(AddrX::position_i_gain, id, gains[POSITION_I_GAIN]);
+        is_success &= dyn_comm_.tryWrite(AddrX::position_p_gain, id, gains[POSITION_P_GAIN]);
+        is_success &= dyn_comm_.tryWrite(AddrX::feedforward_2nd_gain, id, gains[FEEDFORWARD_ACC_GAIN]);
+        is_success &= dyn_comm_.tryWrite(AddrX::feedforward_1st_gain, id, gains[FEEDFORWARD_VEL_GAIN]);
+    } else if ( series_[id] != SERIES_P ) {
+        is_success &= dyn_comm_.tryWrite(AddrP::velocity_i_gain, id, gains[VELOCITY_I_GAIN]);
+        is_success &= dyn_comm_.tryWrite(AddrP::velocity_p_gain, id, gains[VELOCITY_P_GAIN]);
+        is_success &= dyn_comm_.tryWrite(AddrP::position_d_gain, id, gains[POSITION_D_GAIN]);
+        is_success &= dyn_comm_.tryWrite(AddrP::position_i_gain, id, gains[POSITION_I_GAIN]);
+        is_success &= dyn_comm_.tryWrite(AddrP::position_p_gain, id, gains[POSITION_P_GAIN]);
+        is_success &= dyn_comm_.tryWrite(AddrP::feedforward_2nd_gain, id, gains[FEEDFORWARD_ACC_GAIN]);
+        is_success &= dyn_comm_.tryWrite(AddrP::feedforward_1st_gain, id, gains[FEEDFORWARD_VEL_GAIN]);
+    } else { is_success = false; }
     return is_success;
 }

@@ -178,9 +178,10 @@ class DynamixelHandler : public rclcpp::Node {
             /*Indexの最大値*/_num_opt_gain           
         };
         // 連結したサーボの基本情報
-        vector<uint8_t> id_list_; // chained dynamixel id list
+        vector<uint8_t> id_list_; // chained dynamixel id list // todo setに変更した方がいい
         map<uint8_t, uint16_t> model_; // 各dynamixelの id と model のマップ
         map<uint8_t, uint16_t> series_; // 各dynamixelの id と series のマップ
+        map<uint8_t, size_t> num_;  // 各dynamixelの series と　個数のマップ 無くても何とかなるけど, 効率を考えて保存する
         // 連結しているサーボの個々の状態を保持するmap
         static inline map<uint8_t, bool> tq_mode_;    // 各dynamixelの id と トルクON/OFF のマップ
         static inline map<uint8_t, uint8_t> op_mode_; // 各dynamixelの id と 制御モード のマップ
@@ -201,7 +202,6 @@ class DynamixelHandler : public rclcpp::Node {
 
         //* 単体通信を組み合わせた上位機能
         uint8_t ScanDynamixels(uint8_t id_max);
-        void StopDynamixels();
         bool ClearHardwareError(uint8_t servo_id);
         bool ChangeOperatingMode(uint8_t servo_id, DynamixelOperatingMode mode);
         bool TorqueOn(uint8_t servo_id);
@@ -233,16 +233,17 @@ class DynamixelHandler : public rclcpp::Node {
         bool WriteBusWatchdog(uint8_t servo_id, double time);
         bool WriteGains(uint8_t servo_id, array<int64_t, _num_opt_gain> gains);
         //* 連結しているDynamixelに一括で読み書きするloopで使用する機能
-        void SyncWriteCommandValues(set<CmdValueIndex>& list_wirte_cmd=list_write_cmd_);
-        void SyncWriteOption_Mode();  // todo 
-        void SyncWriteOption_Gain();  // todo 
-        void SyncWriteOption_Limit(); // todo 
-        double SyncReadStateValues(set<StValueIndex> list_read_state=list_read_state_);
-        double SyncReadHardwareErrors();
-        double SyncReadOption_Mode(); 
-        double SyncReadOption_Gain(); 
-        double SyncReadOption_Limit();
-        double SyncReadOption_Goal();
+        template <typename Addr=AddrCommon> void SyncWriteCommandValues(set<CmdValueIndex>& list_wirte_cmd=list_write_cmd_);
+        template <typename Addr=AddrCommon> void SyncWriteOption_Mode();  // todo 
+        template <typename Addr=AddrCommon> void SyncWriteOption_Gain();  // todo 
+        template <typename Addr=AddrCommon> void SyncWriteOption_Limit(); // todo 
+        template <typename Addr=AddrCommon> double SyncReadStateValues(set<StValueIndex> list_read_state=list_read_state_);
+        template <typename Addr=AddrCommon> double SyncReadHardwareErrors();
+        template <typename Addr=AddrCommon> double SyncReadOption_Mode(); 
+        template <typename Addr=AddrCommon> double SyncReadOption_Gain(); 
+        template <typename Addr=AddrCommon> double SyncReadOption_Limit();
+        template <typename Addr=AddrCommon> double SyncReadOption_Goal();
+        template <typename Addr=AddrCommon> void SyncStopDynamixels();
 };
 
 // ちょっとした文字列の整形を行う補助関数

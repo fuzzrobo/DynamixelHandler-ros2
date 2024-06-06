@@ -11,58 +11,76 @@ template<typename T> T  operator ++ (T& v, int) { T p=v; ++v; return p;}
  * @brief 指定した範囲のコマンド値を書き込む
  * @param list_write_cmd 書き込むコマンドのEnumのリスト
 */
-void DynamixelHandler::SyncWriteCommandValues(set<CmdValueIndex>& list_write_cmd){
-    // 空なら即時return
-    if ( list_write_cmd.empty() ) return;
-    // 書き込む範囲のイテレータを取得, 分割書き込みが有効な場合書き込む範囲を1つ目のみに制限,残りは再帰的に処理する．
-    auto start = min_element(list_write_cmd.begin(), list_write_cmd.end());   
-    auto end = ( use_split_write_ ) ? start 
-               : max_element(list_write_cmd.begin(), list_write_cmd.end());
-    // 書き込みに必要な変数を用意
-    vector<DynamixelAddress> cmd_dp_list;  // 書き込むコマンドのアドレスのベクタ
+template <> void DynamixelHandler::SyncWriteCommandValues(set<CmdValueIndex>& list_write_cmd){
+    SyncWriteCommandValues<AddrX>(list_write_cmd);
+    SyncWriteCommandValues<AddrP>(list_write_cmd);
+    list_write_cmd.clear(); // 両方のシリーズに対して書き込みを行ったので，リストをクリア
+}
+template <typename Addr> void DynamixelHandler::SyncWriteCommandValues(set<CmdValueIndex>& list_write_cmd_origin){
+    if ( list_write_cmd_origin.empty() ) return; // 空なら即時return
+    //* 書き込む範囲のイテレータを取得, 分割書き込みが有効な場合書き込む範囲を1つ目のみに制限,残りは再帰的に処理する．
+    auto list_write_cmd = list_write_cmd_origin; // コピーを作成して変更を回避
+    auto [start,end] = minmax_element(list_write_cmd.begin(), list_write_cmd.end()); 
+    if ( use_split_write_ ) end = start; // 分割書き込みが有効な場合は書き込む範囲を1つ目のみに制限
+    list_write_cmd.erase(start, ++end);  // 今回書き込む範囲を消去
+    //* 書き込みに必要な変数を用意
+    vector<DynamixelAddress> cmd_addr_list;  // 書き込むコマンドのアドレスのベクタ
     map<uint8_t, vector<int64_t>> id_cmd_vec_map; // id と 書き込むデータのベクタのマップ
     for (CmdValueIndex cmd = *start; cmd <= *end; cmd++) { // アドレスのベクタと，データのベクタの並びは対応している必要があるので，同一のループで作成する．
-        const auto& dp = []( CmdValueIndex c ) { switch (c) {
-            case GOAL_PWM      : return DynX::goal_pwm            ;
-            case GOAL_CURRENT  : return DynX::goal_current        ;
-            case GOAL_VELOCITY : return DynX::goal_velocity       ;
-            case PROFILE_ACC   : return DynX::profile_acceleration;
-            case PROFILE_VEL   : return DynX::profile_velocity    ;
-            case GOAL_POSITION : return DynX::goal_position       ;
+        switch (cmd) {
+            case GOAL_PWM      : cmd_addr_list.push_back(Addr::goal_pwm            ); break;
+            case GOAL_CURRENT  : cmd_addr_list.push_back(Addr::goal_current        ); break;
+            case GOAL_VELOCITY : cmd_addr_list.push_back(Addr::goal_velocity       ); break;
+            case PROFILE_ACC   : cmd_addr_list.push_back(Addr::profile_acceleration); break;
+            case PROFILE_VEL   : cmd_addr_list.push_back(Addr::profile_velocity    ); break;
+            case GOAL_POSITION : cmd_addr_list.push_back(Addr::goal_position       ); break;
             default: /*ここに来たらエラ-*/ exit(1);
-        }}(cmd);
-        cmd_dp_list.push_back(dp);
-        for (const auto id : id_list_) if ( is_cmd_updated_[id] ) {
-            const auto pulse  = dp.val2pulse( cmd_values_[id][cmd], model_[id] );
-            id_cmd_vec_map[id].push_back( pulse );
+        }
+        const auto& addr = cmd_addr_list.back();
+        for (auto id : id_list_) if ( series_[id]==Addr::series() ) {
+            if ( !is_cmd_updated_[id] ) continue;
+            id_cmd_vec_map[id].push_back( addr.val2pulse( cmd_values_[id][cmd], model_[id] ) );
         }
     }
-    //id_cmd_vec_mapの中身を確認
+    if ( id_cmd_vec_map.empty() ) return; // 書き込むデータがない場合は即時return
+    //* id_cmd_vec_mapの中身を確認
     if ( varbose_write_cmd_ ) {
         char header[100]; sprintf(header, "[%d] servo(s) will be written", (int)id_cmd_vec_map.size());
-        auto ss = control_table_layout(width_log_, id_cmd_vec_map, cmd_dp_list, string(header));
+        auto ss = control_table_layout(width_log_, id_cmd_vec_map, cmd_addr_list, string(header));
         ROS_INFO_STREAM(ss);
     }
-    // SyncWriteでまとめて書き込み
-    dyn_comm_.SyncWrite(cmd_dp_list, id_cmd_vec_map);
-    // 今回書き込みした範囲を消去して残りを再帰的に処理, use_split_write_=falseの場合は全て削除されるので,再帰しない
-    list_write_cmd.erase(start, ++end);
+    //*SyncWriteでまとめて書き込み
+    dyn_comm_.SyncWrite(cmd_addr_list, id_cmd_vec_map);
+    //*再帰的に処理, use_split_write_=falseの場合は全て削除されるので,再帰しない
     SyncWriteCommandValues(list_write_cmd);
-    // 後処理，再帰の終端で実行される
-    is_cmd_updated_.clear();
+    //*後処理，再帰の終端で実行される, 書き込んだ id のフラグをリセット
+    for (const auto& [id, _] : id_cmd_vec_map) is_cmd_updated_[id] = false;
 }
 
-void DynamixelHandler::SyncWriteOption_Mode(){
+template <> void DynamixelHandler::SyncWriteOption_Mode(){
+    SyncWriteOption_Mode<AddrX>();
+    SyncWriteOption_Mode<AddrP>();
+}
+template <typename Addr> void DynamixelHandler::SyncWriteOption_Mode(){
     return;
 }
 
-void DynamixelHandler::SyncWriteOption_Gain(){
+template <> void DynamixelHandler::SyncWriteOption_Gain(){
+    SyncWriteOption_Gain<AddrX>();
+    SyncWriteOption_Gain<AddrP>();
+}
+template <typename Addr> void DynamixelHandler::SyncWriteOption_Gain(){
     return;
 }
 
-void DynamixelHandler::SyncWriteOption_Limit(){
+template <> void DynamixelHandler::SyncWriteOption_Limit(){
+    SyncWriteOption_Limit<AddrX>();
+    SyncWriteOption_Limit<AddrP>();
+}
+template <typename Addr> void DynamixelHandler::SyncWriteOption_Limit(){
     return;
 }
+
 using std::chrono::system_clock;
 using std::chrono::duration_cast;
 using std::chrono::microseconds;
@@ -73,38 +91,43 @@ using std::chrono::microseconds;
  * @param list_read_state 読み込む状態値のEnumのリスト
  * @return 読み取りの成功率, なんで再帰で頑張って実装してるんだろう．．．
 */
-double DynamixelHandler::SyncReadStateValues(set<StValueIndex> list_read_state){
-    // 空なら即時return
-    if ( list_read_state.empty() ) return 1.0;
-    // 読み込む範囲のstate_dp_listのインデックスを取得
-    auto start = min_element(list_read_state.begin(), list_read_state.end());
-    auto end = ( use_split_read_ ) ? start
-               : max_element(list_read_state.begin(), list_read_state.end());
-    // 読み込みに必要な変数を用意
-    vector<DynamixelAddress> state_dp_list;
+template <>double DynamixelHandler::SyncReadStateValues(set<StValueIndex> list_read_state){
+    double suc_rate_X = SyncReadStateValues<AddrX>(list_read_state);
+    double suc_rate_P = SyncReadStateValues<AddrP>(list_read_state);
+    return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / series_.size();
+}
+template <typename Addr> double DynamixelHandler::SyncReadStateValues(set<StValueIndex> list_read_state){
+    if ( list_read_state.empty() ) return 1.0; // 空なら即時return
+    //* 読み込む範囲のstate_addr_listのインデックスを取得
+    auto [start, end] = minmax_element(list_read_state.begin(), list_read_state.end());
+    if ( use_split_read_ ) end = start; // 分割読み込みが有効な場合は読み込む範囲を1つ目のみに制限
+    list_read_state.erase(start, ++end);
+    //* 読み込みに必要な変数を用意
+    vector<DynamixelAddress> state_addr_list;
     for (StValueIndex st=*start; st<=*end; st++) switch (st) {
-        case PRESENT_PWM          : state_dp_list.push_back(DynX::present_pwm          ); break; 
-        case PRESENT_CURRENT      : state_dp_list.push_back(DynX::present_current      ); break; 
-        case PRESENT_VELOCITY     : state_dp_list.push_back(DynX::present_velocity     ); break;    
-        case PRESENT_POSITION     : state_dp_list.push_back(DynX::present_position     ); break;   
-        case VELOCITY_TRAJECTORY  : state_dp_list.push_back(DynX::velocity_trajectory  ); break;   
-        case POSITION_TRAJECTORY  : state_dp_list.push_back(DynX::position_trajectory  ); break;  
-        case PRESENT_INPUT_VOLTAGE: state_dp_list.push_back(DynX::present_input_voltage); break; 
-        case PRESENT_TEMPERTURE   : state_dp_list.push_back(DynX::present_temperture   ); break;
+        case PRESENT_PWM          : state_addr_list.push_back(Addr::present_pwm          ); break; 
+        case PRESENT_CURRENT      : state_addr_list.push_back(Addr::present_current      ); break; 
+        case PRESENT_VELOCITY     : state_addr_list.push_back(Addr::present_velocity     ); break;    
+        case PRESENT_POSITION     : state_addr_list.push_back(Addr::present_position     ); break;   
+        case VELOCITY_TRAJECTORY  : state_addr_list.push_back(Addr::velocity_trajectory  ); break;   
+        case POSITION_TRAJECTORY  : state_addr_list.push_back(Addr::position_trajectory  ); break;  
+        case PRESENT_INPUT_VOLTAGE: state_addr_list.push_back(Addr::present_input_voltage); break; 
+        case PRESENT_TEMPERTURE   : state_addr_list.push_back(Addr::present_temperture   ); break;
         default: /*ここに来たらエラ-*/ exit(1);
     }
     vector<uint8_t> target_id_list;
-    for (auto id : id_list_) if ( series_[id]==SERIES_X ) target_id_list.push_back(id);
+    for (auto id : id_list_) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
+    if ( target_id_list.empty() ) return 1.0; // 読み込むデータがない場合は即時return
     // SyncReadでまとめて読み込み
-    const auto id_st_vec_map = ( use_fast_read_ ) // fast read を使うかどうか．　途中で切り替えるとtimeout後に来るデータによってSyncReadが何度も失敗するので注意
-        ? dyn_comm_.SyncRead_fast(state_dp_list, target_id_list)
-        : dyn_comm_.SyncRead     (state_dp_list, target_id_list);
+    const auto id_st_vec_map = ( use_fast_read_ ) // fast read を使うかどうか． 途中で切り替えるとtimeout後に来るデータによってSyncReadが何度も失敗するので注意
+        ? dyn_comm_.SyncRead_fast(state_addr_list, target_id_list)
+        : dyn_comm_.SyncRead     (state_addr_list, target_id_list);
     const size_t N_total = target_id_list.size();
     const size_t N_suc   = id_st_vec_map.size();
     const bool is_timeout_  = dyn_comm_.timeout_last_read();
     const bool is_comm_err_ = dyn_comm_.comm_error_last_read();
     has_hardware_err_ = dyn_comm_.hardware_error_last_read();
-    // 通信エラーの表示
+    //* 通信エラーの表示
     if ( varbose_read_st_err_ ) if ( is_timeout_ || is_comm_err_ ) {
         vector<uint8_t> failed_id_list;
         for ( auto id : target_id_list ) if ( id_st_vec_map.find(id) == id_st_vec_map.end() ) failed_id_list.push_back(id);
@@ -112,10 +135,10 @@ double DynamixelHandler::SyncReadStateValues(set<StValueIndex> list_read_state){
         auto ss = id_list_layout(failed_id_list, string(header)+( is_timeout_ ? " (time out)" : " (some kind packet error)"));
         ROS_WARN_STREAM(ss);
     }
-    // id_st_vec_mapの中身を確認
+    //* id_st_vec_mapの中身を確認
     if ( varbose_read_st_ ) if ( N_suc>0 ) {
         char header[99]; sprintf(header, "[%d] servo(s) are read", (int)N_suc);
-        auto ss = control_table_layout(width_log_, id_st_vec_map, state_dp_list, string(header));
+        auto ss = control_table_layout(width_log_, id_st_vec_map, state_addr_list, string(header));
         ROS_INFO_STREAM(ss);
         if ( has_hardware_err_ ) ROS_WARN( "Hardware Error are detected");
     }
@@ -123,12 +146,11 @@ double DynamixelHandler::SyncReadStateValues(set<StValueIndex> list_read_state){
     const int num_state_next = list_read_state.size();
     const int num_state_now = *end-*start+1;
     for (int i = 0; i < num_state_now; i++) {
-        const auto dp = state_dp_list[i];
+        const auto addr = state_addr_list[i];
         for (const auto& [id, data_int] : id_st_vec_map)
-            state_values_[id][*start+i] = dp.pulse2val( data_int[i], model_[id]);
+            state_values_[id][*start+i] = addr.pulse2val( data_int[i], model_[id]);
     }
     // 今回読み込んだ範囲を消去して残りを再帰的に処理, use_split_read_=falseの場合は全て削除されるので,再帰しない
-    list_read_state.erase(start, ++end);
     double suc_rate = SyncReadStateValues(list_read_state);
     return       suc_rate       *num_state_next / (num_state_now+num_state_next) // 再帰的な意味で前回までの成功率に重しをかけたもの
          + N_suc/(double)N_total*num_state_now  / (num_state_now+num_state_next);// 今回の成功率に今回読み込んだデータの数を重しとしてかけたもの
@@ -139,15 +161,20 @@ double DynamixelHandler::SyncReadStateValues(set<StValueIndex> list_read_state){
  * @brief ハードウェアエラーを読み込む
  * @return 読み取りの成功率
 */
-double DynamixelHandler::SyncReadHardwareErrors(){
+template <> double DynamixelHandler::SyncReadHardwareErrors(){
+    double suc_rate_X = SyncReadHardwareErrors<AddrX>();
+    double suc_rate_P = SyncReadHardwareErrors<AddrP>();
+    return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / series_.size();
+}
+template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(){
     if ( !has_hardware_err_ ) { hardware_error_.clear(); return 1.0; } // 事前にエラーが検出できていない場合は省略
 
     vector<uint8_t> target_id_list;
-    for (int id : id_list_) if ( series_[id]==SERIES_X ) target_id_list.push_back(id);
+    for (int id : id_list_) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
     
     auto id_error_map =  ( use_fast_read_ ) 
-        ? dyn_comm_.SyncRead_fast(DynX::hardware_error_status, target_id_list)
-        : dyn_comm_.SyncRead     (DynX::hardware_error_status, target_id_list);
+        ? dyn_comm_.SyncRead_fast(Addr::hardware_error_status, target_id_list)
+        : dyn_comm_.SyncRead     (Addr::hardware_error_status, target_id_list);
 
     if ( dyn_comm_.timeout_last_read() ) return 0.0; // 読み込み失敗
 
@@ -176,12 +203,22 @@ double DynamixelHandler::SyncReadHardwareErrors(){
     return id_error_map.size()/double(target_id_list.size());
 }
 
-double DynamixelHandler::SyncReadOption_Mode(){
+/**
+ * @func SyncReadOption_Mode
+ * @brief モードに関する値を読み込む
+ * @return 読み取りの成功率
+*/
+template <> double DynamixelHandler::SyncReadOption_Mode(){
+    double suc_rate_X = SyncReadOption_Mode<AddrX>();
+    double suc_rate_P = SyncReadOption_Mode<AddrP>();
+    return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / series_.size();
+}
+template <typename Addr> double DynamixelHandler::SyncReadOption_Mode(){
     vector<uint8_t> target_id_list;
-    for (int id : id_list_) if ( series_[id]==SERIES_X ) target_id_list.push_back(id);
+    for (int id : id_list_) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
 
-    auto id_torque_map = dyn_comm_.SyncRead(DynX::torque_enable, target_id_list);
-    auto id_dv_op_mode_map = dyn_comm_.SyncRead({DynX::drive_mode, DynX::operating_mode}, target_id_list);
+    auto id_torque_map     = dyn_comm_.SyncRead( Addr::torque_enable,                      target_id_list);
+    auto id_dv_op_mode_map = dyn_comm_.SyncRead({Addr::drive_mode, Addr::operating_mode}, target_id_list);
 
     for ( const auto& [id, toqrue] : id_torque_map ) tq_mode_[id] = toqrue;
     for ( const auto& [id, dv_op]  : id_dv_op_mode_map ) {
@@ -191,23 +228,33 @@ double DynamixelHandler::SyncReadOption_Mode(){
     return 1.0;
 }
 
-double DynamixelHandler::SyncReadOption_Gain(){
+/**
+ * @func SyncReadOption_Gain
+ * @brief ゲインをすべて読み込む
+ * @return 読み取りの成功率
+*/
+template <> double DynamixelHandler::SyncReadOption_Gain(){
+    double suc_rate_X = SyncReadOption_Gain<AddrX>();
+    double suc_rate_P = SyncReadOption_Gain<AddrP>();
+    return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / series_.size();
+}
+template <typename Addr> double DynamixelHandler::SyncReadOption_Gain(){
     OptGainIndex start = VELOCITY_I_GAIN;
     OptGainIndex end   = FEEDFORWARD_VEL_GAIN;
     vector<DynamixelAddress> opt_gain_dp_list;
     for (OptGainIndex g=start; g<=end; g++) switch ( g ) {
-        case VELOCITY_I_GAIN     : opt_gain_dp_list.push_back(DynX::velocity_i_gain     ); break;
-        case VELOCITY_P_GAIN     : opt_gain_dp_list.push_back(DynX::velocity_p_gain     ); break;
-        case POSITION_D_GAIN     : opt_gain_dp_list.push_back(DynX::position_d_gain     ); break;
-        case POSITION_I_GAIN     : opt_gain_dp_list.push_back(DynX::position_i_gain     ); break;
-        case POSITION_P_GAIN     : opt_gain_dp_list.push_back(DynX::position_p_gain     ); break;
-        case FEEDFORWARD_ACC_GAIN: opt_gain_dp_list.push_back(DynX::feedforward_acc_gain); break;
-        case FEEDFORWARD_VEL_GAIN: opt_gain_dp_list.push_back(DynX::feedforward_vel_gain); break;
+        case VELOCITY_I_GAIN     : opt_gain_dp_list.push_back(Addr::velocity_i_gain     ); break;
+        case VELOCITY_P_GAIN     : opt_gain_dp_list.push_back(Addr::velocity_p_gain     ); break;
+        case POSITION_D_GAIN     : opt_gain_dp_list.push_back(Addr::position_d_gain     ); break;
+        case POSITION_I_GAIN     : opt_gain_dp_list.push_back(Addr::position_i_gain     ); break;
+        case POSITION_P_GAIN     : opt_gain_dp_list.push_back(Addr::position_p_gain     ); break;
+        case FEEDFORWARD_ACC_GAIN: opt_gain_dp_list.push_back(Addr::feedforward_2nd_gain); break;
+        case FEEDFORWARD_VEL_GAIN: opt_gain_dp_list.push_back(Addr::feedforward_1st_gain); break;
         default: /*ここに来たらエラ-*/ exit(1);
     }
 
     vector<uint8_t> target_id_list;
-    for (int id : id_list_) if ( series_[id]==SERIES_X ) target_id_list.push_back(id);
+    for (int id : id_list_) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
 
     auto id_gain_vec_map = ( use_fast_read_ )
         ? dyn_comm_.SyncRead_fast(opt_gain_dp_list, target_id_list)
@@ -237,25 +284,35 @@ double DynamixelHandler::SyncReadOption_Gain(){
     return id_gain_vec_map.size() / (double)target_id_list.size();
 }
 
-double DynamixelHandler::SyncReadOption_Limit(){
+/**
+ * @func SyncReadOption_Limit
+ * @brief 制限値をすべて読み込む
+ * @return 読み取りの成功率
+*/
+template <> double DynamixelHandler::SyncReadOption_Limit(){
+    double suc_rate_X = SyncReadOption_Limit<AddrX>();
+    double suc_rate_P = SyncReadOption_Limit<AddrP>();
+    return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / series_.size();
+}
+template <typename Addr> double DynamixelHandler::SyncReadOption_Limit(){
     OptLimitIndex start = TEMPERATURE_LIMIT;
     OptLimitIndex end   = MIN_POSITION_LIMIT;
     vector<DynamixelAddress> opt_limit_dp_list;
     for (OptLimitIndex l=start; l<=end; l++) switch ( l ) {
-        case TEMPERATURE_LIMIT : opt_limit_dp_list.push_back(DynX::temperature_limit ); break;
-        case MAX_VOLTAGE_LIMIT : opt_limit_dp_list.push_back(DynX::max_voltage_limit ); break;
-        case MIN_VOLTAGE_LIMIT : opt_limit_dp_list.push_back(DynX::min_voltage_limit ); break;
-        case PWM_LIMIT         : opt_limit_dp_list.push_back(DynX::pwm_limit         ); break;
-        case CURRENT_LIMIT     : opt_limit_dp_list.push_back(DynX::current_limit     ); break;
-        case ACCELERATION_LIMIT: opt_limit_dp_list.push_back(DynX::acceleration_limit); break;
-        case VELOCITY_LIMIT    : opt_limit_dp_list.push_back(DynX::velocity_limit    ); break;
-        case MAX_POSITION_LIMIT: opt_limit_dp_list.push_back(DynX::max_position_limit); break;
-        case MIN_POSITION_LIMIT: opt_limit_dp_list.push_back(DynX::min_position_limit); break;
+        case TEMPERATURE_LIMIT : opt_limit_dp_list.push_back(Addr::temperature_limit ); break;
+        case MAX_VOLTAGE_LIMIT : opt_limit_dp_list.push_back(Addr::max_voltage_limit ); break;
+        case MIN_VOLTAGE_LIMIT : opt_limit_dp_list.push_back(Addr::min_voltage_limit ); break;
+        case PWM_LIMIT         : opt_limit_dp_list.push_back(Addr::pwm_limit         ); break;
+        case CURRENT_LIMIT     : opt_limit_dp_list.push_back(Addr::current_limit     ); break;
+        case ACCELERATION_LIMIT: opt_limit_dp_list.push_back(Addr::acceleration_limit); break;
+        case VELOCITY_LIMIT    : opt_limit_dp_list.push_back(Addr::velocity_limit    ); break;
+        case MAX_POSITION_LIMIT: opt_limit_dp_list.push_back(Addr::max_position_limit); break;
+        case MIN_POSITION_LIMIT: opt_limit_dp_list.push_back(Addr::min_position_limit); break;
         default: /*ここに来たらエラ-*/ exit(1);
     }
 
     vector<uint8_t> target_id_list;
-    for (int id : id_list_) if ( series_[id]==SERIES_X ) target_id_list.push_back(id);
+    for (int id : id_list_) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
 
     auto id_limit_vec_map = ( use_fast_read_ )
         ? dyn_comm_.SyncRead_fast(opt_limit_dp_list, target_id_list)
@@ -298,22 +355,32 @@ double DynamixelHandler::SyncReadOption_Limit(){
     return id_limit_vec_map.size() / (double)target_id_list.size();
 }
 
-double DynamixelHandler::SyncReadOption_Goal() {
+/**
+ * @func SyncReadOption_Goal
+ * @brief 目標値をすべて読み込む
+ * @return 読み取りの成功率
+*/
+template <> double DynamixelHandler::SyncReadOption_Goal(){
+    double suc_rate_X = SyncReadOption_Goal<AddrX>();
+    double suc_rate_P = SyncReadOption_Goal<AddrP>();
+    return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / series_.size();
+}
+template <typename Addr> double DynamixelHandler::SyncReadOption_Goal() {
     CmdValueIndex start = GOAL_PWM;
     CmdValueIndex end   = GOAL_POSITION;
     vector<DynamixelAddress> opt_goal_dp_list;
     for (CmdValueIndex g=start; g<=end; g++) switch ( g ) {
-        case GOAL_PWM      : opt_goal_dp_list.push_back(DynX::goal_pwm      ); break;
-        case GOAL_CURRENT  : opt_goal_dp_list.push_back(DynX::goal_current  ); break;
-        case GOAL_VELOCITY : opt_goal_dp_list.push_back(DynX::goal_velocity ); break;
-        case PROFILE_ACC   : opt_goal_dp_list.push_back(DynX::profile_acceleration); break;
-        case PROFILE_VEL   : opt_goal_dp_list.push_back(DynX::profile_velocity    ); break;
-        case GOAL_POSITION : opt_goal_dp_list.push_back(DynX::goal_position       ); break;
+        case GOAL_PWM      : opt_goal_dp_list.push_back(Addr::goal_pwm      ); break;
+        case GOAL_CURRENT  : opt_goal_dp_list.push_back(Addr::goal_current  ); break;
+        case GOAL_VELOCITY : opt_goal_dp_list.push_back(Addr::goal_velocity ); break;
+        case PROFILE_ACC   : opt_goal_dp_list.push_back(Addr::profile_acceleration); break;
+        case PROFILE_VEL   : opt_goal_dp_list.push_back(Addr::profile_velocity    ); break;
+        case GOAL_POSITION : opt_goal_dp_list.push_back(Addr::goal_position       ); break;
         default: /*ここに来たらエラ-*/ exit(1);
     }
 
     vector<uint8_t> target_id_list;
-    for (int id : id_list_) if ( series_[id]==SERIES_X ) target_id_list.push_back(id);
+    for (int id : id_list_) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
 
     auto id_goal_vec_map = ( use_fast_read_ )
         ? dyn_comm_.SyncRead_fast(opt_goal_dp_list, target_id_list)
@@ -340,4 +407,20 @@ double DynamixelHandler::SyncReadOption_Goal() {
             option_goal_[id][opt_goal] = dp.pulse2val( data_int[opt_goal], model_[id] );
     }
     return id_goal_vec_map.size() / (double)target_id_list.size();
+}
+
+// 全てのモータの動作を停止させる．
+template <> void DynamixelHandler::SyncStopDynamixels(){
+    SyncStopDynamixels<AddrX>();
+    SyncStopDynamixels<AddrP>();
+} 
+template <typename Addr> void DynamixelHandler::SyncStopDynamixels(){
+    vector<uint8_t> id_list; 
+    for (auto id : id_list_) if ( series_[id]==Addr::series() ) id_list.push_back(id);
+    vector<int64_t> offset_pulse(id_list.size(), 0);
+    dyn_comm_.SyncWrite(Addr::homing_offset ,id_list, offset_pulse); // マジで謎だが，BusWatchdogを設定するとHomingOffset分だけ回転してしまう...多分ファームrウェアのバグ
+    vector<int64_t> bus_watchtime_pulse(id_list.size(), 1);
+    dyn_comm_.SyncWrite(Addr::bus_watchdog, id_list, bus_watchtime_pulse);
+    ROS_INFO("%s servo will be stopped", Addr::series()==SERIES_X ? "X series" 
+                                       : Addr::series()==SERIES_X ? "P series" : "Unknown");
 }

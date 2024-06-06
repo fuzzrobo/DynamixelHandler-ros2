@@ -134,8 +134,8 @@ void DynamixelHandler::CallBackDxlOpt_Gain(const DynamixelOptionGain& msg) {
     if (msg.id_list.size() == msg.position_d_gain_pulse.size()){ is_any=true;}
     if (msg.id_list.size() == msg.position_i_gain_pulse.size()){ is_any=true;}
     if (msg.id_list.size() == msg.position_p_gain_pulse.size()){ is_any=true;}
-    if (msg.id_list.size() == msg.feedforward_acc_gain_pulse.size()){ is_any=true;}
-    if (msg.id_list.size() == msg.feedforward_vel_gain_pulse.size()){ is_any=true;}
+    if (msg.id_list.size() == msg.feedforward_2nd_gain_pulse.size()){ is_any=true;}
+    if (msg.id_list.size() == msg.feedforward_1st_gain_pulse.size()){ is_any=true;}
     if (varbose_callback_) {
         //  if (is_any) ROS_INFO(" - %d servo(s) gain are updated", (int)msg.id_list.size());
         //  else                  ROS_ERROR("Element size all dismatch; skiped callback");
@@ -181,7 +181,7 @@ void DynamixelHandler::BroadcastDxlState(){
             case PRESENT_POSITION:     msg.position_deg.push_back        (round4(value[state]/DEG)); break;
             case VELOCITY_TRAJECTORY:  msg.vel_trajectory_deg_s.push_back(round4(value[state]/DEG)); break;
             case POSITION_TRAJECTORY:  msg.pos_trajectory_deg.push_back  (round4(value[state]/DEG)); break;
-            case PRESENT_TEMPERTURE:   msg.temperature_deg_c.push_back    (round4(value[state]    )); break;
+            case PRESENT_TEMPERTURE:   msg.temperature_deg_c.push_back   (round4(value[state]    )); break;
             case PRESENT_INPUT_VOLTAGE:msg.input_voltage_v.push_back     (round4(value[state]    )); break;
         }
     }
@@ -233,8 +233,8 @@ void DynamixelHandler::BroadcastDxlOpt_Gain(){
         msg.position_d_gain_pulse.push_back     (gain[POSITION_D_GAIN     ]);
         msg.position_i_gain_pulse.push_back     (gain[POSITION_I_GAIN     ]);
         msg.position_p_gain_pulse.push_back     (gain[POSITION_P_GAIN     ]);
-        msg.feedforward_acc_gain_pulse.push_back(gain[FEEDFORWARD_ACC_GAIN]);
-        msg.feedforward_vel_gain_pulse.push_back(gain[FEEDFORWARD_VEL_GAIN]);
+        msg.feedforward_2nd_gain_pulse.push_back(gain[FEEDFORWARD_ACC_GAIN]);
+        msg.feedforward_1st_gain_pulse.push_back(gain[FEEDFORWARD_VEL_GAIN]);
     }
     pub_opt_gain_->publish(msg);
 }
