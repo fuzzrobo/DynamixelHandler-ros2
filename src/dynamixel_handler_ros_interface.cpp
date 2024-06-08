@@ -35,7 +35,7 @@ void DynamixelHandler::CallBackDxlCommand(const DynamixelCommand& msg) {
     if ( msg.id_list.empty() || msg.id_list[0]==0xFE) for (auto id : id_set_    ) id_list.push_back(id);
                                                  else for (auto id : msg.id_list) id_list.push_back(id);
     char header[100]; sprintf(header, "Command [%s] \n (id_list=[] or [254] means all IDs)", msg.command.c_str());
-    ROS_INFO_STREAM(id_list_layout(id_list, string(header)));
+    if (varbose_callback_) ROS_INFO_STREAM(id_list_layout(id_list, string(header)));
     if (msg.command == "clear_error" || msg.command == "CE")
         for (auto id : id_list) { ClearHardwareError(id); TorqueOn(id);}
     if (msg.command == "torque_on"   || msg.command == "TON") 

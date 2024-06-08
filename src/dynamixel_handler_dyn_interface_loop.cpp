@@ -114,7 +114,7 @@ template <typename Addr> double DynamixelHandler::SyncReadStateValues(set<StValu
     // SyncReadでまとめて読み込み
     const auto id_st_vec_map = ( use_fast_read_ ) // fast read を使うかどうか． 途中で切り替えるとtimeout後に来るデータによってSyncReadが何度も失敗するので注意
         ? dyn_comm_.SyncRead_fast(state_addr_list, target_id_list)
-        : dyn_comm_.SyncRead     (state_addr_list, target_id_list);
+        : dyn_comm_.SyncRead     (state_addr_list, target_id_list); fflush(stdout);
     const size_t N_total = target_id_list.size();
     const size_t N_suc   = id_st_vec_map.size();
     const bool is_timeout_  = dyn_comm_.timeout_last_read();
@@ -165,10 +165,11 @@ template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(){
 
     vector<uint8_t> target_id_list;
     for (int id : id_set_) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
+    if ( target_id_list.empty() ) return 1.0; // 読み込むデータがない場合は即時return
     
     auto id_error_map =  ( use_fast_read_ ) 
         ? dyn_comm_.SyncRead_fast(Addr::hardware_error_status, target_id_list)
-        : dyn_comm_.SyncRead     (Addr::hardware_error_status, target_id_list);
+        : dyn_comm_.SyncRead     (Addr::hardware_error_status, target_id_list); fflush(stdout);
 
     if ( dyn_comm_.timeout_last_read() ) return 0.0; // 読み込み失敗
 
@@ -210,8 +211,9 @@ template <> double DynamixelHandler::SyncReadOption_Mode(){
 template <typename Addr> double DynamixelHandler::SyncReadOption_Mode(){
     vector<uint8_t> target_id_list;
     for (int id : id_set_) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
+    if ( target_id_list.empty() ) return 1.0; // 読み込むデータがない場合は即時return
 
-    auto id_torque_map     = dyn_comm_.SyncRead( Addr::torque_enable,                      target_id_list);  fflush(stdout);
+    auto id_torque_map     = dyn_comm_.SyncRead( Addr::torque_enable,                      target_id_list);
     auto id_dv_op_mode_map = dyn_comm_.SyncRead({Addr::drive_mode, Addr::operating_mode}, target_id_list);  fflush(stdout);
 
     for ( const auto& [id, toqrue] : id_torque_map ) tq_mode_[id] = toqrue;
@@ -235,24 +237,25 @@ template <> double DynamixelHandler::SyncReadOption_Gain(){
 template <typename Addr> double DynamixelHandler::SyncReadOption_Gain(){
     OptGainIndex start = VELOCITY_I_GAIN;
     OptGainIndex end   = FEEDFORWARD_VEL_GAIN;
-    vector<DynamixelAddress> opt_gain_dp_list;
+    vector<DynamixelAddress> opt_gain_addr_list;
     for (OptGainIndex g=start; g<=end; g++) switch ( g ) {
-        case VELOCITY_I_GAIN     : opt_gain_dp_list.push_back(Addr::velocity_i_gain     ); break;
-        case VELOCITY_P_GAIN     : opt_gain_dp_list.push_back(Addr::velocity_p_gain     ); break;
-        case POSITION_D_GAIN     : opt_gain_dp_list.push_back(Addr::position_d_gain     ); break;
-        case POSITION_I_GAIN     : opt_gain_dp_list.push_back(Addr::position_i_gain     ); break;
-        case POSITION_P_GAIN     : opt_gain_dp_list.push_back(Addr::position_p_gain     ); break;
-        case FEEDFORWARD_ACC_GAIN: opt_gain_dp_list.push_back(Addr::feedforward_2nd_gain); break;
-        case FEEDFORWARD_VEL_GAIN: opt_gain_dp_list.push_back(Addr::feedforward_1st_gain); break;
+        case VELOCITY_I_GAIN     : opt_gain_addr_list.push_back(Addr::velocity_i_gain     ); break;
+        case VELOCITY_P_GAIN     : opt_gain_addr_list.push_back(Addr::velocity_p_gain     ); break;
+        case POSITION_D_GAIN     : opt_gain_addr_list.push_back(Addr::position_d_gain     ); break;
+        case POSITION_I_GAIN     : opt_gain_addr_list.push_back(Addr::position_i_gain     ); break;
+        case POSITION_P_GAIN     : opt_gain_addr_list.push_back(Addr::position_p_gain     ); break;
+        case FEEDFORWARD_ACC_GAIN: opt_gain_addr_list.push_back(Addr::feedforward_2nd_gain); break;
+        case FEEDFORWARD_VEL_GAIN: opt_gain_addr_list.push_back(Addr::feedforward_1st_gain); break;
         default: /*ここに来たらエラ-*/ exit(1);
     }
 
     vector<uint8_t> target_id_list;
     for (int id : id_set_) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
+    if ( target_id_list.empty() ) return 1.0; // 読み込むデータがない場合は即時return
 
     auto id_gain_vec_map = ( use_fast_read_ )
-        ? dyn_comm_.SyncRead_fast(opt_gain_dp_list, target_id_list)
-        : dyn_comm_.SyncRead     (opt_gain_dp_list, target_id_list);  fflush(stdout);
+        ? dyn_comm_.SyncRead_fast(opt_gain_addr_list, target_id_list)
+        : dyn_comm_.SyncRead     (opt_gain_addr_list, target_id_list);  fflush(stdout);
     const bool is_timeout   = dyn_comm_.timeout_last_read();
     const bool has_comm_err = dyn_comm_.comm_error_last_read();
     // 通信エラーの表示
@@ -266,14 +269,14 @@ template <typename Addr> double DynamixelHandler::SyncReadOption_Gain(){
     // id_gain_vec_mapの中身を確認
     if ( varbose_read_opt_ ) if ( id_gain_vec_map.size()>0 ) {
         char header[100]; sprintf(header, "[%d] servo(s) are read", (int)id_gain_vec_map.size());
-        auto ss = control_table_layout(width_log_, id_gain_vec_map, opt_gain_dp_list, string(header));
+        auto ss = control_table_layout(width_log_, id_gain_vec_map, opt_gain_addr_list, string(header));
         ROS_INFO_STREAM(ss);
     }
     // option_gain_に反映
-    for ( size_t opt_gain=0; opt_gain<opt_gain_dp_list.size(); opt_gain++) {
-        DynamixelAddress dp = opt_gain_dp_list[opt_gain];
+    for ( size_t opt_gain=0; opt_gain<opt_gain_addr_list.size(); opt_gain++) {
+        DynamixelAddress addr = opt_gain_addr_list[opt_gain];
         for (const auto& [id, data_int] : id_gain_vec_map)
-            option_gain_[id][opt_gain] = dp.pulse2val( data_int[opt_gain], model_[id] );
+            option_gain_[id][opt_gain] = addr.pulse2val( data_int[opt_gain], model_[id] );
     }
     return id_gain_vec_map.size() / (double)target_id_list.size();
 }
@@ -307,6 +310,7 @@ template <typename Addr> double DynamixelHandler::SyncReadOption_Limit(){
 
     vector<uint8_t> target_id_list;
     for (int id : id_set_) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
+    if ( target_id_list.empty() ) return 1.0; // 読み込むデータがない場合は即時return
 
     auto id_limit_vec_map = ( use_fast_read_ )
         ? dyn_comm_.SyncRead_fast(opt_limit_addr_list, target_id_list)
@@ -375,6 +379,7 @@ template <typename Addr> double DynamixelHandler::SyncReadOption_Goal() {
 
     vector<uint8_t> target_id_list;
     for (int id : id_set_) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
+    if ( target_id_list.empty() ) return 1.0; // 読み込むデータがない場合は即時return
 
     auto id_goal_vec_map = ( use_fast_read_ )
         ? dyn_comm_.SyncRead_fast(opt_goal_addr_list, target_id_list)
