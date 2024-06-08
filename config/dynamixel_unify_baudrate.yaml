@@ -1,11 +1,12 @@
 # /ns/dyn_unify_baudrate:
 /**:
     ros__parameters:
-      # 通信機器の設定
-      device_name: /dev/ttyUSB0 # 通信するデバイス名
-      target_baudrate: 1000000 # 通信速度
-      latency_timer: 4 # 通信のインターバル
-      min_id: 0
-      max_id: 45
-      min_search_baudrate: 9600
-      max_search_baudrate: 2000000
+    # 通信機器の設定
+        device_name: /dev/ttyUSB0 # 通信するデバイス名
+        target_baudrate: 1000000 # 通信速度
+        latency_timer: 4 # 通信のインターバル
+    # 探索するサーボの設定
+        min_id: 0
+        max_id: 40
+        min_search_baudrate: 57600
+        max_search_baudrate: 2000000
