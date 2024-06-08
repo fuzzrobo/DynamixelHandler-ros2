@@ -5,7 +5,7 @@ using std::bind;
 using std::placeholders::_1;
 
 DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler") {
-    ROS_INFO( "Initializing DynamixelHandler ...");
+    ROS_INFO( "Initializing DynamixelHandler .....");
     // Subscriber / Publisherの設定
     sub_command_    = create_subscription<DynamixelCommand>("dynamixel/command", 4, bind(&DynamixelHandler::CallBackDxlCommand, this, _1));
     sub_cmd_x_pos_  = create_subscription<DynamixelCommandXControlPosition>        ("dynamixel/cmd/x/position",          4, bind(&DynamixelHandler::CallBackDxlCmd_X_Position, this, _1));
@@ -61,9 +61,10 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler") {
     this->declare_parameter("ratio/error_read",   100);
     this->declare_parameter("ratio/varbose_loop", 100);
     this->declare_parameter("max_log_width",        7);
-    this->declare_parameter("use/split_write", false);
-    this->declare_parameter("use/split_read",  false);
-    this->declare_parameter("use/fast_read",   true );
+    this->declare_parameter("use/split_write",     false);
+    this->declare_parameter("use/split_read",      false);
+    this->declare_parameter("use/fast_read",        true);
+    this->declare_parameter("use/multi_rate_read", false);
     this->declare_parameter("varbose/callback",           false);
     this->declare_parameter("varbose/write_commad",       false);
     this->declare_parameter("varbose/write_option",       false);
@@ -78,9 +79,10 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler") {
     ratio_error_pub_  = get_parameter("ratio/error_read"  ).as_int();
     ratio_mainloop_   = get_parameter("ratio/varbose_loop").as_int();
     width_log_        = get_parameter("max_log_width"     ).as_int();
-    use_split_write_ = get_parameter("use/split_write" ).as_bool();
-    use_split_read_  = get_parameter("use/split_read"  ).as_bool();
-    use_fast_read_   = get_parameter("use/fast_read"   ).as_bool();
+    use_split_write_     = get_parameter("use/split_write"    ).as_bool();
+    use_split_read_      = get_parameter("use/split_read"     ).as_bool();
+    use_fast_read_       = get_parameter("use/fast_read"      ).as_bool();
+    use_multi_rate_read_ = get_parameter("use/multi_rate_read").as_bool();
     varbose_callback_     = get_parameter("varbose/callback"           ).as_bool();
     varbose_write_cmd_    = get_parameter("varbose/write_commad"       ).as_bool();
     varbose_write_opt_    = get_parameter("varbose/write_option"       ).as_bool();
@@ -107,7 +109,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler") {
     }
 
     // 状態のreadの前にやるべき初期化
-    for (auto id : id_list_) {
+    for (auto id : id_set_) {
         WriteBusWatchdog(id, 0);
         WriteHomingOffset(id, 0.0); // 設定ファイルからとってこれるようにする
         WriteProfileAcc(id, 600.0*DEG); //  設定ファイルからとってこれるようにする
@@ -115,17 +117,14 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler") {
     }
 
     // 最初の一回は全ての情報をread & publish
-    ROS_INFO( "Reading present dynamixel state  ...");
-    while ( rclcpp::ok() && SyncReadStateValues()    < 1.0-1e-6 ) rsleep(50); BroadcastDxlState(); ROS_INFO( " ... state read done ");
-    while ( rclcpp::ok() && SyncReadHardwareErrors() < 1.0-1e-6 ) rsleep(50); BroadcastDxlError(); ROS_INFO( " ... error read done ");
-    while ( rclcpp::ok() && SyncReadOption_Limit() < 1.0-1e-6 ) rsleep(50); BroadcastDxlOpt_Limit(); ROS_INFO( " ... limit read done ");
-    while ( rclcpp::ok() && SyncReadOption_Gain()  < 1.0-1e-6 ) rsleep(50); BroadcastDxlOpt_Gain();  ROS_INFO( " ... gain read done ");
-    while ( rclcpp::ok() && SyncReadOption_Mode()  < 1.0-1e-6 ) rsleep(50); BroadcastDxlOpt_Mode();  ROS_INFO( " ... mode read done ");
+    ROS_INFO( " Reading present dynamixel state  ...");
+    while ( rclcpp::ok() && SyncReadHardwareErrors() < 1.0-1e-6 ) rsleep(500); BroadcastDxlError(); ROS_INFO( "  ... error read done ");
+    while ( rclcpp::ok() && SyncReadOption_Limit() < 1.0-1e-6 ) rsleep(500); BroadcastDxlOpt_Limit(); ROS_INFO( "  ... limit read done ");
+    while ( rclcpp::ok() && SyncReadOption_Gain()  < 1.0-1e-6 ) rsleep(500); BroadcastDxlOpt_Gain();  ROS_INFO( "  ... gain read done ");
+    while ( rclcpp::ok() && SyncReadOption_Mode()  < 1.0-1e-6 ) rsleep(500); BroadcastDxlOpt_Mode();  ROS_INFO( "  ... mode read done ");
     // while ( ros::ok() && SyncReadOption_Config()  < 1.0-1e-6 ) rsleep(0.05); BroadcastDxlOpt_Config();
     // while ( ros::ok() && SyncReadOption_Extra()  < 1.0-1e-6 ) rsleep(0.05); BroadcastDxlOpt_Extra();
-
-    // cmd_values_の内部の情報の初期化, cmd_values_はreadする関数を持ってないので以下の様に手動で．
-    for (auto id : id_list_) { // Xシリーズのみ
+    for (auto id : id_set_) {     // cmd_values_の内部の情報の初期化, cmd_values_は sync read する関数を持ってないので以下の様に手動で．
         op_mode_[id] = ReadOperatingMode(id);
         cmd_values_[id][GOAL_PWM]      = ReadGoalPWM(id);
         cmd_values_[id][GOAL_CURRENT]  = ReadGoalCurrent(id);
@@ -133,39 +132,58 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler") {
         cmd_values_[id][PROFILE_ACC]   = ReadProfileAcc(id);
         cmd_values_[id][PROFILE_VEL]   = ReadProfileVel(id);
         cmd_values_[id][GOAL_POSITION] = ReadGoalPosition(id);
-    }
+    } ROS_INFO( "  ... goal read done ");
 
     // 状態のreadの後にやるべき初期化
+    ROS_INFO( " Initializing dynamixel state  ...");
     this->declare_parameter("init/hardware_error_auto_clean", true);
     this->declare_parameter("init/torque_auto_enable", true);
     bool do_clean_hwerr = get_parameter("init/hardware_error_auto_clean").as_bool();
     bool do_torque_on   = get_parameter("init/torque_auto_enable").as_bool();
-
-    ROS_INFO( "Initializing dynamixel state  ...");
-    for (auto id : id_list_) {
+    for (auto id : id_set_) {
         if ( do_clean_hwerr ) ClearHardwareError(id); // 現在の状態を変えない
         if ( do_torque_on )   TorqueOn(id);           // 現在の状態を変えない
-    } ROS_INFO( " ... state initialization done ");
+    } ROS_INFO( "  ... state initialization done ");
 
     //  readする情報の設定
-    this->declare_parameter("read/present_pwm",           false);
-    this->declare_parameter("read/present_current",        true);
-    this->declare_parameter("read/present_velocity",       true);
-    this->declare_parameter("read/present_position",       true);
-    this->declare_parameter("read/velocity_trajectory",   false);
-    this->declare_parameter("read/position_trajectory",   false);
-    this->declare_parameter("read/present_input_voltage", false);
-    this->declare_parameter("read/present_temperature",   false);
-    if( get_parameter("read/present_pwm"          ).as_bool() ) list_read_state_.insert(PRESENT_PWM          );
-    if( get_parameter("read/present_current"      ).as_bool() ) list_read_state_.insert(PRESENT_CURRENT      );
-    if( get_parameter("read/present_velocity"     ).as_bool() ) list_read_state_.insert(PRESENT_VELOCITY     );
-    if( get_parameter("read/present_position"     ).as_bool() ) list_read_state_.insert(PRESENT_POSITION     );
-    if( get_parameter("read/velocity_trajectory"  ).as_bool() ) list_read_state_.insert(VELOCITY_TRAJECTORY  );
-    if( get_parameter("read/position_trajectory"  ).as_bool() ) list_read_state_.insert(POSITION_TRAJECTORY  );
-    if( get_parameter("read/present_input_voltage").as_bool() ) list_read_state_.insert(PRESENT_INPUT_VOLTAGE);
-    if( get_parameter("read/present_temperature"  ).as_bool() ) list_read_state_.insert(PRESENT_TEMPERTURE   );
+    if ( !use_multi_rate_read_ ) {
+        this->declare_parameter("read/present_pwm",           false);
+        this->declare_parameter("read/present_current",        true);
+        this->declare_parameter("read/present_velocity",       true);
+        this->declare_parameter("read/present_position",       true);
+        this->declare_parameter("read/velocity_trajectory",   false);
+        this->declare_parameter("read/position_trajectory",   false);
+        this->declare_parameter("read/present_input_voltage", false);
+        this->declare_parameter("read/present_temperature",   false);
+        if( get_parameter("read/present_pwm"          ).as_bool() ) list_read_state_.insert(PRESENT_PWM          );
+        if( get_parameter("read/present_current"      ).as_bool() ) list_read_state_.insert(PRESENT_CURRENT      );
+        if( get_parameter("read/present_velocity"     ).as_bool() ) list_read_state_.insert(PRESENT_VELOCITY     );
+        if( get_parameter("read/present_position"     ).as_bool() ) list_read_state_.insert(PRESENT_POSITION     );
+        if( get_parameter("read/velocity_trajectory"  ).as_bool() ) list_read_state_.insert(VELOCITY_TRAJECTORY  );
+        if( get_parameter("read/position_trajectory"  ).as_bool() ) list_read_state_.insert(POSITION_TRAJECTORY  );
+        if( get_parameter("read/present_input_voltage").as_bool() ) list_read_state_.insert(PRESENT_INPUT_VOLTAGE);
+        if( get_parameter("read/present_temperature"  ).as_bool() ) list_read_state_.insert(PRESENT_TEMPERTURE   );
+    } else {
+        ratio_state_pub_ = 1; // multi_rate_readの場合は，ratio_state_pub_は1にする
+        this->declare_parameter("multi_rate_read/ratio/present_pwm",            0);
+        this->declare_parameter("multi_rate_read/ratio/present_current",        1);
+        this->declare_parameter("multi_rate_read/ratio/present_velocity",       1);
+        this->declare_parameter("multi_rate_read/ratio/present_position",       1);
+        this->declare_parameter("multi_rate_read/ratio/velocity_trajectory",    0);
+        this->declare_parameter("multi_rate_read/ratio/position_trajectory",    0);
+        this->declare_parameter("multi_rate_read/ratio/present_input_voltage", 10);
+        this->declare_parameter("multi_rate_read/ratio/present_temperature",   10);
+        multi_rate_read_ratio_pub_[PRESENT_PWM          ] = get_parameter("multi_rate_read/ratio/present_pwm"          ).as_int();
+        multi_rate_read_ratio_pub_[PRESENT_CURRENT      ] = get_parameter("multi_rate_read/ratio/present_current"      ).as_int();
+        multi_rate_read_ratio_pub_[PRESENT_VELOCITY     ] = get_parameter("multi_rate_read/ratio/present_velocity"     ).as_int();
+        multi_rate_read_ratio_pub_[PRESENT_POSITION     ] = get_parameter("multi_rate_read/ratio/present_position"     ).as_int();
+        multi_rate_read_ratio_pub_[VELOCITY_TRAJECTORY  ] = get_parameter("multi_rate_read/ratio/velocity_trajectory"  ).as_int();
+        multi_rate_read_ratio_pub_[POSITION_TRAJECTORY  ] = get_parameter("multi_rate_read/ratio/position_trajectory"  ).as_int();
+        multi_rate_read_ratio_pub_[PRESENT_INPUT_VOLTAGE] = get_parameter("multi_rate_read/ratio/present_input_voltage").as_int();
+        multi_rate_read_ratio_pub_[PRESENT_TEMPERTURE   ] = get_parameter("multi_rate_read/ratio/present_temperature"  ).as_int();
+    }
 
-    ROS_INFO( " ... DynamixelHandler is initialized");
+    ROS_INFO( "..... DynamixelHandler is initialized");
 }
 
 using std::chrono::system_clock;
@@ -178,28 +196,39 @@ void DynamixelHandler::MainLoop(){
 
 /* 処理時間時間の計測 */ auto wstart = system_clock::now();
     //* topicをSubscribe & Dynamixelへ目標角をWrite
-    SyncWriteCommandValues();
+    SyncWriteCommandValues(list_write_cmd_);
+    list_write_cmd_.clear();
 /* 処理時間時間の計測 */ wtime += duration_cast<microseconds>(system_clock::now()-wstart).count() / 1000.0;
 
-    //* Dynamixelから状態Read & topicをPublish
-    static double rate_suc_st = 0.0;
-    if ( ratio_state_pub_!=0 ) 
-    if ( rate_suc_st<1.0 || cnt % ratio_state_pub_ == 0 ) { //直前が失敗している場合 or ratio_state_pub_の割合で実行
+    //* 複数周期でstateをreadする場合の処理
+    if ( use_multi_rate_read_ ) {
+        static const auto& r = multi_rate_read_ratio_pub_; //長いので省略
+        list_read_state_.clear();
+        if (r[PRESENT_PWM          ] && cnt % r[PRESENT_PWM          ] == 0) list_read_state_.insert(PRESENT_PWM          );
+        if (r[PRESENT_CURRENT      ] && cnt % r[PRESENT_CURRENT      ] == 0) list_read_state_.insert(PRESENT_CURRENT      );
+        if (r[PRESENT_VELOCITY     ] && cnt % r[PRESENT_VELOCITY     ] == 0) list_read_state_.insert(PRESENT_VELOCITY     );
+        if (r[PRESENT_POSITION     ] && cnt % r[PRESENT_POSITION     ] == 0) list_read_state_.insert(PRESENT_POSITION     );
+        if (r[VELOCITY_TRAJECTORY  ] && cnt % r[VELOCITY_TRAJECTORY  ] == 0) list_read_state_.insert(VELOCITY_TRAJECTORY  );
+        if (r[POSITION_TRAJECTORY  ] && cnt % r[POSITION_TRAJECTORY  ] == 0) list_read_state_.insert(POSITION_TRAJECTORY  );
+        if (r[PRESENT_INPUT_VOLTAGE] && cnt % r[PRESENT_INPUT_VOLTAGE] == 0) list_read_state_.insert(PRESENT_INPUT_VOLTAGE);
+        if (r[PRESENT_TEMPERTURE   ] && cnt % r[PRESENT_TEMPERTURE   ] == 0) list_read_state_.insert(PRESENT_TEMPERTURE   );
+    }
+
 /* 処理時間時間の計測 */ auto rstart = system_clock::now();
-        rate_suc_st = SyncReadStateValues();
+    //* Dynamixelから状態Read & topicをPublish
+    if ( !list_read_state_.empty() ) // list_read_state_が空でない場合のみ実行
+    if ( ratio_state_pub_ && cnt % ratio_state_pub_ == 0 ) {// ratio_state_pub_の割合で実行
+        double rate_suc_st = SyncReadStateValues(list_read_state_);
         num_st_read++;
         num_st_suc_p += rate_suc_st > 0.0;
         num_st_suc_f += rate_suc_st > 1.0-1e-6;
         if ( rate_suc_st>0.0 ) BroadcastDxlState();
-/* 処理時間時間の計測 */ rtime += duration_cast<microseconds>(system_clock::now()-rstart).count() / 1000.0;
     }
-    if ( ratio_error_pub_!=0 )
-    if ( cnt % ratio_error_pub_ == 0 ) { // ratio_error_pub_の割合で実行
+    if ( ratio_error_pub_ && cnt % ratio_error_pub_ == 0 ) { // ratio_error_pub_の割合で実行
         double rate_suc_err = SyncReadHardwareErrors();
         if ( rate_suc_err>0.0) BroadcastDxlError();
     }
-    if ( ratio_option_pub_!=0 )
-    if ( cnt % ratio_option_pub_ == 0 ) { // ratio_option_pub_の割合で実行
+    if ( ratio_option_pub_ && cnt % ratio_option_pub_ == 0 ) { // ratio_option_pub_の割合で実行
         double rate_suc_lim = SyncReadOption_Limit(); // 処理を追加する可能性を考えて，変数を別で用意する冗長な書き方をしている．
         if ( rate_suc_lim >0.0 ) BroadcastDxlOpt_Limit();
         double rate_suc_gain = SyncReadOption_Gain();
@@ -209,6 +238,7 @@ void DynamixelHandler::MainLoop(){
         double rate_suc_goal = SyncReadOption_Goal();
         if ( rate_suc_goal>0.0 ) BroadcastDxlOpt_Goal();
     }
+/* 処理時間時間の計測 */ rtime += duration_cast<microseconds>(system_clock::now()-rstart).count() / 1000.0;
 
     //* デバック
     if ( ratio_mainloop_ !=0 )
@@ -230,9 +260,9 @@ DynamixelHandler::~DynamixelHandler(){
     ROS_INFO( "Terminating DynamixelHandler ...");
     this->declare_parameter("term/torque_auto_disable", true);
     bool do_torque_off  = get_parameter("term/torque_auto_disable").as_bool();
-    if ( do_torque_off ) for ( auto id : id_list_ ) if (series_[id] == SERIES_X) TorqueOff(id);
+    if ( do_torque_off ) for ( auto id : id_set_ ) TorqueOff(id);
     SyncStopDynamixels();
-    ROS_INFO( " ... DynamixelHandler is terminated");
+    ROS_INFO( "  ... DynamixelHandler is terminated");
 }
 
 #include <chrono>

@@ -47,11 +47,16 @@ using std::clamp;
 using std::min;
 using std::max;
 
+// 角度変換
 static const double DEG = M_PI/180.0; // degを単位に持つ数字に掛けるとradになる
 static double deg2rad(double deg){ return deg*DEG; }
 static double rad2deg(double rad){ return rad/DEG; }
+// 一定時間待つための関数
 static void rsleep(int millisec) { std::this_thread::sleep_for(std::chrono::milliseconds(millisec));}
-
+// enum でインクリメントをするため
+template<typename T> T& operator ++ (T& v     ) { v = static_cast<T>(v + 1); return v;}
+template<typename T> T  operator ++ (T& v, int) { T p=v; ++v; return p;}
+// ROS1 のようにログを出力するためのマクロ
 #define ROS_INFO(...)  RCLCPP_INFO(this->get_logger(), __VA_ARGS__)
 #define ROS_WARN(...)  RCLCPP_WARN(this->get_logger(), __VA_ARGS__)
 #define ROS_ERROR(...) RCLCPP_ERROR(this->get_logger(), __VA_ARGS__)
@@ -112,18 +117,18 @@ class DynamixelHandler : public rclcpp::Node {
         rclcpp::Subscription<DynamixelOptionGain>::SharedPtr sub_opt_gain_;
         rclcpp::Subscription<DynamixelOptionMode>::SharedPtr sub_opt_mode_;
         rclcpp::Subscription<DynamixelOptionLimit>::SharedPtr sub_opt_limit_;
-
   
         //* 各種のフラグとパラメータ
         unsigned int loop_rate_ = 50;
-        unsigned int ratio_state_pub_  = 1; 
+        unsigned int ratio_state_pub_  = 1;
         unsigned int ratio_option_pub_ = 100; // 0の時は初回のみ
         unsigned int ratio_error_pub_  = 100; // 0の時は初回のみ
         unsigned int ratio_mainloop_   = 100; // 0の時は初回のみ
         unsigned int width_log_ = 7;
-        bool use_split_write_ = false;
-        bool use_split_read_  = false;
-        bool use_fast_read_   = false;
+        bool use_split_write_     = false;
+        bool use_split_read_      = false;
+        bool use_fast_read_       = false;
+        bool use_multi_rate_read_ = false;
         bool varbose_callback_  = false;
         bool varbose_write_cmd_ = false;
         bool varbose_write_opt_ = false;
@@ -190,7 +195,7 @@ class DynamixelHandler : public rclcpp::Node {
             /*Indexの最大値*/_num_opt_gain           
         };
         // 連結したサーボの基本情報
-        vector<uint8_t> id_list_; // chained dynamixel id list // todo setに変更した方がいい
+        set<uint8_t> id_set_; // chained dynamixel id list
         map<uint8_t, uint16_t> model_; // 各dynamixelの id と model のマップ
         map<uint8_t, uint16_t> series_; // 各dynamixelの id と series のマップ
         map<uint8_t, size_t> num_;  // 各dynamixelの series と　個数のマップ 無くても何とかなるけど, 効率を考えて保存する
@@ -211,9 +216,11 @@ class DynamixelHandler : public rclcpp::Node {
         // 各周期で実行するserial通信の内容を決めるためのset
         static inline set<CmdValueIndex> list_write_cmd_ ;
         static inline set<StValueIndex>  list_read_state_;
+        // 複数周期で state を read するために使う．
+        static inline array<unsigned int, _num_state_value> multi_rate_read_ratio_pub_;
 
         //* 単体通信を組み合わせた上位機能
-        uint8_t ScanDynamixels(uint8_t id_max);
+        uint8_t ScanDynamixels(uint8_t id_min, uint8_t id_max, uint32_t num_expected, uint32_t time_retry_ms);
         bool ClearHardwareError(uint8_t servo_id);
         bool ChangeOperatingMode(uint8_t servo_id, DynamixelOperatingMode mode);
         bool TorqueOn(uint8_t servo_id);
@@ -245,11 +252,11 @@ class DynamixelHandler : public rclcpp::Node {
         bool WriteBusWatchdog(uint8_t servo_id, double time);
         bool WriteGains(uint8_t servo_id, array<int64_t, _num_opt_gain> gains);
         //* 連結しているDynamixelに一括で読み書きするloopで使用する機能
-        template <typename Addr=AddrCommon> void SyncWriteCommandValues(set<CmdValueIndex>& list_wirte_cmd=list_write_cmd_);
+        template <typename Addr=AddrCommon> void SyncWriteCommandValues(set<CmdValueIndex> list_wirte_cmd);
         template <typename Addr=AddrCommon> void SyncWriteOption_Mode();  // todo 
         template <typename Addr=AddrCommon> void SyncWriteOption_Gain();  // todo 
         template <typename Addr=AddrCommon> void SyncWriteOption_Limit(); // todo 
-        template <typename Addr=AddrCommon> double SyncReadStateValues(set<StValueIndex> list_read_state=list_read_state_);
+        template <typename Addr=AddrCommon> double SyncReadStateValues(set<StValueIndex> list_read_state);
         template <typename Addr=AddrCommon> double SyncReadHardwareErrors();
         template <typename Addr=AddrCommon> double SyncReadOption_Mode(); 
         template <typename Addr=AddrCommon> double SyncReadOption_Gain(); 

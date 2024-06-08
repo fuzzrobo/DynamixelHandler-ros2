@@ -1,7 +1,7 @@
 #include "dynamixel_handler.hpp"
 
-template <typename T>
-bool is_in(const T& val, const vector<T>& vec) { return std::find(vec.begin(), vec.end(), val) != vec.end(); }
+template <typename T> bool is_in(const T& val, const vector<T>& v) { return std::find(v.begin(), v.end(), val) != v.end(); }
+template <typename T> bool is_in(const T& val, const    set<T>& s) { return s.find(val) != s.end(); }
 
 //* 基本機能をまとめた関数たち
 
@@ -32,7 +32,7 @@ uint8_t DynamixelHandler::ScanDynamixels(uint8_t id_max) {
 
 // 回転数が消えることを考慮して，モータをリブートする．
 bool DynamixelHandler::ClearHardwareError(uint8_t id){
-    if ( !is_in(id, id_list_) ) return false;
+    if ( !is_in(id, id_set_) ) return false;
     if ( ReadHardwareError(id) == 0b00000000 ) return true; // エラーがない場合は何もしない
 
     const auto now_pos = ReadPresentPosition(id); // 失敗すると0が返って危ないので成功した場合だけリブート処理を行う
@@ -56,8 +56,7 @@ bool DynamixelHandler::ClearHardwareError(uint8_t id){
 
 // モータの動作モードを変更する．連続で変更するときは1秒のインターバルを入れる
 bool DynamixelHandler::ChangeOperatingMode(uint8_t id, DynamixelOperatingMode mode){
-    rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
-    if ( !is_in(id, id_list_) ) return false;
+    if ( !is_in(id, id_set_) ) return false;
     if ( op_mode_[id] == mode ) return true; // 既に同じモードの場合は何もしない
     if ( fabs((when_op_mode_updated_[id] - ros_clock.now()).seconds()) < 1.0 ) rsleep(1000); // 1秒以内に変更した場合は1秒待つ
     // 変更前のトルク状態を確認
@@ -89,7 +88,7 @@ bool DynamixelHandler::ChangeOperatingMode(uint8_t id, DynamixelOperatingMode mo
 
 // モータを停止させてからトルクを入れる．
 bool DynamixelHandler::TorqueOn(uint8_t id){
-    if ( !is_in(id, id_list_) ) return false;
+    if ( !is_in(id, id_set_) ) return false;
     // dynamixel内のgoal値とこのプログラム内のcmd_values_を一致させる．
     const auto now_pos = ReadPresentPosition(id); // 失敗すると0が返って危ないので確認する
     if ( !( dyn_comm_.timeout_last_read() || dyn_comm_.comm_error_last_read() )){
@@ -116,7 +115,7 @@ bool DynamixelHandler::TorqueOn(uint8_t id){
 
 // トルクを切る
 bool DynamixelHandler::TorqueOff(uint8_t id){
-    if ( !is_in(id, id_list_) ) return false;
+    if ( !is_in(id, id_set_) ) return false;
     // トルクを切る
     WriteTorqueEnable(id, false);
     // 結果を確認
