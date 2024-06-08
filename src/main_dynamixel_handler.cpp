@@ -92,19 +92,27 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler") {
 
     // id_listの作成
     this->declare_parameter("init/expected_servo_num", 0); // 0のときはチェックしない
+    this->declare_parameter("init/auto_search_retry_times", 5);
+    this->declare_parameter("init/auto_search_min_id", 1);
     this->declare_parameter("init/auto_search_max_id", 35);
     int num_expexted = get_parameter("init/expected_servo_num").as_int();
+    int times_retry = get_parameter("init/auto_search_retry_times").as_int();
+    int id_min = get_parameter("init/auto_search_min_id").as_int();
     int id_max = get_parameter("init/auto_search_max_id").as_int();
 
-    auto num_found = ScanDynamixels(id_max);
+    ROS_INFO(" Auto scanning Dynamixel (id range [%d] to [%d]) ...", id_min, id_max);
+    if ( num_expexted>0 ) ROS_INFO("Expected number of Dynamixel is [%d]", num_expexted);
+    else ROS_WARN("Expected number of Dynamixel is not set. Free number of Dynamixel is allowed");
+    auto num_found = ScanDynamixels(id_min, id_max, num_expexted, times_retry);
     if( num_found==0 ) { // 見つからなかった場合は初期化失敗で終了
         ROS_ERROR("Dynamixel is not found in USB device [%s]", dyn_comm_.port_name().c_str());
         throw std::runtime_error("Initialization failed");
     }
-    if( num_expexted>0 && num_expexted>num_found ) { // 期待数が設定されているときに、見つかった数が期待数と異なる場合は初期化失敗で終了
+    if( num_expexted>0 && num_expexted!=num_found ) { // 期待数が設定されているときに、見つかった数が期待数と異なる場合は初期化失敗で終了
         ROS_ERROR("Number of Dynamixel is not matched. Expected [%d], but found [%d]. please check & retry", num_expexted, num_found);
         throw std::runtime_error("Initialization failed");
     }
+    ROS_INFO("  ... Finish scanning Dynamixel");
 
     // 状態のreadの前にやるべき初期化
     for (auto id : id_list_) {
