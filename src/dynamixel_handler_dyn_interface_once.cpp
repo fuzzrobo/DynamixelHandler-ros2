@@ -59,7 +59,7 @@ bool DynamixelHandler::ChangeOperatingMode(uint8_t id, DynamixelOperatingMode mo
     rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
     if ( !is_in(id, id_list_) ) return false;
     if ( op_mode_[id] == mode ) return true; // 既に同じモードの場合は何もしない
-    if ( fabs((when_op_mode_updated_[id] - ros_clock.now()).seconds()) < 1.0 ) rsleep(1000); // 1秒以内に変更した場合は1秒待つ
+    if ( get_clock()->now().seconds() - when_op_mode_updated_[id] < 1.0 ) rsleep(1000); // 1秒以内に変更した場合は1秒待つ
     // 変更前のトルク状態を確認
     const bool is_enable = (ReadTorqueEnable(id) == TORQUE_ENABLE); // read失敗しても0が返ってくるので問題ない
     WriteTorqueEnable(id, false);
@@ -77,7 +77,7 @@ bool DynamixelHandler::ChangeOperatingMode(uint8_t id, DynamixelOperatingMode mo
     bool is_changed = (ReadOperatingMode(id) == mode);
     if ( is_changed ) {
         op_mode_[id] = mode;
-        when_op_mode_updated_[id] = ros_clock.now();
+        when_op_mode_updated_[id] = get_clock()->now().seconds();
         // if ( mode==OPERATING_MODE_CURRENT ) WriteBusWatchdog(id, 2500 /*ms*/);
         // if ( mode==OPERATING_MODE_VELOCITY) WriteBusWatchdog(id, 2500 /*ms*/);
         ROS_INFO("ID [%d] is changed operating mode [%d]", id, mode);

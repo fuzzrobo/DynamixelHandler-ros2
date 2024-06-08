@@ -238,8 +238,7 @@ double round4(double val) { return round(val*10000.0)/10000.0; }
 
 void DynamixelHandler::BroadcastDxlState(){
     DynamixelState msg;
-    rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
-    msg.stamp = ros_clock.now();
+    msg.stamp = this->get_clock()->now();
     for (const auto& [id, value] : state_values_) {
         msg.id_list.push_back(id);
         for (auto state : list_read_state_) switch(state) {
@@ -258,8 +257,7 @@ void DynamixelHandler::BroadcastDxlState(){
 
 void DynamixelHandler::BroadcastDxlError(){
     DynamixelError msg;
-    rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
-    msg.stamp = ros_clock.now();
+    msg.stamp = this->get_clock()->now();
     for (const auto& [id, error]: hardware_error_) {
         if (error[INPUT_VOLTAGE     ]) msg.input_voltage.push_back     (id);
         if (error[MOTOR_HALL_SENSOR ]) msg.motor_hall_sensor.push_back (id);
@@ -273,8 +271,7 @@ void DynamixelHandler::BroadcastDxlError(){
 
 void DynamixelHandler::BroadcastDxlOpt_Limit(){
     DynamixelOptionLimit msg;
-    rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
-    msg.stamp = ros_clock.now();
+    msg.stamp = this->get_clock()->now();
     for (const auto& [id, limit] : option_limit_) {
         msg.id_list.push_back(id);
         msg.temperature_limit_deg_c.push_back   (round4(limit[TEMPERATURE_LIMIT ]));
@@ -292,8 +289,7 @@ void DynamixelHandler::BroadcastDxlOpt_Limit(){
 
 void DynamixelHandler::BroadcastDxlOpt_Gain(){
     DynamixelOptionGain msg;
-    rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
-    msg.stamp = ros_clock.now();
+    msg.stamp = this->get_clock()->now();
     for ( const auto& [id, gain] : option_gain_ ) {
         msg.id_list.push_back(id);
         msg.velocity_i_gain_pulse.push_back     (gain[VELOCITY_I_GAIN     ]);
@@ -309,9 +305,8 @@ void DynamixelHandler::BroadcastDxlOpt_Gain(){
 
 void DynamixelHandler::BroadcastDxlOpt_Mode(){
     DynamixelOptionMode msg;
-    rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
-    msg.stamp = ros_clock.now();
-    for ( const auto& id : id_list_ ) {
+    msg.stamp = this->get_clock()->now();
+    for ( const auto& id : id_set_ ) {
         msg.id_list.push_back(id);
         msg.torque_enable.push_back(tq_mode_[id]);
         switch(op_mode_[id]) {
@@ -330,8 +325,7 @@ void DynamixelHandler::BroadcastDxlOpt_Mode(){
 
 void DynamixelHandler::BroadcastDxlOpt_Goal(){
     DynamixelOptionGoal msg;
-    rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
-    msg.stamp = ros_clock.now();
+    msg.stamp = this->get_clock()->now();
     for ( const auto& [id, goal] : option_goal_ ) {
         msg.id_list.push_back(id);
         msg.pwm_percent.push_back       (round4(goal[GOAL_PWM     ]));

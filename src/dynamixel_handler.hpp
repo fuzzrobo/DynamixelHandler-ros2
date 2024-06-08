@@ -1,9 +1,7 @@
 #ifndef DYNAMIXEL_HANDLER_H_
 #define DYNAMIXEL_HANDLER_H_
 
-// using ros::Time;
 #include "rclcpp/rclcpp.hpp"
-using rclcpp::Time;
 
 #include "std_msgs/msg/string.hpp"
 
@@ -205,7 +203,7 @@ class DynamixelHandler : public rclcpp::Node {
         static inline map<uint8_t, array<double, _num_opt_limit  >> option_limit_;   // 各dynamixelの id と サーボの各種制限値のマップ, 中身の並びはOptLimitIndexに対応する 
         static inline map<uint8_t, array<int64_t,_num_opt_gain   >> option_gain_;    // 各dynamixelの id と サーボの各種制限値のマップ, 中身の並びはOptGainIndexに対応する 
         // 上記の変数を適切に使うための補助的なフラグ
-        static inline map<uint8_t, Time> when_op_mode_updated_; // 各dynamixelの id と op_mode_ が更新された時刻のマップ
+        static inline map<uint8_t, double> when_op_mode_updated_; // 各dynamixelの id と op_mode_ が更新された時刻のマップ
         static inline map<uint8_t, bool> is_cmd_updated_;       // topicのcallbackによって，cmd_valuesが更新されたかどうかを示すマップ
         static inline bool has_hardware_err_ = false; // 連結しているDynamixelのうち，どれか一つでもハードウェアエラーを起こしているかどうか
         // 各周期で実行するserial通信の内容を決めるためのset
