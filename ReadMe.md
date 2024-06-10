@@ -282,8 +282,10 @@ ros param `use/split_read` によって変更できる．
       dyn_comm/inerval_msec: 5 # 通信失敗時のインターバル時間
       dyn_comm/varbose: false # 通信失敗時の詳細をエラーとして出すか
     # サーボの初期設定
-      init/auto_search_max_id: 10 # 初期化時に自動検出するサーボの最大ID
-      init/expected_servo_num: 0 # 初期化時に検出されたサーボがこの個数以外なら初期化失敗で止まる
+      init/expected_servo_num: 0 # 期待するサーボの数，いくつでもOK
+      init/auto_search_min_id: 0 # 探索するサーボのIDの最小値
+      init/auto_search_max_id: 20　 # 探索するサーボのIDの最大値
+      init/auto_search_retry_times: 10 # 探索のリトライ回数
       init/hardware_error_auto_clean: true # 初期化時に Hardware error を自動でクリアするかどうか
       init/torque_auto_enable: true # 初期化時に Torque を自動でONにするかどうか
       term/torque_auto_disable: true # 終了時に Torque を自動でOFFにするかどうか
@@ -604,3 +606,7 @@ sudo update-alternatives --install /usr/local/bin/usbip usbip `ls /usr/lib/linux
   
 5. Pシリーズ用のROSトピックのsubscribe
     - ついでにPシリーズ用のmsgにvelosity_deg_sを追加(忘れていた)
+  
+6. Dynamixelのオートスキャンを改良
+    - init/expected_servo_num: 0の時は，1つ以上servoが見つかるまで init/auto_search_retry_times の回数分スキャンを繰り返すように変更
+    - init/expected_servo_num が 0 でない場合は，その数だけservoが見つかるまでスキャンを繰り返すように変更
