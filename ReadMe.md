@@ -184,6 +184,8 @@ Dynamixelに対する一般的な指令を送るためのコマンド
  - `torque_on` / `TON`: 安全にトルクをenableにする．目標姿勢を現在姿勢へ一致，速度を0にする．
  - `torque_off` / `TOFF`: トルクをdisableにする．
  - `clear_error` / `CE`: ハードウェアエラー(ex. overload)をrebootによって解除する．回転数の情報が喪失することによって現在角が不連続に変換する問題を解消するために，homing offset用いて自動で補正する．
+  - `remove` : 指定したIDのサーボを認識リストから削除する．
+
 
 低レベルコマンド：開発者向け
  - `reboot` : reboot インストラクションを送る
@@ -560,3 +562,35 @@ sudo update-alternatives --install /usr/local/bin/usbip usbip `ls /usr/lib/linux
 
 ## (後で消す) 6/10までに道川が変更したこと
 
+### 内部的な変更(動作に関係ないはず)
+
+1. DynamixelHandler classがrclcpp::Nodeを継承するように変更
+   - これによりnode kill時にエラーが発生しなくなる 
+2. DynamixelCommandXControlPosition.msgからtime stampを削除
+3. array型の変数の要素数指定から，マジックナンバーを排除
+
+
+### 外部的な変更
+
+1. launchファイルとconfigファイルの変更
+    - 以下のファイルの内容を調整
+        - dynamixel_handler_launch.xml
+        - dynamixel_unify_baudrate_launch.
+    - configファイルの変更
+        - dynamixel_handler.yaml
+        - dynamixel_unify_baudrate.yaml
+  　　- configのros paramの一部をlaunchファイル内で設定するように変更
+  　　- 名前空間を変更`ns1`->`ns`
+
+> [!NOTE]
+> `.py`のlaunchファイルは未変更
+
+2. configファイルの名前空間を変更
+    - 全部を指定するのではなく，ワイルドカードで指定することで，launchファイルとの対応を簡略化
+    ```yaml
+    [-] ns:
+    [-]   dynamixel_handler:
+    [+] /**
+    ```
+3. /dynamixel/command topic　が対応するコマンドに `remove` を追加
+    - 指定したIDのサーボを認識リストから削除することができるようになったので，調子の悪いservoを排除して，他のサーボとの通信速度に影響を与えないようにすることができる．
