@@ -6,28 +6,35 @@ bool is_in(const T& val, const vector<T>& vec) { return std::find(vec.begin(), v
 //* 基本機能をまとめた関数たち
 
 // 各シリーズのDynamixelを検出する．
-uint8_t DynamixelHandler::ScanDynamixels(uint8_t id_max) {
-    ROS_INFO("== Auto scanning Dynamixel (id range 1 to [%d]) ==", id_max);
-    id_list_.clear();
+uint8_t DynamixelHandler::ScanDynamixels(uint8_t id_min, uint8_t id_max, uint32_t num_expected, uint32_t times_retry) {
+    id_set_.clear();
     for (int id = 0; id <= id_max; id++) {
         if ( !dyn_comm_.tryPing(id) ) continue;
-        auto dyn_model = dyn_comm_.tryRead(AddrCommon::model_number, id);
+        auto dyn_model = dyn_comm_.tryRead(AddrCommon::model_number, id); fflush(stdout);
         switch ( dynamixel_series(dyn_model) ) { 
             case SERIES_X: ROS_INFO(" * X series servo id [%d] is found", id);
                 model_[id] = dyn_model;
                 series_[id] = SERIES_X;
                 num_[SERIES_X]++;
-                id_list_.push_back(id); break;
+                id_set_.insert(id); break;
             case SERIES_P: ROS_INFO(" * P series servo id [%d] is found", id);
                 model_[id] = dyn_model;
                 series_[id] = SERIES_P;
                 num_[SERIES_P]++;
-                id_list_.push_back(id); break;
+                id_set_.insert(id); break;
             default: ROS_WARN(" * Unkwon model [%d] servo id [%d] is found", (int)dyn_model, id);
         }
     }
-    ROS_INFO("== Finish scanning Dynamixel ==");
-    return id_list_.size();
+    // 再帰から脱する条件
+    if ( times_retry <= 0 ) return id_set_.size();
+    if ( id_set_.size() != 0 && id_set_.size() >= num_expected ) return id_set_.size();
+    // 再帰処理
+    if ( id_set_.size() < num_expected )  
+        ROS_WARN( "Less expected number of Dynamixel are found, %d times retry left", times_retry );
+    if ( num_expected == 0 )
+        ROS_WARN( "Dynamixels are not found yet, %d times retry left", times_retry );
+    rsleep(100);
+    return ScanDynamixels(id_min, id_max, num_expected, times_retry-1);
 }
 
 // 回転数が消えることを考慮して，モータをリブートする．
