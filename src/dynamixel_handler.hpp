@@ -22,6 +22,10 @@ using rclcpp::Time;
 #include "dynamixel_handler/msg/dynamixel_command_x_control_current.hpp"
 #include "dynamixel_handler/msg/dynamixel_command_x_control_current_position.hpp"
 #include "dynamixel_handler/msg/dynamixel_command_x_control_extended_position.hpp"
+#include "dynamixel_handler/msg/dynamixel_command_p_control_position.hpp"
+#include "dynamixel_handler/msg/dynamixel_command_p_control_velocity.hpp"
+#include "dynamixel_handler/msg/dynamixel_command_p_control_current.hpp"
+#include "dynamixel_handler/msg/dynamixel_command_p_control_extended_position.hpp"
 using namespace dynamixel_handler::msg;
 
 #include <string>
@@ -84,6 +88,10 @@ class DynamixelHandler : public rclcpp::Node {
         void CallBackDxlCmd_X_Current         (const DynamixelCommandXControlCurrent& msg);
         void CallBackDxlCmd_X_CurrentPosition (const DynamixelCommandXControlCurrentPosition& msg);
         void CallBackDxlCmd_X_ExtendedPosition(const DynamixelCommandXControlExtendedPosition& msg);
+        void CallBackDxlCmd_P_Position        (const DynamixelCommandPControlPosition& msg);
+        void CallBackDxlCmd_P_Velocity        (const DynamixelCommandPControlVelocity& msg);
+        void CallBackDxlCmd_P_Current         (const DynamixelCommandPControlCurrent& msg);
+        void CallBackDxlCmd_P_ExtendedPosition(const DynamixelCommandPControlExtendedPosition& msg);
         //* ROS publisher subscriber instance
         rclcpp::Publisher<DynamixelState>::SharedPtr pub_state_;
         rclcpp::Publisher<DynamixelError>::SharedPtr pub_error_;
@@ -97,6 +105,10 @@ class DynamixelHandler : public rclcpp::Node {
         rclcpp::Subscription<DynamixelCommandXControlCurrent>::SharedPtr sub_cmd_x_cur_;
         rclcpp::Subscription<DynamixelCommandXControlCurrentPosition>::SharedPtr sub_cmd_x_cpos_;
         rclcpp::Subscription<DynamixelCommandXControlExtendedPosition>::SharedPtr sub_cmd_x_epos_;
+        rclcpp::Subscription<DynamixelCommandPControlPosition>::SharedPtr sub_cmd_p_pos_;
+        rclcpp::Subscription<DynamixelCommandPControlVelocity>::SharedPtr sub_cmd_p_vel_;
+        rclcpp::Subscription<DynamixelCommandPControlCurrent>::SharedPtr sub_cmd_p_cur_;
+        rclcpp::Subscription<DynamixelCommandPControlExtendedPosition>::SharedPtr sub_cmd_p_epos_;
         rclcpp::Subscription<DynamixelOptionGain>::SharedPtr sub_opt_gain_;
         rclcpp::Subscription<DynamixelOptionMode>::SharedPtr sub_opt_mode_;
         rclcpp::Subscription<DynamixelOptionLimit>::SharedPtr sub_opt_limit_;
@@ -178,9 +190,10 @@ class DynamixelHandler : public rclcpp::Node {
             /*Indexの最大値*/_num_opt_gain           
         };
         // 連結したサーボの基本情報
-        vector<uint8_t> id_list_; // chained dynamixel id list
+        vector<uint8_t> id_list_; // chained dynamixel id list // todo setに変更した方がいい
         map<uint8_t, uint16_t> model_; // 各dynamixelの id と model のマップ
         map<uint8_t, uint16_t> series_; // 各dynamixelの id と series のマップ
+        map<uint8_t, size_t> num_;  // 各dynamixelの series と　個数のマップ 無くても何とかなるけど, 効率を考えて保存する
         // 連結しているサーボの個々の状態を保持するmap
         static inline map<uint8_t, bool> tq_mode_;    // 各dynamixelの id と トルクON/OFF のマップ
         static inline map<uint8_t, uint8_t> op_mode_; // 各dynamixelの id と 制御モード のマップ
@@ -201,7 +214,6 @@ class DynamixelHandler : public rclcpp::Node {
 
         //* 単体通信を組み合わせた上位機能
         uint8_t ScanDynamixels(uint8_t id_max);
-        void StopDynamixels();
         bool ClearHardwareError(uint8_t servo_id);
         bool ChangeOperatingMode(uint8_t servo_id, DynamixelOperatingMode mode);
         bool TorqueOn(uint8_t servo_id);
@@ -233,16 +245,17 @@ class DynamixelHandler : public rclcpp::Node {
         bool WriteBusWatchdog(uint8_t servo_id, double time);
         bool WriteGains(uint8_t servo_id, array<int64_t, _num_opt_gain> gains);
         //* 連結しているDynamixelに一括で読み書きするloopで使用する機能
-        void SyncWriteCommandValues(set<CmdValueIndex>& list_wirte_cmd=list_write_cmd_);
-        void SyncWriteOption_Mode();  // todo 
-        void SyncWriteOption_Gain();  // todo 
-        void SyncWriteOption_Limit(); // todo 
-        double SyncReadStateValues(set<StValueIndex> list_read_state=list_read_state_);
-        double SyncReadHardwareErrors();
-        double SyncReadOption_Mode(); 
-        double SyncReadOption_Gain(); 
-        double SyncReadOption_Limit();
-        double SyncReadOption_Goal();
+        template <typename Addr=AddrCommon> void SyncWriteCommandValues(set<CmdValueIndex>& list_wirte_cmd=list_write_cmd_);
+        template <typename Addr=AddrCommon> void SyncWriteOption_Mode();  // todo 
+        template <typename Addr=AddrCommon> void SyncWriteOption_Gain();  // todo 
+        template <typename Addr=AddrCommon> void SyncWriteOption_Limit(); // todo 
+        template <typename Addr=AddrCommon> double SyncReadStateValues(set<StValueIndex> list_read_state=list_read_state_);
+        template <typename Addr=AddrCommon> double SyncReadHardwareErrors();
+        template <typename Addr=AddrCommon> double SyncReadOption_Mode(); 
+        template <typename Addr=AddrCommon> double SyncReadOption_Gain(); 
+        template <typename Addr=AddrCommon> double SyncReadOption_Limit();
+        template <typename Addr=AddrCommon> double SyncReadOption_Goal();
+        template <typename Addr=AddrCommon> void SyncStopDynamixels();
 };
 
 // ちょっとした文字列の整形を行う補助関数

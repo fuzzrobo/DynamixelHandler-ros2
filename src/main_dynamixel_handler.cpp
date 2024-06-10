@@ -13,6 +13,10 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler") {
     sub_cmd_x_cur_  = create_subscription<DynamixelCommandXControlCurrent>         ("dynamixel/cmd/x/current",           4, bind(&DynamixelHandler::CallBackDxlCmd_X_Current, this, _1));
     sub_cmd_x_cpos_ = create_subscription<DynamixelCommandXControlCurrentPosition> ("dynamixel/cmd/x/current_position",  4, bind(&DynamixelHandler::CallBackDxlCmd_X_CurrentPosition, this, _1));
     sub_cmd_x_epos_ = create_subscription<DynamixelCommandXControlExtendedPosition>("dynamixel/cmd/x/extended_position", 4, bind(&DynamixelHandler::CallBackDxlCmd_X_ExtendedPosition, this, _1));
+    sub_cmd_p_pos_  = create_subscription<DynamixelCommandPControlPosition>        ("dynamixel/cmd/p/position",          4, bind(&DynamixelHandler::CallBackDxlCmd_P_Position, this, _1));
+    sub_cmd_p_vel_  = create_subscription<DynamixelCommandPControlVelocity>        ("dynamixel/cmd/p/velocity",          4, bind(&DynamixelHandler::CallBackDxlCmd_P_Velocity, this, _1));
+    sub_cmd_p_cur_  = create_subscription<DynamixelCommandPControlCurrent>         ("dynamixel/cmd/p/current",           4, bind(&DynamixelHandler::CallBackDxlCmd_P_Current, this, _1));
+    sub_cmd_p_epos_ = create_subscription<DynamixelCommandPControlExtendedPosition>("dynamixel/cmd/p/extended_position", 4, bind(&DynamixelHandler::CallBackDxlCmd_P_ExtendedPosition, this, _1));
     sub_opt_gain_ = create_subscription<DynamixelOptionGain> ("dynamixel/opt/gain/w", 4, bind(&DynamixelHandler::CallBackDxlOpt_Gain, this, _1));
     sub_opt_mode_ = create_subscription<DynamixelOptionMode> ("dynamixel/opt/mode/w", 4, bind(&DynamixelHandler::CallBackDxlOpt_Mode, this, _1));
     sub_opt_limit_= create_subscription<DynamixelOptionLimit>("dynamixel/opt/limit/w",4, bind(&DynamixelHandler::CallBackDxlOpt_Limit, this, _1));
@@ -103,7 +107,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler") {
     }
 
     // 状態のreadの前にやるべき初期化
-    for (auto id : id_list_) if (series_[id] == SERIES_X) {
+    for (auto id : id_list_) {
         WriteBusWatchdog(id, 0);
         WriteHomingOffset(id, 0.0); // 設定ファイルからとってこれるようにする
         WriteProfileAcc(id, 600.0*DEG); //  設定ファイルからとってこれるようにする
@@ -121,7 +125,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler") {
     // while ( ros::ok() && SyncReadOption_Extra()  < 1.0-1e-6 ) rsleep(0.05); BroadcastDxlOpt_Extra();
 
     // cmd_values_の内部の情報の初期化, cmd_values_はreadする関数を持ってないので以下の様に手動で．
-    for (auto id : id_list_) if (series_[id] == SERIES_X) { // Xシリーズのみ
+    for (auto id : id_list_) { // Xシリーズのみ
         op_mode_[id] = ReadOperatingMode(id);
         cmd_values_[id][GOAL_PWM]      = ReadGoalPWM(id);
         cmd_values_[id][GOAL_CURRENT]  = ReadGoalCurrent(id);
@@ -138,7 +142,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler") {
     bool do_torque_on   = get_parameter("init/torque_auto_enable").as_bool();
 
     ROS_INFO( "Initializing dynamixel state  ...");
-    for (auto id : id_list_) if (series_[id] == SERIES_X) {
+    for (auto id : id_list_) {
         if ( do_clean_hwerr ) ClearHardwareError(id); // 現在の状態を変えない
         if ( do_torque_on )   TorqueOn(id);           // 現在の状態を変えない
     } ROS_INFO( " ... state initialization done ");
@@ -227,7 +231,7 @@ DynamixelHandler::~DynamixelHandler(){
     this->declare_parameter("term/torque_auto_disable", true);
     bool do_torque_off  = get_parameter("term/torque_auto_disable").as_bool();
     if ( do_torque_off ) for ( auto id : id_list_ ) if (series_[id] == SERIES_X) TorqueOff(id);
-    StopDynamixels();
+    SyncStopDynamixels();
     ROS_INFO( " ... DynamixelHandler is terminated");
 }
 

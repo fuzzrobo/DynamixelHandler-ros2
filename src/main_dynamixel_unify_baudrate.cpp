@@ -87,8 +87,20 @@ int main(int argc, char **argv) {
             if ( std::find(found_ids.begin(), found_ids.end(), i) != found_ids.end() ) continue;
             if ( !dyn_comm.tryPing(i) ) continue;
             RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ID [%d] is found, try change baudrate %d", i, baudrate_target);
-            dyn_comm.tryWrite(DynX::torque_enable, i, TORQUE_DISABLE);
-            dyn_comm.tryWrite(DynX::baudrate, i, dyn_baudrate);
+            auto dyn_model = dyn_comm.tryRead(AddrCommon::model_number, i);
+            switch ( dynamixel_series(dyn_model) ) {
+                case SERIES_X: 
+                    dyn_comm.tryWrite(AddrX::torque_enable, i, TORQUE_DISABLE);
+                    dyn_comm.tryWrite(AddrX::baudrate, i, dyn_baudrate);
+                    break;
+                case SERIES_P:
+                    dyn_comm.tryWrite(AddrP::torque_enable, i, TORQUE_DISABLE);
+                    dyn_comm.tryWrite(AddrP::baudrate, i, dyn_baudrate);
+                    break;
+                default:
+                    RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Unknown series %ld", dyn_model);
+                    continue;
+            } 
             found_ids.push_back(i);
         }
         dyn_comm.ClosePort(); fflush(stdout);
