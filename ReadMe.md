@@ -6,8 +6,6 @@ Dynamixelとやり取りを行うライブラリは[別のリポジトリ](https
 
 note: ROS2のみ対応
 
-note: Dynamixel Xシリーズのみ対応（Pシリーズの対応は後ほど予定している）
-
 ## features of this package
  - Dynamixelというサーボを動かすことに特化した最小単位のPkg
    - このPkgの dynamixel_handler node と ロボットの制御を行う別の node を組み合わせて使う
@@ -74,10 +72,12 @@ colcon build --symlink-install --packages-up-to dynamixel_handler
 ### 1. Dynamixelを接続
 DynaimixelをディジーチェーンにしてUSBで接続する．
 idに重複がないように事前にDynamixel Wizardなどを用いて設定すること.
+
 baudrateを変更したい場合は次のlaunchファイルからdynamixel_unify_baudrate nodeを実行する.
 
 config/dynamixel_unify_baudrate.ymlの以下の部分を編集し，保存
 ``` yml
+# config/dynamixel_unify_baudrate.yml
 /**:
     ros__parameters:
         # 通信機器の設定
@@ -98,7 +98,7 @@ config/dynamixel_handler.ymlのros__parametersにbaudrateとdevice_nameを設定
 
 まず，config/dynamixel_handler.ymlの以下の部分を編集し，保存
 ```yml
-# <!-- dynamixel_handler.launch -->
+# config/dynamixel_handler.launch
 /**:
     ros__parameters:
         # 通信機器の設定
@@ -110,8 +110,12 @@ config/dynamixel_handler.ymlのros__parametersにbaudrateとdevice_nameを設定
 ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 ```
 連結したDynamixelを探索し，見つかったDynamixelの初期設定を行う．
+
+`init/expected_servo_num` が `0`の時は，1つ以上servoが見つかるまで `init/auto_search_retry_times` の回数分スキャンを繰り返す．  
+`init/expected_servo_num` が `0` でない場合は，その数だけservoが見つかるまで`init/auto_search_retry_times` の回数分スキャンを繰り返す
+
 通信状態によっては連結しているのに見つからない場合もあるので，その場合はros__parametersの `dyn_comm/retry_num` を大きくする．
-`init/expected_servo_num`に0以上が設定されている場合，その個数のDynamixelが見つからないと初期化失敗で自動でnodeが終了する．
+
 
 ### 3. Dynamixelを制御
 
@@ -120,11 +124,16 @@ ID:5のDynamixel Xシリーズ のサーボを位置制御モード(position con
 以下のように，`/dynamixel/cmd/x/position` topicにIDと角度を設定してpublishすればよい．
 
 ```bash
-rostopic pub /dynamixel/cmd/x/position \
- dynamixel_handler/DynamixelCommand_X_ControlPosition \
- "{id_list: [5], position_deg: [90]}" -1
+ros2 topic pub /dynamixel/cmd/x/position \
+ dynamixel_handler/msg/DynamixelCommand_X_ControlPosition \
+ "{id_list: [5], position_deg: [90], profile_vel_deg_s: [], profile_acc_deg_ss: []}" -1
 ```
 ID:5のDynamixelが位置制御モードでなかった場合は自動で変換される．
+
+各サーボのモードの確認は，以下の様に `/dynamixe/opt/mode/r` トピックを参照．
+```bash
+ros2 topic echo --flow-style /dynamixel/opt/mode/r
+```
 
 #### command topic 
 
@@ -176,16 +185,18 @@ float64[] profile_acc_deg_ss
 ```
 note: topic監視によるデバックの容易性の観点から角度はすべてdegにしてある
 
-#### /dynamixel/command topic
-
-Dynamixelに対する一般的な指令を送るためのコマンド
+Dynamixelに対する一般的な指令を送るためのコマンド, `/dynamixel/command`に対応
+``` yml
+# DynamixelCommand.msg
+string    command # "clear_error", "torque_on", "torque_off", "reboot",  "enable", "disable" 
+uint16[]  id_list
+```
 
 高レベルコマンド：ユーザの利用を想定
- - `torque_on` / `TON`: 安全にトルクをenableにする．目標姿勢を現在姿勢へ一致，速度を0にする．
+ - `torque_on` / `TON`: 安全にトルクをenableにする．目標姿勢を現在姿勢へ一致させ，速度を0にする．
  - `torque_off` / `TOFF`: トルクをdisableにする．
- - `clear_error` / `CE`: ハードウェアエラー(ex. overload)をrebootによって解除する．回転数の情報が喪失することによって現在角が不連続に変換する問題を解消するために，homing offset用いて自動で補正する．
+ - `clear_error` / `CE`: ハードウェアエラー(ex. overload)をrebootによって解除する．回転数の情報が喪失することによって現在角が不連続に変動する問題を解消するために，homing offset用いて自動で補正する．
   - `remove` : 指定したIDのサーボを認識リストから削除する．
-
 
 低レベルコマンド：開発者向け
  - `reboot` : reboot インストラクションを送る
@@ -200,7 +211,7 @@ ID:5とID:6のモータが接続している場合
 周期はros paramが `loop_rate=100` かつ `ratio/state_read=2`の時 100/2 = 50Hzとなる．
 
 ```
-rostopic echo /dyanmixel/state
+ros2 topic echo --flow-style /dyanmixel/state
 ```
 
 出力例
@@ -223,11 +234,13 @@ input_voltage_v: [] # 現在の入力電圧
 どの情報をpubするかは ros param から設定可能．
 
 dynamixelからのread方式は Sync Read であり，すべてのIDから一斉にreadするようになっている．
-ただし，ros param `use/fast_read=true` の場合は  Fast Sync Read が用いられる．
+ただし，ros param `use/fast_read` が `true` の場合は  Fast Sync Read が用いられる．
 
 また，上記の出力例にあるように複数の情報を読み込んでいるが，複数情報を一括でreadするか，分割でreadするかは，
 ros param `use/split_read` によって変更できる．
 分割でreadする場合は，読み込む情報の数分だけreadに時間がかかるので注意．
+
+read方式については後述の[速度に関してメモ](#速度に関してメモ)を参照
 
 ***************************
 
@@ -273,61 +286,61 @@ ros param `use/split_read` によって変更できる．
 ## param
 
 ```yml
-    # 通信機器の設定
-      device_name: /dev/ttyUSB0 # 通信するデバイス名
-      baudrate: 1000000 # 通信速度
-      latency_timer: 4 # 通信のインターバル
-    # 通信の設定
-      dyn_comm/retry_num: 10 # 通信失敗時のリトライ回数
-      dyn_comm/inerval_msec: 5 # 通信失敗時のインターバル時間
-      dyn_comm/varbose: false # 通信失敗時の詳細をエラーとして出すか
-    # サーボの初期設定
-      init/expected_servo_num: 0 # 期待するサーボの数，いくつでもOK
-      init/auto_search_min_id: 0 # 探索するサーボのIDの最小値
-      init/auto_search_max_id: 20　 # 探索するサーボのIDの最大値
-      init/auto_search_retry_times: 10 # 探索のリトライ回数
-      init/hardware_error_auto_clean: true # 初期化時に Hardware error を自動でクリアするかどうか
-      init/torque_auto_enable: true # 初期化時に Torque を自動でONにするかどうか
-      term/torque_auto_disable: true # 終了時に Torque を自動でOFFにするかどうか
-    # ループの設定
-      loop_rate: 100 # メインループの周期
-      ratio/state_read: 2 # この回数に一回 State を読み取る, 0=初回のみ 
-      ratio/option_read: 1000 # この回数に一回 option を読み取る, 0=初回のみ
-      ratio/error_read: 200 # この回数に一回 Hardware error を読み取る, 0=初回のみ
-      ratio/varbose_loop: 100 # メインループの処理時間，通信の成功率を出力, ex 100なら100回に1回出力
-    # Read/Write方式
-      use/fast_read: true # Fast Sync Readを使用するかどうか． falseにすると遅い
-      use/split_read: false # 複数のアドレスからの読み込みを分割するか同時に行うか, trueだと遅い
-      use/split_write: true # 複数のアドレスへの書き込みを分割するか同時に行うか, trueでもそんなに遅くならない
-      use/multi_rate_read: false
-    # Readする情報, use/split_read=falseの時のみ有効
-      read/present_pwm: false 
-      read/present_current: true 
-      read/present_velocity: true 
-      read/present_position: true 
-      read/velocity_trajectory: false 
-      read/position_trajectory: false 
-      read/present_input_voltage: false 
-      read/present_temperature: false
-    # 多周期でReadする情報, use/split_read=trueの時のみ有効
-      multi_rate_read/ratio/present_pwm:             0 # present_pwmを何周期に一回読むか
-      multi_rate_read/ratio/present_current:         1 # present_currentを何周期に一回読むか
-      multi_rate_read/ratio/present_velocity:        1 # present_velocityを何周期に一回読むか
-      multi_rate_read/ratio/present_position:        1 # present_positionを何周期に一回読むか
-      multi_rate_read/ratio/velocity_trajectory:     0 # velocity_trajectoryを何周期に一回読むか
-      multi_rate_read/ratio/position_trajectory:     0 # position_trajectoryを何周期に一回読むか
-      multi_rate_read/ratio/present_input_voltage:   10 # present_input_voltageを何周期に一回読むか
-      multi_rate_read/ratio/present_temperature:     10 # present_temperatureを何周期に一回読むか
-    # デバッグ用
-      max_log_width: 6 # 以下のlog出力で，サーボ何個ごとに改行を入れるか
-      varbose/callback: false # コールバック関数の呼び出しを出力
-      varbose/write_commad: true # 書き込みするcommandデータのpulse値を出力
-      varbose/write_option: false # 書き込みするoptionデータのpulse値を出力
-      varbose/read_state/raw: false # 読み込んだstateデータのpulse値を出力
-      varbose/read_state/err: false # stateデータの読み込みエラーを出力
-      varbose/read_option/raw: false # 読み込んだoptionデータのpulse値を出力
-      varbose/read_option/err: false # optionデータの読み込みエラーを出力
-      varbose/read_hardware_error: true # 検出したHardware errorを出力
+# 通信機器の設定
+  device_name: /dev/ttyUSB0 # 通信するデバイス名
+  baudrate: 1000000 # 通信速度
+  latency_timer: 4 # 通信のインターバル
+# 通信の設定
+  dyn_comm/retry_num: 10 # 通信失敗時のリトライ回数
+  dyn_comm/inerval_msec: 5 # 通信失敗時のインターバル時間
+  dyn_comm/varbose: false # 通信失敗時の詳細をエラーとして出すか
+# サーボの初期設定
+  init/expected_servo_num: 0 # 期待するサーボの数，いくつでもOK
+  init/auto_search_min_id: 0 # 探索するサーボのIDの最小値
+  init/auto_search_max_id: 20　 # 探索するサーボのIDの最大値
+  init/auto_search_retry_times: 10 # 探索のリトライ回数
+  init/hardware_error_auto_clean: true # 初期化時に Hardware error を自動でクリアするかどうか
+  init/torque_auto_enable: true # 初期化時に Torque を自動でONにするかどうか
+  term/torque_auto_disable: true # 終了時に Torque を自動でOFFにするかどうか
+# ループの設定
+  loop_rate: 100 # メインループの周期
+  ratio/state_read: 2 # この回数に一回 State を読み取る, 0=初回のみ 
+  ratio/option_read: 1000 # この回数に一回 option を読み取る, 0=初回のみ
+  ratio/error_read: 200 # この回数に一回 Hardware error を読み取る, 0=初回のみ
+  ratio/varbose_loop: 100 # メインループの処理時間，通信の成功率を出力, ex 100なら100回に1回出力
+# Read/Write方式
+  use/fast_read: true # Fast Sync Readを使用するかどうか． falseにすると遅い
+  use/split_read: false # 複数のアドレスからの読み込みを分割するか同時に行うか, trueだと遅い
+  use/split_write: true # 複数のアドレスへの書き込みを分割するか同時に行うか, trueでもそんなに遅くならない
+  use/multi_rate_read: false
+# Readする情報, use/split_read=falseの時のみ有効
+  read/present_pwm: false 
+  read/present_current: true 
+  read/present_velocity: true 
+  read/present_position: true 
+  read/velocity_trajectory: false 
+  read/position_trajectory: false 
+  read/present_input_voltage: false 
+  read/present_temperature: false
+# 多周期でReadする情報, use/split_read=trueの時のみ有効
+  multi_rate_read/ratio/present_pwm:             0 # present_pwmを何周期に一回読むか
+  multi_rate_read/ratio/present_current:         1 # present_currentを何周期に一回読むか
+  multi_rate_read/ratio/present_velocity:        1 # present_velocityを何周期に一回読むか
+  multi_rate_read/ratio/present_position:        1 # present_positionを何周期に一回読むか
+  multi_rate_read/ratio/velocity_trajectory:     0 # velocity_trajectoryを何周期に一回読むか
+  multi_rate_read/ratio/position_trajectory:     0 # position_trajectoryを何周期に一回読むか
+  multi_rate_read/ratio/present_input_voltage:   10 # present_input_voltageを何周期に一回読むか
+  multi_rate_read/ratio/present_temperature:     10 # present_temperatureを何周期に一回読むか
+# デバッグ用
+  max_log_width: 6 # 以下のlog出力で，サーボ何個ごとに改行を入れるか
+  varbose/callback: false # コールバック関数の呼び出しを出力
+  varbose/write_commad: true # 書き込みするcommandデータのpulse値を出力
+  varbose/write_option: false # 書き込みするoptionデータのpulse値を出力
+  varbose/read_state/raw: false # 読み込んだstateデータのpulse値を出力
+  varbose/read_state/err: false # stateデータの読み込みエラーを出力
+  varbose/read_option/raw: false # 読み込んだoptionデータのpulse値を出力
+  varbose/read_option/err: false # optionデータの読み込みエラーを出力
+  varbose/read_hardware_error: true # 検出したHardware errorを出力
 ```
 
 ***************************
@@ -474,7 +487,7 @@ note: (bus_watchdog の設定値が1以上の時) bus_watchdogの設定値 × 20
 
 ## 速度に関してメモ
 
-### Sync Read vs Fast Sync Read("use_fast_read"パラメータ)
+### Sync Read vs Fast Sync Read(`use/fast_read`パラメータ)
 結論としては，読み込むデータとサーボの数が少ないならFastを使う方がよい．
 
 Fast Sync Readは受信するパケットが全サーボ分1つながりになっている．
@@ -487,9 +500,9 @@ Fast Sync Readはパケットがつながっているため，1つでも返事�
 通常のSync Readはパケットが独立しているため，断線するより前のサーボからの返事は受け取ることができる．
 断線や接続不良が危惧されるような状況では通信周期を犠牲にして，Sync Readを使わざるを得ないだろう．
 
-### 複数アドレスの同時読み込み("use_split_read"パラメータ)
+### 複数アドレスの同時読み込み(`use/split_read`パラメータ)
 後述の書き込みと異なり，こちらは分割ではなく同時にするのが良い．
-すなわち"use_split_read"は`false`を推奨する．
+すなわち`use/split_read`は`false`を推奨する．
 
 複数のアドレスからデータを読み込みたいとき，分割して読み込む場合はシリアル通信の処理時間が，アドレス数分だけ長くなる．
 100Hz以上で回そうと思うと，present_current, present_velocity, present_positionという基本の3つを取り出すだけでもきつい．
@@ -498,16 +511,17 @@ Fast Sync Readはパケットがつながっているため，1つでも返事�
 present系の8つのアドレスすべてから読み込んでも，同時読み込みなら100Hzくらいはでる．
 分割読み込みだと30Hzも怪しい．
 
-（上記は全て，　14サーボ直列，lib_dynamixel側のLATENCY_TIMER=2ms, デバイス側のlatency timer=2msでの結果）
+（上記は全て，　14サーボ直列，lib_dynamixel側のLATENCY_TIMER=2ms, デバイス側のlatency timer=2ms, baudrate=1M での結果）
 
-### 複数アドレスの同時書き込み("use_split_write"パラメータ)
+### 複数アドレスの同時書き込み(`use/split_write`パラメータ)
 書き込みに関しては，同時ではなく分割するのが良いだろう．
-すなわち"use_split_write"は`true`を推奨する．
+すなわち`use/split_write`は`true`を推奨する．
 
-自分の環境では，"use_split_write"を`false`の状態で，12サーボに goal_current, goal_velocity, profile_acc, profile_vel, goal_position を同時にSync Writeしようとしたら，書き込みが失敗してうまく動かなかった． 
+自分の環境では，`use/split_write`を`false`の状態で，12サーボに goal_current, goal_velocity, profile_acc, profile_vel, goal_position を同時にSync Writeしようとしたら，書き込みが失敗してうまく動かなかった． 
 書き込むサーボが少なければ動く．
-また，"use_split_write"を`true`にして，分割で書き込み，1度に書き込むアドレスを減らしても動く．
+また，`use_split_write`を`true`にして，分割で書き込み，1度に書き込むアドレスを減らしても動く．
 書き込みに関しては，分割して行っても処理時間はほぼ変わらない(1ms未満しか遅くならない)ので，基本は`true`としておくべき．
+
 
 ***************************
 ***************************
@@ -576,14 +590,14 @@ sudo update-alternatives --install /usr/local/bin/usbip usbip `ls /usr/lib/linux
 
 ### 内部的な変更(動作に関係ないはず)
 
-1. DynamixelHandler classがrclcpp::Nodeを継承するように変更
+1. DynamixelHandler classが`rclcpp::Node`を継承するように変更
    - これによりnode kill時にエラーが発生しなくなる 
-2. DynamixelCommandXControlPosition.msgからtime stampを削除
+2. `DynamixelCommandXControlPosition.msg`から`time stamp`を削除
 3. array型の変数の要素数指定から，マジックナンバーを排除
-4. StopDynamixel関数が実はsync writeを使っていたので，SyncStopDynamixel関数に変更
+4. StopDynamixels関数が実は sync write を使っていたので，SyncStopDynamixels関数に変更
 5. Sync系関数をテンプレート化して p seriesへ対応
 7. 単体関数をif文で無理やり p series に対応 
-8. Time系のメソッドを this->get_clock()->now() に変更
+8. Time系のメソッドを `this->get_clock()->now()` に変更
 
 ### 外部的な変更
 
@@ -594,37 +608,41 @@ sudo update-alternatives --install /usr/local/bin/usbip usbip `ls /usr/lib/linux
     - configファイルの変更
         - dynamixel_handler.yaml
         - dynamixel_unify_baudrate.yaml
-  　　- configのros paramの一部をlaunchファイル内で設定するように変更
-  　　- 名前空間を変更`ns1`->`ns`
+    - configのros paramの一部をlaunchファイル内で設定するように変更
+    - 名前空間を変更`ns1`->`ns`
 
 > [!NOTE]
 > `.py`のlaunchファイルは未変更
 
 2. configファイルの名前空間を変更
     - 全部を指定するのではなく，ワイルドカードで指定することで，launchファイルとの対応を簡略化
+    　　-　名前空間を合わせないとparamがセットされないという問題を事前に回避できる．
+      
     ```yaml
     [-] ns:
     [-]   dynamixel_handler:
     [+] /**
     ```
 3. /dynamixel/command topic　が対応するコマンドに `remove` を追加
-    - 指定したIDのサーボを認識リストから削除することができるようになったので，調子の悪いservoを排除して，他のサーボとの通信速度に影響を与えないようにすることができる．
+    - 指定したIDを認識したサーボIDのリストから削除
+         - 調子の悪いservoを排除して，他のサーボとの通信速度に影響を与えないようにすることができる．
   
-4. DynamixelOptionGain.msgのfield名を一部変更
+5. DynamixelOptionGain.msgのfield名を一部変更
     - `feedforward_2nd_gain_pulse` -> `feedforward_acc_gain_pulse`
     - `feedforward_1nd_gain_pulse` -> `feedforward_vel_gain_pulse`
   
-5. Pシリーズ用のROSトピックのsubscribe
+6. Pシリーズ用のROSトピックのsubscribe
     - ついでにPシリーズ用のmsgにvelosity_deg_sを追加(忘れていた)
   
-6. Dynamixelのオートスキャンを改良
-    - init/expected_servo_num: 0の時は，1つ以上servoが見つかるまで init/auto_search_retry_times の回数分スキャンを繰り返すように変更
-    - init/expected_servo_num が 0 でない場合は，その数だけservoが見つかるまでスキャンを繰り返すように変更
+7. Dynamixelのオートスキャンを改良
+    - `init/expected_servo_num: 0`の時は，1つ以上servoが見つかるまで `init/auto_search_retry_times` の回数分スキャンを繰り返すように変更
+    - `init/expected_servo_num` が `0` でない場合は，その数だけservoが見つかるまでスキャンを繰り返すように変更
+         - この変更により，先に ros2 launch してから dynamixel の電源をつけることができるようになった．
   
-7. State readの周期を改良
-    - use/multi_rate_read パラメータを追加
-    - use/multi_rate_read: false の場合はこれまで通り ratio/state_read の周期でstateを読み取る．
-    - use/multi_rate_read: true の場合は 以下の multi_rate_read/ratio/{present} パラメータの設定に従って各周期で異なるstateの組み合わせを読み取る．
+8. State readの周期を改良
+    - `use/multi_rate_read` パラメータを追加
+    - `use/multi_rate_read: false` の場合はこれまで通り `ratio/state_read` の周期でstateを読み取る．
+    - `use/multi_rate_read: true` の場合は 以下の `multi_rate_read/ratio/{present}` パラメータの設定に従って各周期で異なるstateの組み合わせを読み取る．
         ```yml
         multi_rate_read/ratio/present_pwm:             0
         multi_rate_read/ratio/present_current:         1
