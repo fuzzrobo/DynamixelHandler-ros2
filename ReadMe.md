@@ -610,3 +610,18 @@ sudo update-alternatives --install /usr/local/bin/usbip usbip `ls /usr/lib/linux
 6. Dynamixelのオートスキャンを改良
     - init/expected_servo_num: 0の時は，1つ以上servoが見つかるまで init/auto_search_retry_times の回数分スキャンを繰り返すように変更
     - init/expected_servo_num が 0 でない場合は，その数だけservoが見つかるまでスキャンを繰り返すように変更
+  
+7. State readの周期を改良
+    - use/multi_rate_read パラメータを追加
+    - use/multi_rate_read: false の場合はこれまで通り ratio/state_read の周期でstateを読み取る．
+    - use/multi_rate_read: true の場合は 以下の multi_rate_read/ratio/{present} パラメータの設定に従って各周期で異なるstateの組み合わせを読み取る．
+        ```yml
+        multi_rate_read/ratio/present_pwm:             0
+        multi_rate_read/ratio/present_current:         1
+        multi_rate_read/ratio/present_velocity:        1
+        multi_rate_read/ratio/present_position:        1
+        multi_rate_read/ratio/velocity_trajectory:     0
+        multi_rate_read/ratio/position_trajectory:     0
+        multi_rate_read/ratio/present_input_voltage:   10
+        multi_rate_read/ratio/present_temperature:     10
+        ```
