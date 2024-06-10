@@ -2,47 +2,57 @@
 /**:
     ros__parameters:
     # 通信機器の設定
-      device_name: /dev/ttyUSB0 # 通信するデバイス名
-      baudrate: 1000000 # 通信速度
-      latency_timer: 4 # 通信のインターバル
+        device_name: /dev/ttyUSB0 # 通信するデバイス名
+        baudrate: 1000000 # 通信速度
+        latency_timer: 4 # 通信のインターバル
     # 通信の設定
-      dyn_comm/retry_num: 10 # 通信失敗時のリトライ回数
-      dyn_comm/inerval_msec: 5 # 通信失敗時のインターバル時間
-      dyn_comm/varbose: false # 通信失敗時の詳細をエラーとして出すか
+        dyn_comm/retry_num: 10
+        dyn_comm/inerval_msec: 5
+        dyn_comm/varbose: false
     # サーボの初期設定
-      init/expected_servo_num: 0
-      init/auto_search_min_id: 0
-      init/auto_search_max_id: 20
-      init/auto_search_retry_times: 10
-      init/hardware_error_auto_clean: true # 初期化時に Hardware error を自動でクリアするかどうか
-      init/torque_auto_enable: true # 初期化時に Torque を自動でONにするかどうか
-      term/torque_auto_disable: true # 終了時に Torque を自動でOFFにするかどうか
+        init/expected_servo_num: 0
+        init/auto_search_min_id: 0
+        init/auto_search_max_id: 20
+        init/auto_search_retry_times: 10
+        init/hardware_error_auto_clean: true # 初期化時に Hardware error を自動でクリアするかどうか
+        init/torque_auto_enable: true # 初期化時に Torque を自動でONにするかどうか
+        term/torque_auto_disable: true # 終了時に Torque を自動でOFFにするかどうか
     # ループの設定
-      loop_rate: 100 # メインループの周期
-      ratio/state_read: 2 # この回数に一回 State を読み取る, 0=初回のみ 
-      ratio/option_read: 1000 # この回数に一回 option を読み取る, 0=初回のみ
-      ratio/error_read: 200 # この回数に一回 Hardware error を読み取る, 0=初回のみ
-      ratio/varbose_loop: 100 # メインループの処理時間，通信の成功率を出力, ex 100なら100回に1回出力
+        loop_rate: 100
+        ratio/state_read: 1
+        ratio/option_read: 100
+        ratio/error_read: 100
+        ratio/varbose_loop: 100
     # Read/Write方式
-      use/fast_read: true # Fast Sync Readを使用するかどうか． falseにすると遅い
-      use/split_read: false # 複数のアドレスからの読み込みを分割するか同時に行うか, trueだと遅い
-      use/split_write: true # 複数のアドレスへの書き込みを分割するか同時に行うか, trueでもそんなに遅くならない
+        use/fast_read: false
+        use/split_read: false
+        use/split_write: true
+        use/multi_rate_read: false
     # Readする情報
-      read/present_pwm: false 
-      read/present_current: true 
-      read/present_velocity: true 
-      read/present_position: true 
-      read/velocity_trajectory: false 
-      read/position_trajectory: false 
-      read/present_input_voltage: false 
-      read/present_temperature: false
+        read/present_pwm: false
+        read/present_current: true
+        read/present_velocity: true
+        read/present_position: true
+        read/velocity_trajectory: false
+        read/position_trajectory: false
+        read/present_input_voltage: false
+        read/present_temperature: false
+    # 多周期でReadする情報
+        multi_rate_read/ratio/present_pwm:             0
+        multi_rate_read/ratio/present_current:         1
+        multi_rate_read/ratio/present_velocity:        1
+        multi_rate_read/ratio/present_position:        1
+        multi_rate_read/ratio/velocity_trajectory:     0
+        multi_rate_read/ratio/position_trajectory:     0
+        multi_rate_read/ratio/present_input_voltage:   10
+        multi_rate_read/ratio/present_temperature:     10
     # デバッグ用
-      max_log_width: 6 # 以下のlog出力で，サーボ何個ごとに改行を入れるか
-      varbose/callback: false # コールバック関数の呼び出しを出力
-      varbose/write_commad: true # 書き込みするcommandデータのpulse値を出力
-      varbose/write_option: false # 書き込みするoptionデータのpulse値を出力
-      varbose/read_state/raw: false # 読み込んだstateデータのpulse値を出力
-      varbose/read_state/err: false # stateデータの読み込みエラーを出力
-      varbose/read_option/raw: false # 読み込んだoptionデータのpulse値を出力
-      varbose/read_option/err: false # optionデータの読み込みエラーを出力
-      varbose/read_hardware_error: true # 検出したHardware errorを出力
+        max_log_width: 6
+        varbose/callback: false
+        varbose/write_commad: true
+        varbose/write_option: false
+        varbose/read_state/raw: false
+        varbose/read_state/err: false
+        varbose/read_option/raw: false
+        varbose/read_option/err: false
+        varbose/read_hardware_error: true

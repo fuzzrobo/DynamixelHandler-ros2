@@ -32,7 +32,7 @@ vector<uint8_t> store_cmd(
 
 void DynamixelHandler::CallBackDxlCommand(const DynamixelCommand& msg) {
     vector<uint8_t> id_list;
-    if ( msg.id_list.empty() || msg.id_list[0]==0xFE) for (auto id : id_list_   ) id_list.push_back(id);
+    if ( msg.id_list.empty() || msg.id_list[0]==0xFE) for (auto id : id_set_    ) id_list.push_back(id);
                                                  else for (auto id : msg.id_list) id_list.push_back(id);
     char header[100]; sprintf(header, "Command [%s] \n (id_list=[] or [254] means all IDs)", msg.command.c_str());
     ROS_INFO_STREAM(id_list_layout(id_list, string(header)));
@@ -43,7 +43,7 @@ void DynamixelHandler::CallBackDxlCommand(const DynamixelCommand& msg) {
     if (msg.command == "torque_off"  || msg.command == "TOFF")
         for (auto id : id_list) TorqueOff(id);
     if (msg.command == "remove"      || msg.command == "RM")
-        for (auto id : id_list) id_list_.erase( remove(id_list_.begin(), id_list_.end(), id), id_list_.end());
+        for (auto id : id_list) id_set_.erase( id );
     if (msg.command == "enable") 
         for (auto id : id_list) WriteTorqueEnable(id, true);
     if (msg.command == "disable")
