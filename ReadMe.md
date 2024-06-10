@@ -176,6 +176,20 @@ float64[] profile_acc_deg_ss
 ```
 note: topic監視によるデバックの容易性の観点から角度はすべてdegにしてある
 
+#### /dynamixel/command topic
+
+Dynamixelに対する一般的な指令を送るためのコマンド
+
+高レベルコマンド：ユーザの利用を想定
+ - `torque_on` / `TON`: 安全にトルクをenableにする．目標姿勢を現在姿勢へ一致，速度を0にする．
+ - `torque_off` / `TOFF`: トルクをdisableにする．
+ - `clear_error` / `CE`: ハードウェアエラー(ex. overload)をrebootによって解除する．回転数の情報が喪失することによって現在角が不連続に変換する問題を解消するために，homing offset用いて自動で補正する．
+
+低レベルコマンド：開発者向け
+ - `reboot` : reboot インストラクションを送る
+ - `enable` : torque enable アドレスに true を書き込む．
+ - `disable` : torque enable アドレスに false を書き込む．
+
 ### 4. Dynamixelの情報を取得
 
 ID:5とID:6のモータが接続している場合
@@ -543,3 +557,6 @@ usbipd: error: WSL 'usbip' client not correctly installed. See https://github.co
 ```bash
 sudo update-alternatives --install /usr/local/bin/usbip usbip `ls /usr/lib/linux-tools/*/usbip | tail -n1` 20
 ```
+
+## (後で消す) 6/10までに道川が変更したこと
+
