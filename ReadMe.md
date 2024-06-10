@@ -614,6 +614,7 @@ sudo update-alternatives --install /usr/local/bin/usbip usbip `ls /usr/lib/linux
 5. Sync系関数をテンプレート化して p seriesへ対応
 7. 単体関数をif文で無理やり p series に対応 
 8. Time系のメソッドを `this->get_clock()->now()` に変更
+9. Cmd系(goal_posiotionとか)の変数をすべてgoalに統一
 
 ### 外部的な変更
 
