@@ -571,6 +571,7 @@ sudo update-alternatives --install /usr/local/bin/usbip usbip `ls /usr/lib/linux
 4. StopDynamixel関数が実はsync writeを使っていたので，SyncStopDynamixel関数に変更
 5. Sync系関数をテンプレート化して p seriesへ対応
 7. 単体関数をif文で無理やり p series に対応 
+8. Time系のメソッドを this->get_clock()->now() に変更
 
 ### 外部的な変更
 
@@ -603,4 +604,3 @@ sudo update-alternatives --install /usr/local/bin/usbip usbip `ls /usr/lib/linux
   
 5. Pシリーズ用のROSトピックのsubscribe
     - ついでにPシリーズ用のmsgにvelosity_deg_sを追加(忘れていた)
-  - 
