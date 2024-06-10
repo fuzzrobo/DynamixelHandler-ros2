@@ -122,9 +122,9 @@ ros2 topic pub /dynamixel/command \
 ```
 ただし，デフォルトでは初期化時に自動でトルクONになっているため不要．
 
-#### 3-2 `/dynamixel/cmd/x/position` topicにIDと角度を設定してpublish．
+#### 3-2 `/dynamixel/x_cmd/position` topicにIDと角度を設定してpublish．
 ```bash
-ros2 topic pub /dynamixel/cmd/x/position \
+ros2 topic pub /dynamixel/x_cmd/position \
  dynamixel_handler/msg/DynamixelCommand_X_ControlPosition \
  "{id_list: [5], position_deg: [90], profile_vel_deg_s: [], profile_acc_deg_ss: []}" -1
 ```
@@ -201,14 +201,14 @@ read & pub される情報の選択については[Parameters](#parameters)の�
      - `enable` : torque enable アドレスに true を書き込む．
      - `disable` : torque enable アドレスに false を書き込む．
 
- - `/dynamixel/cmd/x/current` (`DynamixelCommand_X_ControlCurrent` type) :   
+ - `/dynamixel/x_cmd/current` (`DynamixelCommand_X_ControlCurrent` type) :   
  Xシリーズを電流制御モードで動かすためのtopic
     ```yml
     # DynamixelCommnad_X_ControlCurrent.msg
     uint16[] id_list
     float64[] current_mA
     ```
- - `/dynamixel/cmd/x/velocity` (`DynamixelCommand_X_ControlVelocity` type) :   
+ - `/dynamixel/x_cmd/velocity` (`DynamixelCommand_X_ControlVelocity` type) :   
  Xシリーズを速度制御モードで動かすためのtopic
     ```yml
     # DynamixelCommnad_X_ControlVelocity.msg
@@ -216,7 +216,7 @@ read & pub される情報の選択については[Parameters](#parameters)の�
     float64[] velocity_deg_s
     float64[] profile_acc_deg_ss
     ```
- - `/dynamixel/cmd/x/position` (`DynamixelCommand_X_ControlPosition` type) :   
+ - `/dynamixel/x_cmd/position` (`DynamixelCommand_X_ControlPosition` type) :   
  Xシリーズを位置制御モードで動かすためのtopic
     ```yml
     # DynamixelCommnad_X_ControlPosition.msg
@@ -225,7 +225,7 @@ read & pub される情報の選択については[Parameters](#parameters)の�
     float64[] profile_vel_deg_s
     float64[] profile_acc_deg_ss
     ```
- - `/dynamixel/cmd/x/extended_position` (`DynamixelCommand_X_ControlExtendedPosition` type) :   
+ - `/dynamixel/x_cmd/extended_position` (`DynamixelCommand_X_ControlExtendedPosition` type) :   
  Xシリーズを拡張位置制御モードで動かすためのtopic
     ```yml
     # DynamixelCommnad_X_ControlExtendedPosition.msg
@@ -235,7 +235,7 @@ read & pub される情報の選択については[Parameters](#parameters)の�
     float64[] profile_vel_deg_s
     float64[] profile_acc_deg_ss
     ```
- - `/dynamixel/cmd/x/current_position ` (`DynamixelCommand_X_ControlCurrentPosition` type) :   
+ - `/dynamixel/x_cmd/current_position ` (`DynamixelCommand_X_ControlCurrentPosition` type) :   
  Xシリーズを電流制限付き位置制御モードで動かすためのtopic
     ```yml
     # DynamixelCommnad_X_ControlCurrentPosition.msg
@@ -246,10 +246,10 @@ read & pub される情報の選択については[Parameters](#parameters)の�
     float64[] profile_vel_deg_s
     float64[] profile_acc_deg_ss
     ```
- - `/dynamixel/opt/gain/w` (`DynamixelOption_Gain` type) : 未実装
- - `/dynamixel/opt/limit/w` (`DynamixelOption_Limit` type) : 未実装
- - `/dynamixel/opt/mode/w` (`DynamixelOption_Mode` type)  : 未実装
- - `/dynamixel/opt/goal/w`
+ - `/dynamixel/gain/w` (`DynamixelOption_Gain` type) : 未実装
+ - `/dynamixel/limit/w` (`DynamixelOption_Limit` type) : 未実装
+ - `/dynamixel/mode/w` (`DynamixelOption_Mode` type)  : 未実装
+ - `/dynamixel/goal/w`
  
 #### Published from dyanmixel_handler　
 
@@ -257,10 +257,10 @@ read & pub される情報の選択については[Parameters](#parameters)の�
 
  - `/dynamixel/state`
  - `/dynamixel/error`
- - `/dynamixel/opt/gain/r`
- - `/dynamixel/opt/limit/r`
- - `/dynamixel/opt/mode/r`
- - `/dynamixel/opt/goal/r`
+ - `/dynamixel/gain/r`
+ - `/dynamixel/limit/r`
+ - `/dynamixel/mode/r`
+ - `/dynamixel/goal/r`
 
 ***************************
 
@@ -394,10 +394,10 @@ cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
 ## Control Table との対応
 
 ### コマンド (goal values)
- - goal_pwm             : 未実装，`/dynamixel/cmd/x/pwm`をsubすると設定されるようにしたい
- - goal_current         : `/dynamixel/cmd/x/current` or `/dynamixel/cmd/x/current_position`をsubすると設定され，`loop_rate`の周期で書き込まれる．
- - goal_velocity        : `/dynamixel/cmd/x/velocity`をsubすると設定され，`loop_rate`の周期で書き込まれる．
- - goal_position        : `/dynamixel/cmd/x/position` or `/dynamixel/cmd/x/current_position` or `/dynamixel/cmd/x/extended_position` をsubすると設定され．`loop_rate`の周期で書き込まれる．
+ - goal_pwm             : 未実装，`/dynamixel/x_cmd/pwm`をsubすると設定されるようにしたい
+ - goal_current         : `/dynamixel/x_cmd/current` or `/dynamixel/x_cmd/current_position`をsubすると設定され，`loop_rate`の周期で書き込まれる．
+ - goal_velocity        : `/dynamixel/x_cmd/velocity`をsubすると設定され，`loop_rate`の周期で書き込まれる．
+ - goal_position        : `/dynamixel/x_cmd/position` or `/dynamixel/x_cmd/current_position` or `/dynamixel/x_cmd/extended_position` をsubすると設定され．`loop_rate`の周期で書き込まれる．
  - profile_acceleration : `/dynamixel/cmd/profile`をsubすると設定される．`loop_rate`の周期で書き込まれる．
  - profile_velocity     : `/dynamixel/cmd/profile`をsubすると設定される．`loop_rate`の周期で書き込まれる．
 
