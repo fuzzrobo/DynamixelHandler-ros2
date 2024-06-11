@@ -248,7 +248,6 @@ read & pub される情報の選択については[Parameters](#parameters)の�
     ```
  - `/dynamixel/gain/w` (`DynamixelOption_Gain` type) : 未実装
  - `/dynamixel/limit/w` (`DynamixelOption_Limit` type) : 未実装
- - `/dynamixel/mode/w` (`DynamixelOption_Mode` type)  : 未実装
  - `/dynamixel/goal/w`
  
 #### Published from dyanmixel_handler　
@@ -259,7 +258,6 @@ read & pub される情報の選択については[Parameters](#parameters)の�
  - `/dynamixel/error`
  - `/dynamixel/gain/r`
  - `/dynamixel/limit/r`
- - `/dynamixel/mode/r`
  - `/dynamixel/goal/r`
 
 ***************************
@@ -441,13 +439,10 @@ note: 制御モードによってデフォルト値が異なり，なんとモ�
 
 ### モード
  - operating_mode         : 対応するtopicのsubで自動で設定される．  
-                            現在値を`/dynamixel/option/mode/r`としてpubされるようにする．   
-                            未実装，`/dynamixel/option/mode/w`をsubして設定されるようにする．
- - drive_mode             : 未実装，現在値を`/dynamixel/option/mode/r`としてpubできるにようにする．    
-                            未実装，`/dynamixel/option/mode/w`をsubして設定されるようにする．
+                            現在値を`/dynamixel/option/state`としてpubされるようにする．   
+ - drive_mode             : 未実装，現在値を`/dynamixel/option/state`としてpubできるにようにする．    
  - torque_enable          : 接続時に自動でトルクONされる. `/dynamixel/commnad`の`command`=`'torque_on'` or `'enable'`で1,`command`=`'torque_off'` or `'disable'`で0に設定される．  
-                            現在値を`/dynamixel/option/gain/r`としてpubされるようにする．   
-                            未実装，`/dynamixel/option/mode/w`をsubして設定されるようにする．
+                            現在値を`/dynamixel/option/state`としてpubされるようにする．   
 
 ### エラー
  - hardware_error_status  : `/dynamixel/error`として`loop_rate`のうち，`ratio/read_error`に一回の周期でpubされる. 
@@ -482,8 +477,6 @@ note: (bus_watchdog の設定値が1以上の時) bus_watchdogの設定値 × 20
    - 電源喪失・Rebootで初期化されていしまう問題の対処
    - モード変更によってモードごとのデフォルト値に初期化される問題の対処
      - FW ver 45 以上で使えるresotre_configurationだと，バックアップ作成時点の値になってしまい，意図と異なる場合が発生しかねない． 
- - mode系
-   - paramから設定できるようにする
  - commnad topic を service にする
  - 電流/速度制御時に通信が途切れたら自動で停止するようにする
  - External Portsをうまいことやる
