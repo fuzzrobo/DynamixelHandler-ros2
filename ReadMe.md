@@ -330,11 +330,11 @@ state の read 周期は `loop_rate` を `ratio/state_read` で割った値と�
   max_log_width: 6 # 以下のlog出力で，サーボ何個ごとに改行を入れるか
   varbose/callback: false # コールバック関数の呼び出しを出力
   varbose/write_commad: true # 書き込みするcommandデータのpulse値を出力
-  varbose/write_option: false # 書き込みするoptionデータのpulse値を出力
+  varbose/write_options: false # 書き込みするoptionデータのpulse値を出力
   varbose/read_state/raw: false # 読み込んだstateデータのpulse値を出力
   varbose/read_state/err: false # stateデータの読み込みエラーを出力
-  varbose/read_option/raw: false # 読み込んだoptionデータのpulse値を出力
-  varbose/read_option/err: false # optionデータの読み込みエラーを出力
+  varbose/read_options/raw: false # 読み込んだoptionデータのpulse値を出力
+  varbose/read_options/err: false # optionデータの読み込みエラーを出力
   varbose/read_hardware_error: true # 検出したHardware errorを出力
 ```
 
