@@ -18,12 +18,13 @@
         init/torque_auto_enable: true # 初期化時に Torque を自動でONにするかどうか
         term/torque_auto_disable: true # 終了時に Torque を自動でOFFにするかどうか
     # ループの設定
-        ratio/read_state: 2
-        ratio/read_error: 10
-        ratio/read_limit: 300
-        ratio/read_gain: 300
-        ratio/read_goal: 20
-        ratio/varbose_loop: 300
+        loop_rate: 300 # メインループの周期
+        ratio/read_state: 3 # この回数に一回 State を読み取る, 0=初回のみ
+        ratio/read_error: 10 # この回数に一回 Hardware error を読み取る, 0=初回のみ
+        ratio/read_limit: 300 # この回数に一回 Limit を読み取る, 0=初回のみ
+        ratio/read_gain: 300 # この回数に一回 Gain を読み取る, 0=初回のみ
+        ratio/read_goal: 10  # この回数に一回 Goal を読み取る, 0=初回のみ
+        ratio/varbose_loop: 300 # メインループの処理時間，通信の成功率を出力, ex 100なら100回に1回出力
     # Read/Write方式
         use/fast_read: false
         use/split_read: false
