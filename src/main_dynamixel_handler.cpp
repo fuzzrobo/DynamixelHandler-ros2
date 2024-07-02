@@ -242,8 +242,7 @@ void DynamixelHandler::MainLoop(){
 
 DynamixelHandler::~DynamixelHandler(){
     ROS_INFO( "Terminating DynamixelHandler ...");
-    this->declare_parameter("term/torque_auto_disable", true);
-    bool do_torque_off  = get_parameter("term/torque_auto_disable").as_bool();
+    bool do_torque_off; get_parameter_or("term/torque_auto_disable", do_torque_off, true);
     if ( do_torque_off ) for ( auto id : id_set_ ) TorqueOff(id);
     StopDynamixels();
     ROS_INFO( "  ... DynamixelHandler is terminated");
