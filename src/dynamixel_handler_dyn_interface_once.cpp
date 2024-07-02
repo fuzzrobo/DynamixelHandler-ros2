@@ -1,8 +1,5 @@
 #include "dynamixel_handler.hpp"
 
-template <typename T> bool is_in(const T& val, const vector<T>& v) { return std::find(v.begin(), v.end(), val) != v.end(); }
-template <typename T> bool is_in(const T& val, const    set<T>& s) { return s.find(val) != s.end(); }
-
 //* 基本機能をまとめた関数たち
 
 // 各シリーズのDynamixelを検出する．

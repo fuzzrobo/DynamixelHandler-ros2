@@ -294,7 +294,7 @@ double round4(double val) { return round(val*10000.0)/10000.0; }
 void DynamixelHandler::BroadcastDxlState(){
     DynamixelState msg;
     msg.stamp = this->get_clock()->now();
-    for (const auto& [id, value] : state_r_) {
+    for (const auto& [id, value] : state_r_) if ( is_in(id, id_set_) ) {
         msg.id_list.push_back(id);
 
         msg.status.torque_enable.push_back(tq_mode_[id]);
@@ -323,7 +323,7 @@ void DynamixelHandler::BroadcastDxlState(){
 void DynamixelHandler::BroadcastDxlError(){
     DynamixelError msg;
     msg.stamp = this->get_clock()->now();
-    for (const auto& [id, error]: hardware_error_) {
+    for (const auto& [id, error]: hardware_error_) if ( is_in(id, id_set_) ) {
         if (error[INPUT_VOLTAGE     ]) msg.input_voltage.push_back     (id);
         if (error[MOTOR_HALL_SENSOR ]) msg.motor_hall_sensor.push_back (id);
         if (error[OVERHEATING       ]) msg.overheating.push_back       (id);
@@ -337,7 +337,7 @@ void DynamixelHandler::BroadcastDxlError(){
 void DynamixelHandler::BroadcastDxlLimit(){
     DynamixelLimit msg;
     msg.stamp = this->get_clock()->now();
-    for (const auto& [id, limit] : limit_r_) {
+    for (const auto& [id, limit] : limit_r_) if ( is_in(id, id_set_) ) {
         msg.id_list.push_back(id);
         msg.temperature_limit_deg_c.push_back  (round4(limit[TEMPERATURE_LIMIT ]));
         msg.max_voltage_limit_v.push_back      (round4(limit[MAX_VOLTAGE_LIMIT ]));
@@ -355,7 +355,7 @@ void DynamixelHandler::BroadcastDxlLimit(){
 void DynamixelHandler::BroadcastDxlGain(){
     DynamixelGain msg;
     msg.stamp = this->get_clock()->now();
-    for ( const auto& [id, gain] : gain_r_ ) {
+    for ( const auto& [id, gain] : gain_r_ ) if ( is_in(id, id_set_) ) {
         msg.id_list.push_back(id);
         msg.velocity_i_gain_pulse.push_back     (gain[VELOCITY_I_GAIN     ]);
         msg.velocity_p_gain_pulse.push_back     (gain[VELOCITY_P_GAIN     ]);
@@ -371,7 +371,7 @@ void DynamixelHandler::BroadcastDxlGain(){
 void DynamixelHandler::BroadcastDxlGoal(){
     DynamixelGoal msg;
     msg.stamp = this->get_clock()->now();
-    for ( const auto& [id, goal] : goal_r_ ) {
+    for ( const auto& [id, goal] : goal_r_ ) if ( is_in(id, id_set_) ) {
         msg.id_list.push_back(id);
         msg.pwm_percent.push_back       (round4(goal[GOAL_PWM     ]));
         msg.current_ma.push_back        (round4(goal[GOAL_CURRENT ]));
