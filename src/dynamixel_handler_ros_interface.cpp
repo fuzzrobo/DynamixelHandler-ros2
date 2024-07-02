@@ -297,13 +297,13 @@ void DynamixelHandler::BroadcastDxlState(){
     for (const auto& [id, value] : state_r_) if ( is_in(id, id_set_) ) {
         msg.id_list.push_back(id);
 
-        msg.status.torque_enable.push_back(tq_mode_[id]);
+        msg.mode.torque_enable.push_back(tq_mode_[id]);
         switch(op_mode_[id]) {
-            case OPERATING_MODE_CURRENT:              msg.status.operating_mode.push_back("current");           break;
-            case OPERATING_MODE_VELOCITY:             msg.status.operating_mode.push_back("velocity");          break;
-            case OPERATING_MODE_POSITION:             msg.status.operating_mode.push_back("position");          break;
-            case OPERATING_MODE_EXTENDED_POSITION:    msg.status.operating_mode.push_back("extended_position"); break;
-            case OPERATING_MODE_CURRENT_BASE_POSITION:msg.status.operating_mode.push_back("current_position");  break;
+            case OPERATING_MODE_CURRENT:              msg.mode.operating_mode.push_back("current");           break;
+            case OPERATING_MODE_VELOCITY:             msg.mode.operating_mode.push_back("velocity");          break;
+            case OPERATING_MODE_POSITION:             msg.mode.operating_mode.push_back("position");          break;
+            case OPERATING_MODE_EXTENDED_POSITION:    msg.mode.operating_mode.push_back("extended_position"); break;
+            case OPERATING_MODE_CURRENT_BASE_POSITION:msg.mode.operating_mode.push_back("current_position");  break;
         }
 
         for (auto state : list_read_state_) switch(state) {
