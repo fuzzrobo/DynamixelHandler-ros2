@@ -57,7 +57,8 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     int id_max      ; this->get_parameter_or("init/auto_search_max_id"     , id_max      , 35);
 
     if ( num_expexted>0 ) ROS_INFO("Expected number of Dynamixel is [%d]", num_expexted);
-    else ROS_WARN("Expected number of Dynamixel is not set. Free number of Dynamixel is allowed");
+    else                  ROS_WARN("\nExpected number of Dynamixel is not set. Free number of Dynamixel is allowed");
+    ROS_INFO(" Auto scanning Dynamixel (id range [%d] to [%d]) ...", id_min, id_max);
     auto num_found = ScanDynamixels(id_min, id_max, num_expexted, times_retry);
     if( num_found==0 ) { // 見つからなかった場合は初期化失敗で終了
         ROS_ERROR("Dynamixel is not found in USB device [%s]", dyn_comm_.port_name().c_str());
@@ -107,25 +108,33 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
 
     // 最初の一回は全ての情報をread & publish
     ROS_INFO(" Reading present dynamixel status  ...");  
-    ROS_INFO(" * state values reading .. "); while ( rclcpp::ok() && SyncReadState( list_read_state_ ) < 1.0-1e-6 ) rsleep(50);                                           
-    ROS_INFO(" * limit values reading .. "); while ( rclcpp::ok() && SyncReadLimit( list_read_limit_ ) < 1.0-1e-6 ) rsleep(50); 
-    for ( auto id : id_set_ ) limit_w_[id] = limit_r_[id];
-    ROS_INFO(" * gain values reading  .. "); while ( rclcpp::ok() && SyncReadGain( list_read_gain_ ) < 1.0-1e-6 ) rsleep(50); 
-    for ( auto id : id_set_ ) gain_w_[id] = gain_r_[id];
-    ROS_INFO(" * goal values reading  .. "); while ( rclcpp::ok() && SyncReadGoal( list_read_goal_ ) < 1.0-1e-6 ) rsleep(50); 
-    for ( auto id : id_set_ ) goal_w_[id] = goal_r_[id]; 
-    ROS_INFO(" * hardware error reading .. "); while ( rclcpp::ok() && SyncReadHardwareErrors() < 1.0-1e-6 ) rsleep(50); // 最後にやる
+    ROS_INFO(" * state values reading .. "); 
+        while ( rclcpp::ok() && SyncReadState( list_read_state_ ) < 1.0-1e-6 ) rsleep(50);                                           
+    ROS_INFO(" * limit values reading .. "); 
+        while ( rclcpp::ok() && SyncReadLimit( list_read_limit_ ) < 1.0-1e-6 ) rsleep(50); 
+    ROS_INFO(" * gain values reading  .. "); 
+        while ( rclcpp::ok() && SyncReadGain ( list_read_gain_  ) < 1.0-1e-6 ) rsleep(50); 
+    ROS_INFO(" * goal values reading  .. "); 
+        while ( rclcpp::ok() && SyncReadGoal ( list_read_goal_  ) < 1.0-1e-6 ) rsleep(50); 
+    ROS_INFO(" * hardware error reading .. "); 
+        while ( rclcpp::ok() && SyncReadHardwareErrors() < 1.0-1e-6 ) rsleep(50); // 最後にやる
+    ROS_INFO(" * mode values reading  ..");
     for (auto id : id_set_) {
         tq_mode_[id] = ReadTorqueEnable(id);
         op_mode_[id] = ReadOperatingMode(id);
         dv_mode_[id] = ReadDriveMode(id);
+        limit_w_[id] = limit_r_[id];
+        gain_w_[id] = gain_r_[id];
+        goal_w_[id] = goal_r_[id];
     }
+    ROS_INFO("  ... status reading done");
+
     BroadcastDxlState();
     BroadcastDxlLimit();
     BroadcastDxlGain();  
     BroadcastDxlGoal();   
     BroadcastDxlError(); 
-    ROS_INFO("  ... status reading done");
+
 
     // 状態のreadの後にやるべき初期化
     ROS_INFO( " Initializing dynamixel state  ...");
