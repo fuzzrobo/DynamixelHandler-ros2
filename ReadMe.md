@@ -633,9 +633,8 @@ sudo update-alternatives --install /usr/local/bin/usbip usbip `ls /usr/lib/linux
     [-]   dynamixel_handler:
     [+] /**
     ```
-3. /dynamixel/command topic　が対応するコマンドに `remove` を追加
-    - 指定したIDを認識したサーボIDのリストから削除
-         - 調子の悪いservoを排除して，他のサーボとの通信速度に影響を与えないようにすることができる．
+3. /dynamixel/command topic　が対応するコマンドに `remove_id` を追加
+    - 指定したIDのサーボを認識リストから削除することができるようになったので，調子の悪いservoを排除して，他のサーボとの通信速度に影響を与えないようにすることができる．
   
 5. DynamixelOptionGain.msgのfield名を一部変更
     - `feedforward_2nd_gain_pulse` -> `feedforward_acc_gain_pulse`
