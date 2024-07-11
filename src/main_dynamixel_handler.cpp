@@ -103,7 +103,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     double init_pv; this->get_parameter_or("init/profile_velocity"    , init_pv, 100.0*DEG);
     for (auto id : id_set_) {
         WriteBusWatchdog (id, 0.0 );
-        writeHomingOffset(id, 0.0 );
+        WriteHomingOffset(id, 0.0 );
         WriteProfileAcc(id, init_pa ); //  設定ファイルからとってこれるようにする
         WriteProfileVel(id, init_pv ); //  設定ファイルからとってこれるようにする
     }
