@@ -263,7 +263,7 @@ template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(){
     if ( varbose_read_hwerr_ ) {
         ROS_WARN( "Hardware error are Checked");
         for (auto id : target_id_list) {
-            if (hardware_error_[id][INPUT_VOLTAGE     ]) ROS_ERROR(" * servo id [%d] has INPUT_VOLTAGE error"     ,id);
+            if (hardware_error_[id][INPUT_VOLTAGE     ]) ROS_WARN (" * servo id [%d] has INPUT_VOLTAGE error"     ,id);
             if (hardware_error_[id][MOTOR_HALL_SENSOR ]) ROS_ERROR(" * servo id [%d] has MOTOR_HALL_SENSOR error" ,id);
             if (hardware_error_[id][OVERHEATING       ]) ROS_ERROR(" * servo id [%d] has OVERHEATING error"       ,id);
             if (hardware_error_[id][MOTOR_ENCODER     ]) ROS_ERROR(" * servo id [%d] has MOTOR_ENCODER error"     ,id);
@@ -271,6 +271,8 @@ template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(){
             if (hardware_error_[id][OVERLOAD          ]) ROS_ERROR(" * servo id [%d] has OVERLOAD error"          ,id);
         }
     }
+    // 0b00000001 << HARDWARE_ERROR_ELECTRONICAL_SHOCK と error が等しい場合のみ，そのエラーをfalseにする
+    for ( const auto& [id, error] : id_error_map ) if ((error >> HARDWARE_ERROR_INPUT_VOLTAGE     )& 0b1 ) hardware_error_[id][INPUT_VOLTAGE] = false;
     return id_error_map.size()/double(target_id_list.size());
 }
 
