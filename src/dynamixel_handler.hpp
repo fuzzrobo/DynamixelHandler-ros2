@@ -162,16 +162,16 @@ class DynamixelHandler : public rclcpp::Node {
             VELOCITY_TRAJECTORY  ,
             POSITION_TRAJECTORY  ,
             PRESENT_INPUT_VOLTAGE,
-            PRESENT_TEMPERTURE   ,
+            PRESENT_TEMPERATURE  ,
             /*Indexの最大値*/_num_state
            };
         enum HWErrIndex { // hardware_error_のIndex, サーボが起こしたハードウェアエラー
-            INPUT_VOLTAGE     ,
-            MOTOR_HALL_SENSOR ,
-            OVERHEATING       ,
-            MOTOR_ENCODER     ,
-            ELECTRONICAL_SHOCK,
-            OVERLOAD          ,
+            INPUT_VOLTAGE    ,
+            MOTOR_HALL_SENSOR,
+            OVERHEATING      ,
+            MOTOR_ENCODER    ,
+            ELECTRONICAL_SHOCK ,
+            OVERLOAD         ,
             /*Indexの最大値*/_num_hw_err
         };
         enum LimitIndex { // limit_w/r_のIndex, 各種の制限値
@@ -225,7 +225,7 @@ class DynamixelHandler : public rclcpp::Node {
         static inline set<GoalValueIndex> list_write_goal_;
         static inline set<GainIndex>      list_write_gain_;
         static inline set<LimitIndex>     list_write_limit_;
-        static inline set<StValueIndex>   list_read_state_ = {PRESENT_POSITION, PRESENT_VELOCITY, PRESENT_CURRENT, PRESENT_PWM, VELOCITY_TRAJECTORY, POSITION_TRAJECTORY, PRESENT_INPUT_VOLTAGE, PRESENT_TEMPERTURE};
+        static inline set<StValueIndex>   list_read_state_ = {PRESENT_POSITION, PRESENT_VELOCITY, PRESENT_CURRENT, PRESENT_PWM, VELOCITY_TRAJECTORY, POSITION_TRAJECTORY, PRESENT_INPUT_VOLTAGE, PRESENT_TEMPERATURE};
         static inline set<GoalValueIndex> list_read_goal_  = {GOAL_POSITION, GOAL_VELOCITY, GOAL_CURRENT, GOAL_PWM, PROFILE_ACC, PROFILE_VEL};
         static inline set<GainIndex>      list_read_gain_  = {VELOCITY_I_GAIN, VELOCITY_P_GAIN, POSITION_D_GAIN, POSITION_I_GAIN, POSITION_P_GAIN, FEEDFORWARD_ACC_GAIN, FEEDFORWARD_VEL_GAIN};
         static inline set<LimitIndex>     list_read_limit_ = {TEMPERATURE_LIMIT, MAX_VOLTAGE_LIMIT, MIN_VOLTAGE_LIMIT, PWM_LIMIT, CURRENT_LIMIT, ACCELERATION_LIMIT, VELOCITY_LIMIT, MAX_POSITION_LIMIT, MIN_POSITION_LIMIT};

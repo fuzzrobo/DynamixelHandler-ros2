@@ -181,7 +181,7 @@ template <typename Addr> double DynamixelHandler::SyncReadState(set<StValueIndex
         case VELOCITY_TRAJECTORY  : state_addr_list.push_back(Addr::velocity_trajectory  ); break;   
         case POSITION_TRAJECTORY  : state_addr_list.push_back(Addr::position_trajectory  ); break;  
         case PRESENT_INPUT_VOLTAGE: state_addr_list.push_back(Addr::present_input_voltage); break; 
-        case PRESENT_TEMPERTURE   : state_addr_list.push_back(Addr::present_temperture   ); break;
+        case PRESENT_TEMPERATURE  : state_addr_list.push_back(Addr::present_temperture   ); break;
         default: /*ここに来たらエラ-*/ exit(1);
     }
     vector<uint8_t> target_id_list;
@@ -251,24 +251,24 @@ template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(){
 
     //  hardware_error_に反映
     for (const auto& [id, error] : id_error_map ){
-        if ((error >> HARDWARE_ERROR_INPUT_VOLTAGE)     & 0b1 ) hardware_error_[id][INPUT_VOLTAGE     ] = true;
-        if ((error >> HARDWARE_ERROR_MOTOR_HALL_SENSOR) & 0b1 ) hardware_error_[id][MOTOR_HALL_SENSOR ] = true;
-        if ((error >> HARDWARE_ERROR_OVERHEATING)       & 0b1 ) hardware_error_[id][OVERHEATING       ] = true;
-        if ((error >> HARDWARE_ERROR_MOTOR_ENCODER)     & 0b1 ) hardware_error_[id][MOTOR_ENCODER     ] = true;
+        if ((error >> HARDWARE_ERROR_INPUT_VOLTAGE     )& 0b1 ) hardware_error_[id][INPUT_VOLTAGE     ] = true;
+        if ((error >> HARDWARE_ERROR_MOTOR_HALL_SENSOR )& 0b1 ) hardware_error_[id][MOTOR_HALL_SENSOR ] = true;
+        if ((error >> HARDWARE_ERROR_OVERHEATING       )& 0b1 ) hardware_error_[id][OVERHEATING       ] = true;
+        if ((error >> HARDWARE_ERROR_MOTOR_ENCODER     )& 0b1 ) hardware_error_[id][MOTOR_ENCODER     ] = true;
         if ((error >> HARDWARE_ERROR_ELECTRONICAL_SHOCK)& 0b1 ) hardware_error_[id][ELECTRONICAL_SHOCK] = true;
-        if ((error >> HARDWARE_ERROR_OVERLOAD)          & 0b1 ) hardware_error_[id][OVERLOAD          ] = true;
+        if ((error >> HARDWARE_ERROR_OVERLOAD          )& 0b1 ) hardware_error_[id][OVERLOAD          ] = true;
     }
 
     // コンソールへの表示
     if ( varbose_read_hwerr_ ) {
         ROS_WARN( "Hardware error are Checked");
         for (auto id : target_id_list) {
-            if (hardware_error_[id][INPUT_VOLTAGE     ]) ROS_ERROR(" * servo id [%d] has INPUT_VOLTAGE error",      id);
-            if (hardware_error_[id][MOTOR_HALL_SENSOR ]) ROS_ERROR(" * servo id [%d] has MOTOR_HALL_SENSOR error",  id);
-            if (hardware_error_[id][OVERHEATING       ]) ROS_ERROR(" * servo id [%d] has OVERHEATING error",        id);
-            if (hardware_error_[id][MOTOR_ENCODER     ]) ROS_ERROR(" * servo id [%d] has MOTOR_ENCODER error",      id);
-            if (hardware_error_[id][ELECTRONICAL_SHOCK]) ROS_ERROR(" * servo id [%d] has ELECTRONICAL_SHOCK error", id);
-            if (hardware_error_[id][OVERLOAD          ]) ROS_ERROR(" * servo id [%d] has OVERLOAD error",           id);
+            if (hardware_error_[id][INPUT_VOLTAGE     ]) ROS_ERROR(" * servo id [%d] has INPUT_VOLTAGE error"     ,id);
+            if (hardware_error_[id][MOTOR_HALL_SENSOR ]) ROS_ERROR(" * servo id [%d] has MOTOR_HALL_SENSOR error" ,id);
+            if (hardware_error_[id][OVERHEATING       ]) ROS_ERROR(" * servo id [%d] has OVERHEATING error"       ,id);
+            if (hardware_error_[id][MOTOR_ENCODER     ]) ROS_ERROR(" * servo id [%d] has MOTOR_ENCODER error"     ,id);
+            if (hardware_error_[id][ELECTRONICAL_SHOCK]) ROS_ERROR(" * servo id [%d] has ELECTRONICAL_SHOCK error",id);
+            if (hardware_error_[id][OVERLOAD          ]) ROS_ERROR(" * servo id [%d] has OVERLOAD error"          ,id);
         }
     }
     return id_error_map.size()/double(target_id_list.size());

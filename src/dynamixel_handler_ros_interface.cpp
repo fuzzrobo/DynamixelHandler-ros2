@@ -353,7 +353,7 @@ void DynamixelHandler::BroadcastDxlState(){
             case PRESENT_POSITION:     msg.position_deg.push_back        (round4(value[state]/DEG)); break;
             case VELOCITY_TRAJECTORY:  msg.vel_trajectory_deg_s.push_back(round4(value[state]/DEG)); break;
             case POSITION_TRAJECTORY:  msg.pos_trajectory_deg.push_back  (round4(value[state]/DEG)); break;
-            case PRESENT_TEMPERTURE:   msg.temperature_deg_c.push_back   (round4(value[state]    )); break;
+            case PRESENT_TEMPERATURE:   msg.temperature_deg_c.push_back   (round4(value[state]    )); break;
             case PRESENT_INPUT_VOLTAGE:msg.input_voltage_v.push_back     (round4(value[state]    )); break;
         }
     }

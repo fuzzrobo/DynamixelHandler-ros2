@@ -160,7 +160,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
         get_parameter_or("read/velocity_trajectory"  , tmp, false); if( tmp ) list_read_state_.insert(VELOCITY_TRAJECTORY  );
         get_parameter_or("read/position_trajectory"  , tmp, false); if( tmp ) list_read_state_.insert(POSITION_TRAJECTORY  );
         get_parameter_or("read/present_input_voltage", tmp, false); if( tmp ) list_read_state_.insert(PRESENT_INPUT_VOLTAGE);
-        get_parameter_or("read/present_temperature"  , tmp, false); if( tmp ) list_read_state_.insert(PRESENT_TEMPERTURE   );
+        get_parameter_or("read/present_temperature"  , tmp, false); if( tmp ) list_read_state_.insert(PRESENT_TEMPERATURE   );
     } else {
         ratio_state_pub_ = 1; // multi_rate_readの場合は，ratio_state_pub_は1にする
         get_parameter_or("multi_rate_read/ratio/present_pwm"          , multi_rate_read_ratio_pub_[PRESENT_PWM          ],  0u);
@@ -170,7 +170,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
         get_parameter_or("multi_rate_read/ratio/velocity_trajectory"  , multi_rate_read_ratio_pub_[VELOCITY_TRAJECTORY  ],  0u);
         get_parameter_or("multi_rate_read/ratio/position_trajectory"  , multi_rate_read_ratio_pub_[POSITION_TRAJECTORY  ],  0u);
         get_parameter_or("multi_rate_read/ratio/present_input_voltage", multi_rate_read_ratio_pub_[PRESENT_INPUT_VOLTAGE], 10u);
-        get_parameter_or("multi_rate_read/ratio/present_temperature"  , multi_rate_read_ratio_pub_[PRESENT_TEMPERTURE   ], 10u);
+        get_parameter_or("multi_rate_read/ratio/present_temperature"  , multi_rate_read_ratio_pub_[PRESENT_TEMPERATURE   ], 10u);
     }
 
     ROS_INFO( "..... DynamixelHandler is initialized");
@@ -203,7 +203,7 @@ void DynamixelHandler::MainLoop(){
         if (r[VELOCITY_TRAJECTORY  ] && cnt % r[VELOCITY_TRAJECTORY  ] == 0) list_read_state_.insert(VELOCITY_TRAJECTORY  );
         if (r[POSITION_TRAJECTORY  ] && cnt % r[POSITION_TRAJECTORY  ] == 0) list_read_state_.insert(POSITION_TRAJECTORY  );
         if (r[PRESENT_INPUT_VOLTAGE] && cnt % r[PRESENT_INPUT_VOLTAGE] == 0) list_read_state_.insert(PRESENT_INPUT_VOLTAGE);
-        if (r[PRESENT_TEMPERTURE   ] && cnt % r[PRESENT_TEMPERTURE   ] == 0) list_read_state_.insert(PRESENT_TEMPERTURE   );
+        if (r[PRESENT_TEMPERATURE   ] && cnt % r[PRESENT_TEMPERATURE   ] == 0) list_read_state_.insert(PRESENT_TEMPERATURE   );
     }
 
 /* 処理時間時間の計測 */ auto rstart = system_clock::now();
