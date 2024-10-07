@@ -109,7 +109,8 @@ ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 
 ### 3. Dynamixelを制御
 
-`/dynamixel/command` topic でトルクのオンオフ， `/dynamixel/cmd/~`系のtopicで動作制御．  
+`/dynamixel/command` topic でトルクのオンオフや動作制御． 
+`/dynamixel/x_cmd/~`系や`/dynamixel/p_cmd/~`系のtopic x/p seriesのサーボの各制御モードでの動作制御．
 使える topic については [Topic](#topic) の章を参照．
 
 例：ID:5のDynamixel Xシリーズ のサーボを位置制御モード(position control mode)で角度を90degにする場合
@@ -133,7 +134,7 @@ ros2 topic pub /dynamixel/x_cmd/position \
 
 ### 4. Dynamixelの情報を取得
 
-`/dyanmixel/state` topic 等として一定周期で raed & pubされ続けている．  
+`/dyanmixel/state` topic 等として一定周期で raed & pub され続けている．  
 publishされてる topic については [Topic](#topic) の章を参照．
 また，read周期については[Parameters](#parameters)の章の[実行時の動作設定](#実行時の動作設定)を参照．
 
@@ -187,14 +188,15 @@ read & pub される情報の選択については[Parameters](#parameters)の�
  dynamixelの起動や停止，エラー解除コマンドなどを送るためのtopic
     ``` yml
     # DynamixelCommand.msg
-    string    command # "clear_error", "torque_on", "torque_off", "reboot",  "enable", "disable" 
+    string    command # "clear_error", "torque_on", "torque_off", "remove_id", "add_id",  "reboot",  "enable", "disable" 
     uint16[]  id_list
     ```
     高レベルコマンド：ユーザの利用を想定
      - `torque_on` / `TON`: 安全にトルクをenableにする．目標姿勢を現在姿勢へ一致させ，速度を0にする．
      - `torque_off` / `TOFF`: トルクをdisableにする．
      - `clear_error` / `CE`: ハードウェアエラー(ex. overload)をrebootによって解除する．回転数の情報が喪失することによって現在角が不連続に変動する問題を解消するために，homing offset用いて自動で補正する．
-     - `remove` : 指定したIDのサーボを認識リストから削除する．
+     - `remove_id` : 指定したIDのサーボを認識リストから削除する．
+     - `add_id` : 指定したIDのサーボを認識リストに追加する．
 
     低レベルコマンド：開発者向け
      - `reboot` : reboot インストラクションを送る

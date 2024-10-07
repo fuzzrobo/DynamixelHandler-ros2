@@ -34,6 +34,53 @@ uint8_t DynamixelHandler::ScanDynamixels(uint8_t id_min, uint8_t id_max, uint32_
     return ScanDynamixels(id_min, id_max, num_expected, times_retry-1);
 }
 
+bool DynamixelHandler::addDynamixel(uint8_t id){
+    if ( !dyn_comm_.tryPing(id) ) return false;
+
+    auto dyn_model = dyn_comm_.tryRead(AddrCommon::model_number, id); fflush(stdout);
+    switch ( dynamixel_series(dyn_model) ) { 
+        case SERIES_X: ROS_INFO(" * X series servo id [%d] is found", id);
+            model_[id] = dyn_model;
+            series_[id] = SERIES_X;
+            num_[SERIES_X]++;
+            id_set_.insert(id);
+            break;
+        case SERIES_P: ROS_INFO(" * P series servo id [%d] is found", id);
+            model_[id] = dyn_model;
+            series_[id] = SERIES_P;
+            num_[SERIES_P]++;
+            id_set_.insert(id);
+            break;
+        default: 
+            ROS_WARN(" * Unkwon model [%d] servo id [%d] is found", (int)dyn_model, id);
+            return false;
+    }
+
+    double init_pa; this->get_parameter_or("init/profile_acceleration", init_pa, 600.0*DEG);
+    double init_pv; this->get_parameter_or("init/profile_velocity"    , init_pv, 100.0*DEG);
+    WriteBusWatchdog (id, 0.0 );
+    WriteHomingOffset(id, 0.0 );
+    WriteProfileAcc(id, init_pa ); //  設定ファイルからとってこれるようにする
+    WriteProfileVel(id, init_pv ); //  設定ファイルからとってこれるようにする
+
+    while ( rclcpp::ok() && SyncReadLimit( list_read_limit_ ) < 1.0-1e-6 ) rsleep(50); 
+    while ( rclcpp::ok() && SyncReadGain ( list_read_gain_  ) < 1.0-1e-6 ) rsleep(50); 
+    while ( rclcpp::ok() && SyncReadGoal ( list_read_goal_  ) < 1.0-1e-6 ) rsleep(50); 
+
+    tq_mode_[id] = ReadTorqueEnable(id);
+    op_mode_[id] = ReadOperatingMode(id);
+    dv_mode_[id] = ReadDriveMode(id);
+    limit_w_[id] = limit_r_[id];
+    gain_w_[id] = gain_r_[id];
+    goal_w_[id] = goal_r_[id];
+
+    bool do_clean_hwerr; this->get_parameter_or("init/hardware_error_auto_clean", do_clean_hwerr, true);
+    bool do_torque_on  ; this->get_parameter_or("init/torque_auto_enable"       , do_torque_on  , true);
+    if ( do_clean_hwerr ) ClearHardwareError(id); // 現在の状態を変えない
+    if ( do_torque_on )   TorqueOn(id);           // 現在の状態を変えない
+    return true;
+}
+
 // 回転数が消えることを考慮して，モータをリブートする．
 bool DynamixelHandler::ClearHardwareError(uint8_t id){
     if ( !is_in(id, id_set_) ) return false;

@@ -51,21 +51,21 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     this->get_parameter_or("varbose/read_hardware_error", varbose_read_hwerr_  , false);
 
     // id_listの作成
-    int num_expexted; this->get_parameter_or("init/expected_servo_num"     , num_expexted, 0);
+    int num_expected; this->get_parameter_or("init/expected_servo_num"     , num_expected, 0);
     int times_retry ; this->get_parameter_or("init/auto_search_retry_times", times_retry , 5);
     int id_min      ; this->get_parameter_or("init/auto_search_min_id"     , id_min      , 1);
     int id_max      ; this->get_parameter_or("init/auto_search_max_id"     , id_max      , 35);
 
-    if ( num_expexted>0 ) ROS_INFO("Expected number of Dynamixel is [%d]", num_expexted);
+    if ( num_expected>0 ) ROS_INFO("Expected number of Dynamixel is [%d]", num_expected);
     else                  ROS_WARN("\nExpected number of Dynamixel is not set. Free number of Dynamixel is allowed");
     ROS_INFO(" Auto scanning Dynamixel (id range [%d] to [%d]) ...", id_min, id_max);
-    auto num_found = ScanDynamixels(id_min, id_max, num_expexted, times_retry);
+    auto num_found = ScanDynamixels(id_min, id_max, num_expected, times_retry);
     if( num_found==0 ) { // 見つからなかった場合は初期化失敗で終了
         ROS_ERROR("Dynamixel is not found in USB device [%s]", dyn_comm_.port_name().c_str());
         throw std::runtime_error("Initialization failed (no dynamixel found)");
     }
-    if( num_expexted>0 && num_expexted!=num_found ) { // 期待数が設定されているときに、見つかった数が期待数と異なる場合は初期化失敗で終了
-        ROS_ERROR("Number of Dynamixel is not matched. Expected [%d], but found [%d]. please check & retry", num_expexted, num_found);
+    if( num_expected>0 && num_expected!=num_found ) { // 期待数が設定されているときに、見つかった数が期待数と異なる場合は初期化失敗で終了
+        ROS_ERROR("Number of Dynamixel is not matched. Expected [%d], but found [%d]. please check & retry", num_expected, num_found);
         throw std::runtime_error("Initialization failed (number of dynamixel is not matched)");
     }
     ROS_INFO("  ... Finish scanning Dynamixel");
@@ -203,7 +203,7 @@ void DynamixelHandler::MainLoop(){
         if (r[VELOCITY_TRAJECTORY  ] && cnt % r[VELOCITY_TRAJECTORY  ] == 0) list_read_state_.insert(VELOCITY_TRAJECTORY  );
         if (r[POSITION_TRAJECTORY  ] && cnt % r[POSITION_TRAJECTORY  ] == 0) list_read_state_.insert(POSITION_TRAJECTORY  );
         if (r[PRESENT_INPUT_VOLTAGE] && cnt % r[PRESENT_INPUT_VOLTAGE] == 0) list_read_state_.insert(PRESENT_INPUT_VOLTAGE);
-        if (r[PRESENT_TEMPERATURE   ] && cnt % r[PRESENT_TEMPERATURE   ] == 0) list_read_state_.insert(PRESENT_TEMPERATURE   );
+        if (r[PRESENT_TEMPERATURE  ] && cnt % r[PRESENT_TEMPERATURE  ] == 0) list_read_state_.insert(PRESENT_TEMPERATURE   );
     }
 
 /* 処理時間時間の計測 */ auto rstart = system_clock::now();

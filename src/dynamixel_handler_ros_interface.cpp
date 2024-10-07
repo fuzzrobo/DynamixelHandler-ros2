@@ -35,6 +35,8 @@ void DynamixelHandler::CallBackDxlCommand(const DynamixelCommand::SharedPtr msg)
         for (auto id : id_list) TorqueOff(id);
     if (msg->command == "remove_id"   || msg->command == "RMID")
         for (auto id : id_list) id_set_.erase( id );
+    if (msg->command == "add_id"      || msg->command == "ADID")
+        for (auto id : id_list) addDynamixel(id);
     if (msg->command == "reset_offset" || msg->command == "RO") 
         for (auto id : id_list) WriteHomingOffset(id, 0);
     if (msg->command == "enable") 

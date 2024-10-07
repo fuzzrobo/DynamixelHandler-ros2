@@ -9,5 +9,5 @@ dynamixel_handler/DynamixelCommandXControlPosition x_pos
 dynamixel_handler/DynamixelCommandXControlExtendedPosition x_ext_pos
 dynamixel_handler/DynamixelCommandXControlCurrentPosition x_cur_pos
 
-string    command # "clear_error", "torque_on", "torque_off", "remove_id", "reboot",  "enable", "disable" 
+string    command # "clear_error", "torque_on", "torque_off", "remove_id", "add_id",  "reboot",  "enable", "disable" 
 uint16[]  id_list
