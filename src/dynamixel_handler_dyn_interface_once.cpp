@@ -122,14 +122,15 @@ bool DynamixelHandler::ChangeOperatingMode(uint8_t id, DynamixelOperatingMode mo
     WriteProfileVel  (id, goal_w_[id][PROFILE_VEL  ]);
     WriteGoalPosition(id, goal_w_[id][GOAL_POSITION]);
     // WriteGains(id, gain_r_[id]);　// ** Gain値のデフォルトも変わる．面倒な．．．
+    double bus_watchdog = mode==OPERATING_MODE_CURRENT  ? 2500 :
+                          mode==OPERATING_MODE_VELOCITY ? 2500 : 0;
+    WriteBusWatchdog(id, bus_watchdog); // Dynamixel側のバグで書き込んでもうまくいかないことがある．
     WriteTorqueEnable(id, prev_torque == TORQUE_ENABLE );
     // 結果を確認
     bool is_changed = (ReadOperatingMode(id) == mode);
     if ( is_changed ) {
         op_mode_[id] = mode;
         when_op_mode_updated_[id] = get_clock()->now().seconds();
-        // if ( mode==OPERATING_MODE_CURRENT ) WriteBusWatchdog(id, 2500 /*ms*/);
-        // if ( mode==OPERATING_MODE_VELOCITY) WriteBusWatchdog(id, 2500 /*ms*/);
         ROS_INFO("ID [%d] is changed operating mode [%d]", id, mode);
     } else {
         ROS_ERROR("ID [%d] failed to change operating mode", id); 
@@ -156,11 +157,15 @@ bool DynamixelHandler::TorqueOn(uint8_t id){
         WriteProfileVel  (id, goal_w_[id][PROFILE_VEL  ]);
         WriteGoalPosition(id, goal_w_[id][GOAL_POSITION]);
         // WriteGains(id, gain_r_[id]); 　// その他電源喪失時に消えるデータを念のため書き込む
+        double bus_watchdog = op_mode_[id]==OPERATING_MODE_CURRENT  ? 2500 :
+                              op_mode_[id]==OPERATING_MODE_VELOCITY ? 2500 : 0;
+        WriteBusWatchdog(id, bus_watchdog); // Dynamixel側のバグで書き込んでもうまくいかないことがある．
         /*トルクを入れる*/WriteTorqueEnable(id, true);
     }
     // 結果を確認
     tq_mode_[id] = ReadTorqueEnable(id);
     if ( tq_mode_[id] != TORQUE_ENABLE ) ROS_ERROR("ID [%d] failed to enable torque", id);
+                                    else ROS_INFO( "ID [%d] is enabled torque"      , id);
     return tq_mode_[id];
 }
 
@@ -249,6 +254,12 @@ double DynamixelHandler::ReadProfileVel(uint8_t id){
 double DynamixelHandler::ReadHomingOffset(uint8_t id){
     auto addr = series_[id]==SERIES_X ? AddrX::homing_offset
                :series_[id]==SERIES_P ? AddrP::homing_offset : AddrX::homing_offset;
+    return addr.pulse2val(dyn_comm_.tryRead(addr, id), model_[id]);
+}
+
+double DynamixelHandler::ReadBusWatchdog(uint8_t id){
+    auto addr = series_[id]==SERIES_X ? AddrX::bus_watchdog
+               :series_[id]==SERIES_P ? AddrP::bus_watchdog : AddrX::bus_watchdog;
     return addr.pulse2val(dyn_comm_.tryRead(addr, id), model_[id]);
 }
 

@@ -253,6 +253,7 @@ class DynamixelHandler : public rclcpp::Node {
         double  ReadProfileAcc(uint8_t servo_id);
         double  ReadProfileVel(uint8_t servo_id);
         double  ReadHomingOffset(uint8_t servo_id);
+        double  ReadBusWatchdog(uint8_t servo_id);
         uint8_t ReadOperatingMode(uint8_t servo_id);
         uint8_t ReadDriveMode(uint8_t servo_id);
         bool WriteTorqueEnable(uint8_t servo_id, bool enable);
