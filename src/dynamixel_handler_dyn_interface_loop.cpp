@@ -508,7 +508,7 @@ template <typename Addr> void DynamixelHandler::StopDynamixels(){
     dyn_comm_.SyncWrite(Addr::bus_watchdog, id_list, bus_watchtime_pulse);
     dyn_comm_.SyncWrite(Addr::homing_offset, offset_pulse_now);
     ROS_INFO("%s servo will be stopped", Addr::series()==SERIES_X ? "X series" 
-                                       : Addr::series()==SERIES_X ? "P series" : "Unknown");
+                                       : Addr::series()==SERIES_P ? "P series" : "Unknown");
 }
 
 template <> void DynamixelHandler::CheckDynamixels(){
