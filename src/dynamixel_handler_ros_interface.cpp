@@ -339,6 +339,7 @@ void DynamixelHandler::BroadcastDxlState(){
     for (const auto& [id, value] : state_r_) if ( is_in(id, id_set_) ) {
         msg.id_list.push_back(id);
 
+        msg.mode.ping.push_back(ping_err_[id]==0);
         msg.mode.torque_enable.push_back(tq_mode_[id]==TORQUE_ENABLE);
         switch(op_mode_[id]) {
             case OPERATING_MODE_CURRENT:              msg.mode.operating_mode.push_back("current");           break;
@@ -355,7 +356,7 @@ void DynamixelHandler::BroadcastDxlState(){
             case PRESENT_POSITION:     msg.position_deg.push_back        (round4(value[state]/DEG)); break;
             case VELOCITY_TRAJECTORY:  msg.vel_trajectory_deg_s.push_back(round4(value[state]/DEG)); break;
             case POSITION_TRAJECTORY:  msg.pos_trajectory_deg.push_back  (round4(value[state]/DEG)); break;
-            case PRESENT_TEMPERATURE:   msg.temperature_deg_c.push_back   (round4(value[state]    )); break;
+            case PRESENT_TEMPERATURE:  msg.temperature_deg_c.push_back   (round4(value[state]    )); break;
             case PRESENT_INPUT_VOLTAGE:msg.input_voltage_v.push_back     (round4(value[state]    )); break;
         }
     }

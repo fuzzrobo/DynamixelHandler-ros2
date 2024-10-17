@@ -213,7 +213,6 @@ template <typename Addr> double DynamixelHandler::SyncReadState(set<StValueIndex
     }
     //* state_r_に反映
     const unsigned int num_state_now  = *end-*start+1;
-    const unsigned int num_state_next = list_read_state.size() - num_state_now;
     for ( size_t i = 0; i < num_state_now; i++ ) {
         const auto addr = state_addr_list[i];
         for (const auto& [id, data_int] : id_st_vec_map)
@@ -221,6 +220,7 @@ template <typename Addr> double DynamixelHandler::SyncReadState(set<StValueIndex
     }
     // 今回読み込んだ範囲を消去して残りを再帰的に処理, use_split_read_=falseの場合は全て削除されるので,再帰しない
     list_read_state.erase(start, ++end); // 今回読み込んだ範囲を消去
+    const unsigned int num_state_next = list_read_state.size();
     double suc_rate = SyncReadState<Addr>(list_read_state);
     return       suc_rate       *num_state_next / (num_state_now+num_state_next) // 再帰的な意味で前回までの成功率に重しをかけたもの
          + N_suc/(double)N_total*num_state_now  / (num_state_now+num_state_next);// 今回の成功率に今回読み込んだデータの数を重しとしてかけたもの
@@ -331,7 +331,6 @@ template <typename Addr> double DynamixelHandler::SyncReadGain(set<GainIndex> li
     }
     // gain_r_に反映
     const unsigned int num_gain_now  = *end-*start+1;
-    const unsigned int num_gain_next = list_read_gain.size() - num_gain_now;
     for ( size_t i = 0; i < num_gain_now; i++ ) { 
         DynamixelAddress addr = gain_addr_list[i];
         for (const auto& [id, data_int] : id_gain_vec_map)
@@ -339,6 +338,7 @@ template <typename Addr> double DynamixelHandler::SyncReadGain(set<GainIndex> li
     }
     // 今回読み込んだ範囲を消去して残りを再帰的に処理, 
     list_read_gain.erase(start, ++end); // 今回読み込んだ範囲を消去
+    const unsigned int num_gain_next = list_read_gain.size();
     double suc_rate = SyncReadGain<Addr>(list_read_gain);
     return      suc_rate       *num_gain_next / (num_gain_now+num_gain_next) // 再帰的な意味で前回までの成功率に重しをかけたもの
         + N_suc/(double)N_total*num_gain_now  / (num_gain_now+num_gain_next);// 今回の成功率に今回読み込んだデータの数を重しとしてかけたもの
@@ -414,7 +414,6 @@ template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> 
     }
     // limit_r_に反映
     const unsigned int num_limit_now  = *end-*start+1;
-    const unsigned int num_limit_next = list_read_limit.size() - num_limit_now;
     for ( size_t i = 0; i < num_limit_now; i++ ) {
         DynamixelAddress addr = limit_addr_list[i];
         for (const auto& [id, data_int] : id_limit_vec_map)
@@ -422,6 +421,7 @@ template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> 
     }
     // 今回読み込んだ範囲を消去して残りを再帰的に処理,
     list_read_limit.erase(start, ++end); // 今回読み込んだ範囲を消去
+    const unsigned int num_limit_next = list_read_limit.size();
     double suc_rate = SyncReadLimit<Addr>(list_read_limit);
     return    suc_rate         *num_limit_next / (num_limit_now+num_limit_next) // 再帰的な意味で前回までの成功率に重しをかけたもの
         + N_suc/(double)N_total*num_limit_now  / (num_limit_now+num_limit_next);// 今回の成功率に今回読み込んだデータの数を重しとしてかけたもの
@@ -480,7 +480,6 @@ template <typename Addr> double DynamixelHandler::SyncReadGoal(set<GoalValueInde
     }
     // goal_r_に反映
     const unsigned int  num_goal_now  = *end-*start+1;
-    const unsigned int  num_goal_next = list_read_goal.size() - num_goal_now;
     for ( size_t i = 0; i < num_goal_now; i++) {
         DynamixelAddress addr = goal_addr_list[i];
         for (const auto& [id, data_int] : id_goal_vec_map)
@@ -488,6 +487,7 @@ template <typename Addr> double DynamixelHandler::SyncReadGoal(set<GoalValueInde
     }
     // 今回読み込んだ範囲を消去して残りを再帰的に処理, 
     list_read_goal.erase(start, ++end); // 今回読み込んだ範囲を消去
+    const unsigned int  num_goal_next = list_read_goal.size();
     double suc_rate = SyncReadGoal<Addr>(list_read_goal);
     return    suc_rate         *num_goal_next / (num_goal_now+num_goal_next) // 再帰的な意味で前回までの成功率に重しをかけたもの
         + N_suc/(double)N_total*num_goal_now  / (num_goal_now+num_goal_next);// 今回の成功率に今回読み込んだデータの数を重しとしてかけたもの
@@ -520,8 +520,33 @@ template <typename Addr> void DynamixelHandler::CheckDynamixels(){
     for (int id : id_set_) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
     if ( target_id_list.empty() ) return; // 読み込むデータがない場合は即時return
 
+    // トルクの確認
     auto id_torque_map     = dyn_comm_.SyncRead( Addr::torque_enable, target_id_list );
     for ( const auto& [id, torque] : id_torque_map ) tq_mode_[id] = torque;
+
+    // 通信エラーがあれば，モータの応答を確認
+    const bool is_timeout   = dyn_comm_.timeout_last_read();
+    const bool has_comm_err = dyn_comm_.comm_error_last_read();
+    if ( !is_timeout && !has_comm_err ) {ping_err_.clear(); return;} // 通信エラーがない場合は即時return
+
+    vector<uint8_t> alive_id_list;
+    for (auto id : target_id_list) if ( dyn_comm_.Ping(id) ) alive_id_list.push_back(id);
+    if ( alive_id_list.empty() ) { 
+        for (auto id : target_id_list) ping_err_[id] = 1;
+    } else { 
+        // 一部生き残っている場合は，生き残ったモータのみ通信断絶扱いとする
+        for (auto id : target_id_list) 
+            if ( !is_in(id, alive_id_list) ) {
+                ping_err_[id]++;
+                ROS_WARN("Servo id [%d] is dead (%d count)", id, ping_err_[id]);
+                if (auto_remove_count_ && ping_err_[id] > auto_remove_count_) {
+                    ROS_ERROR("Servo id [%d] is removed", id);
+                    id_set_.erase(id);
+                }
+            } else {
+                ping_err_[id] = 0;
+            }
+    }
 
     // auto id_dv_op_mode_map = dyn_comm_.SyncRead({Addr::drive_mode, Addr::operating_mode}, target_id_list);  fflush(stdout);
     // for ( const auto& [id, dv_op]  : id_dv_op_mode_map ) {

@@ -42,14 +42,14 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     this->get_parameter_or("use/fast_read"      , use_fast_read_      , true);
     this->get_parameter_or("use/multi_rate_read", use_multi_rate_read_, false);
     this->get_parameter_or("varbose/callback"           , varbose_callback_    , false);
-    this->get_parameter_or("varbose/write_commad"       , varbose_write_cmd_   , false);
+    this->get_parameter_or("varbose/write_command"      , varbose_write_cmd_   , false);
     this->get_parameter_or("varbose/write_options"      , varbose_write_opt_   , false);
     this->get_parameter_or("varbose/read_state/raw"     , varbose_read_st_     , false);
     this->get_parameter_or("varbose/read_state/err"     , varbose_read_st_err_ , false);
     this->get_parameter_or("varbose/read_options/raw"   , varbose_read_opt_    , false);
     this->get_parameter_or("varbose/read_options/err"   , varbose_read_opt_err_, false);
     this->get_parameter_or("varbose/read_hardware_error", varbose_read_hwerr_  , false);
-
+    this->get_parameter_or("middle/no_response_id_auto_remove_time", auto_remove_count_   , 0u);
     // id_listの作成
     int num_expected; this->get_parameter_or("init/expected_servo_num"     , num_expected, 0);
     int times_retry ; this->get_parameter_or("init/auto_search_retry_times", times_retry , 5);
@@ -207,7 +207,7 @@ void DynamixelHandler::MainLoop(){
     }
 
 /* 処理時間時間の計測 */ auto rstart = system_clock::now();
-    if ( ratio_state_pub_ && cnt % (100*ratio_state_pub_) == 0 ) CheckDynamixels(); // トルクが入っているか確認
+    if ( loop_rate_ && cnt % loop_rate_ == 0 ) CheckDynamixels(); // トルクが入っているか確認
     //* Dynamixelから状態Read & topicをPublish
     if ( !list_read_state_.empty() ) // list_read_state_が空でない場合のみ実行
     if ( ratio_state_pub_ && cnt % ratio_state_pub_ == 0 ) {// ratio_state_pub_の割合で実行
@@ -215,7 +215,7 @@ void DynamixelHandler::MainLoop(){
         num_st_read++;
         num_st_suc_p += rate_suc_st > 0.0;
         num_st_suc_f += rate_suc_st > 1.0-1e-6;
-        if ( rate_suc_st>0.0 ) BroadcastDxlState();
+        BroadcastDxlState();
     }
     if ( ratio_error_pub_ && cnt % ratio_error_pub_ == 0 ) { // ratio_error_pub_の割合で実行
         double rate_suc_err = SyncReadHardwareErrors();

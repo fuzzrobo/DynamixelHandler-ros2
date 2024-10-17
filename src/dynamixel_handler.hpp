@@ -128,6 +128,7 @@ class DynamixelHandler : public rclcpp::Node {
         unsigned int ratio_goal_pub_   = 100; // 0の時は初回のみ
         unsigned int ratio_mainloop_   = 100; // 0の時は初回のみ
         unsigned int width_log_ = 7;
+        unsigned int auto_remove_count_ = 0;
         bool use_split_write_     = false;
         bool use_split_read_      = false;
         bool use_fast_read_       = false;
@@ -202,6 +203,7 @@ class DynamixelHandler : public rclcpp::Node {
         map<uint8_t, uint16_t> model_; // 各dynamixelの id と model のマップ
         map<uint8_t, uint16_t> series_; // 各dynamixelの id と series のマップ
         map<uint8_t, size_t> num_;  // 各dynamixelの series と　個数のマップ 無くても何とかなるけど, 効率を考えて保存する
+        map<uint8_t, uint64_t> ping_err_; // 各dynamixelの id と 連続でpingに応答しなかった回数のマップ
         // 連結しているサーボの個々の状態を保持するmap
         static inline map<uint8_t, bool> tq_mode_;    // 各dynamixelの id と トルクON/OFF のマップ
         static inline map<uint8_t, uint8_t> op_mode_; // 各dynamixelの id と 制御モード のマップ
