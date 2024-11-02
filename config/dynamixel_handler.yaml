@@ -58,4 +58,4 @@
         varbose/read_state/err: false
         varbose/read_options/raw: false
         varbose/read_options/err: false
-        varbose/read_hardware_error: true
+        varbose/read_hardware_error: false
