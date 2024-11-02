@@ -251,6 +251,7 @@ template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(){
 
     //  hardware_error_に反映
     for (const auto& [id, error] : id_error_map ){
+        hardware_error_[id].fill(false);
         if ((error >> HARDWARE_ERROR_INPUT_VOLTAGE     )& 0b1 ) hardware_error_[id][INPUT_VOLTAGE     ] = true;
         if ((error >> HARDWARE_ERROR_MOTOR_HALL_SENSOR )& 0b1 ) hardware_error_[id][MOTOR_HALL_SENSOR ] = true;
         if ((error >> HARDWARE_ERROR_OVERHEATING       )& 0b1 ) hardware_error_[id][OVERHEATING       ] = true;
@@ -271,7 +272,7 @@ template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(){
             if (hardware_error_[id][OVERLOAD          ]) ROS_ERROR(" * servo id [%d] has OVERLOAD error"          ,id);
         }
     }
-    // 0b00000001 << HARDWARE_ERROR_ELECTRONICAL_SHOCK と error が等しい場合のみ，そのエラーをfalseにする
+    // 0b00000001 << HARDWARE_ERROR_INPUT_VOLTAGE と error が等しい場合のみ，そのエラーをfalseにする
     for ( const auto& [id, error] : id_error_map ) if ((error >> HARDWARE_ERROR_INPUT_VOLTAGE     )& 0b1 ) hardware_error_[id][INPUT_VOLTAGE] = false;
     return id_error_map.size()/double(target_id_list.size());
 }
@@ -538,7 +539,8 @@ template <typename Addr> void DynamixelHandler::CheckDynamixels(){
         for (auto id : target_id_list) 
             if ( !is_in(id, alive_id_list) ) {
                 ping_err_[id]++;
-                ROS_WARN("Servo id [%d] is dead (%d count)", id, ping_err_[id]);
+                ROS_WARN("Servo id [%d] is dead (%d count / %s)", id, (int)ping_err_[id],
+                 auto_remove_count_ ? (std::to_string(auto_remove_count_)+"count").c_str() : "inf");
                 if (auto_remove_count_ && ping_err_[id] > auto_remove_count_) {
                     ROS_ERROR("Servo id [%d] is removed", id);
                     id_set_.erase(id);
