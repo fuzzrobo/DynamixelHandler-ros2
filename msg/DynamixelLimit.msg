@@ -1,7 +1,6 @@
-builtin_interfaces/Time stamp
 uint16[] id_list
 
-float64[] temperature_limit_deg_c
+float64[] temperature_limit_degc
 float64[] max_voltage_limit_v
 float64[] min_voltage_limit_v
 float64[] pwm_limit_percent

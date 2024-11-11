@@ -13,34 +13,36 @@ find_package(std_msgs REQUIRED) # 自作msgのHeaderのために必要
 
 # 以下の部分は自作ｍｓｇの定義のために必要
 set(msg_files
-  # read専用
-  "msg/DynamixelState.msg"
-  "msg/DynamixelError.msg"
+  "msg/DxlStates.msg"
+  "msg/DxlCommandsX.msg"
+  "msg/DxlCommandsP.msg"
 
-  # read/write
-  "msg/DynamixelConfig.msg"
-  "msg/DynamixelExtra.msg"
-  "msg/DynamixelGain.msg"
+  "msg/DynamixelStatus.msg"
+  "msg/DynamixelPresent.msg"
   "msg/DynamixelGoal.msg"
+  "msg/DynamixelGain.msg"
   "msg/DynamixelLimit.msg"
-  
-  # write専用
-  "msg/DynamixelCommand.msg"
-  "msg/DynamixelCommandXControlCurrent.msg"
-  "msg/DynamixelCommandXControlCurrentPosition.msg"
-  "msg/DynamixelCommandXControlExtendedPosition.msg"
-  "msg/DynamixelCommandXControlPosition.msg"
-  "msg/DynamixelCommandXControlVelocity.msg"
-  "msg/DynamixelCommandPControlCurrent.msg"
-  "msg/DynamixelCommandPControlExtendedPosition.msg"
-  "msg/DynamixelCommandPControlPosition.msg"
-  "msg/DynamixelCommandPControlVelocity.msg"
+  "msg/DynamixelError.msg"
+  "msg/DynamixelExtra.msg"
 
-  # その他
-  "msg/DynamixelOptionMode.msg"
+  "msg/DynamixelDebug.msg"
+  "msg/DynamixelDebugElement.msg"
+  
+  "msg/DynamixelCommonCmd.msg"
+  "msg/DynamixelControlXPwm.msg"
+  "msg/DynamixelControlXCurrent.msg"
+  "msg/DynamixelControlXVelocity.msg"
+  "msg/DynamixelControlXPosition.msg"
+  "msg/DynamixelControlXExtendedPosition.msg"
+  "msg/DynamixelControlXCurrentBasePosition.msg"
+  "msg/DynamixelControlPPwm.msg"
+  "msg/DynamixelControlPCurrent.msg"
+  "msg/DynamixelControlPVelocity.msg"
+  "msg/DynamixelControlPPosition.msg"
+  "msg/DynamixelControlPExtendedPosition.msg"
 )
 set(srv_files
-# rebootとかはこっちかな？
+
 )
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${msg_files}
@@ -65,7 +67,7 @@ add_executable(
 	include/mylib_dynamixel/src/dynamixel_communicator_main.cpp
 	include/mylib_dynamixel/src/dynamixel_communicator_retry.cpp
   
-	src/main_dynamixel_unify_baudrate.cpp
+	script/main_dynamixel_unify_baudrate.cpp
 )
 target_include_directories(
   dynamixel_unify_baudrate_node PUBLIC

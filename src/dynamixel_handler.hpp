@@ -6,23 +6,33 @@
 #include "std_msgs/msg/string.hpp"
 
 #include "dynamixel_communicator.h"
-#include "dynamixel_handler/msg/dynamixel_state.hpp"
-#include "dynamixel_handler/msg/dynamixel_error.hpp"
-#include "dynamixel_handler/msg/dynamixel_config.hpp"
-#include "dynamixel_handler/msg/dynamixel_extra.hpp"
-#include "dynamixel_handler/msg/dynamixel_gain.hpp"
-#include "dynamixel_handler/msg/dynamixel_limit.hpp"
+
+#include "dynamixel_handler/msg/dxl_states.hpp"
+#include "dynamixel_handler/msg/dxl_commands_x.hpp"
+#include "dynamixel_handler/msg/dxl_commands_p.hpp"
+
+#include "dynamixel_handler/msg/dynamixel_status.hpp"
+#include "dynamixel_handler/msg/dynamixel_present.hpp"
 #include "dynamixel_handler/msg/dynamixel_goal.hpp"
-#include "dynamixel_handler/msg/dynamixel_command.hpp"
-#include "dynamixel_handler/msg/dynamixel_command_x_control_position.hpp"
-#include "dynamixel_handler/msg/dynamixel_command_x_control_velocity.hpp"
-#include "dynamixel_handler/msg/dynamixel_command_x_control_current.hpp"
-#include "dynamixel_handler/msg/dynamixel_command_x_control_current_position.hpp"
-#include "dynamixel_handler/msg/dynamixel_command_x_control_extended_position.hpp"
-#include "dynamixel_handler/msg/dynamixel_command_p_control_position.hpp"
-#include "dynamixel_handler/msg/dynamixel_command_p_control_velocity.hpp"
-#include "dynamixel_handler/msg/dynamixel_command_p_control_current.hpp"
-#include "dynamixel_handler/msg/dynamixel_command_p_control_extended_position.hpp"
+#include "dynamixel_handler/msg/dynamixel_gain.hpp"
+#include "dynamixel_handler/msg/dynamixel_error.hpp"
+#include "dynamixel_handler/msg/dynamixel_limit.hpp"
+#include "dynamixel_handler/msg/dynamixel_extra.hpp"
+
+#include "dynamixel_handler/msg/dynamixel_debug.hpp"
+
+#include "dynamixel_handler/msg/dynamixel_common_cmd.hpp"
+#include "dynamixel_handler/msg/dynamixel_control_x_pwm.hpp"
+#include "dynamixel_handler/msg/dynamixel_control_x_current.hpp"
+#include "dynamixel_handler/msg/dynamixel_control_x_velocity.hpp"
+#include "dynamixel_handler/msg/dynamixel_control_x_position.hpp"
+#include "dynamixel_handler/msg/dynamixel_control_x_extended_position.hpp"
+#include "dynamixel_handler/msg/dynamixel_control_x_current_base_position.hpp"
+#include "dynamixel_handler/msg/dynamixel_control_p_pwm.hpp"
+#include "dynamixel_handler/msg/dynamixel_control_p_position.hpp"
+#include "dynamixel_handler/msg/dynamixel_control_p_velocity.hpp"
+#include "dynamixel_handler/msg/dynamixel_control_p_current.hpp"
+#include "dynamixel_handler/msg/dynamixel_control_p_extended_position.hpp"
 using namespace dynamixel_handler::msg;
 
 #include <string>
@@ -89,35 +99,41 @@ class DynamixelHandler : public rclcpp::Node {
         void CallBackDxlLimit (const DynamixelLimit& msg);
         void CallBackDxlGoal  (const DynamixelGoal& msg); 
         void CallBackDxlGain  (const DynamixelGain& msg); 
-        void CallBackDxlCommand               (const DynamixelCommand::SharedPtr msg);
-        void CallBackDxlCmd_X_Position        (const DynamixelCommandXControlPosition& msg);
-        void CallBackDxlCmd_X_Velocity        (const DynamixelCommandXControlVelocity& msg);
-        void CallBackDxlCmd_X_Current         (const DynamixelCommandXControlCurrent& msg);
-        void CallBackDxlCmd_X_CurrentPosition (const DynamixelCommandXControlCurrentPosition& msg);
-        void CallBackDxlCmd_X_ExtendedPosition(const DynamixelCommandXControlExtendedPosition& msg);
-        void CallBackDxlCmd_P_Position        (const DynamixelCommandPControlPosition& msg);
-        void CallBackDxlCmd_P_Velocity        (const DynamixelCommandPControlVelocity& msg);
-        void CallBackDxlCmd_P_Current         (const DynamixelCommandPControlCurrent& msg);
-        void CallBackDxlCmd_P_ExtendedPosition(const DynamixelCommandPControlExtendedPosition& msg);
+        void CallBackDxlCommand               (const DxlCommandsX::SharedPtr msg);
+        void CallBackDxlCmd_X_Position        (const DynamixelControlXPosition& msg);
+        void CallBackDxlCmd_X_Velocity        (const DynamixelControlXVelocity& msg);
+        void CallBackDxlCmd_X_Current         (const DynamixelControlXCurrent& msg);
+        void CallBackDxlCmd_X_CurrentPosition (const DynamixelControlXCurrentBasePosition& msg);
+        void CallBackDxlCmd_X_ExtendedPosition(const DynamixelControlXExtendedPosition& msg);
+        void CallBackDxlCmd_P_Position        (const DynamixelControlPPosition& msg);
+        void CallBackDxlCmd_P_Velocity        (const DynamixelControlPVelocity& msg);
+        void CallBackDxlCmd_P_Current         (const DynamixelControlPCurrent& msg);
+        void CallBackDxlCmd_P_ExtendedPosition(const DynamixelControlPExtendedPosition& msg);
         //* ROS publisher subscriber instance
-        rclcpp::Publisher<DynamixelState>::SharedPtr pub_state_;
-        rclcpp::Publisher<DynamixelError>::SharedPtr pub_error_;
-        rclcpp::Publisher<DynamixelLimit>::SharedPtr pub_limit_;
-        rclcpp::Publisher<DynamixelGain>::SharedPtr  pub_gain_;
+        rclcpp::Publisher<DxlStates>::SharedPtr  pub_dxl_states_;
+        rclcpp::Publisher<DynamixelDebug>::SharedPtr  pub_debug_;
+        rclcpp::Publisher<DynamixelStatus>::SharedPtr pub_status_;
+        rclcpp::Publisher<DynamixelPresent>::SharedPtr  pub_present_;
         rclcpp::Publisher<DynamixelGoal>::SharedPtr  pub_goal_;
-        rclcpp::Subscription<DynamixelCommand>::SharedPtr sub_command_;
-        rclcpp::Subscription<DynamixelCommandXControlPosition>::SharedPtr         sub_cmd_x_pos_;
-        rclcpp::Subscription<DynamixelCommandXControlVelocity>::SharedPtr         sub_cmd_x_vel_;
-        rclcpp::Subscription<DynamixelCommandXControlCurrent>::SharedPtr          sub_cmd_x_cur_;
-        rclcpp::Subscription<DynamixelCommandXControlCurrentPosition>::SharedPtr  sub_cmd_x_cpos_;
-        rclcpp::Subscription<DynamixelCommandXControlExtendedPosition>::SharedPtr sub_cmd_x_epos_;
-        rclcpp::Subscription<DynamixelCommandPControlPosition>::SharedPtr         sub_cmd_p_pos_;
-        rclcpp::Subscription<DynamixelCommandPControlVelocity>::SharedPtr         sub_cmd_p_vel_;
-        rclcpp::Subscription<DynamixelCommandPControlCurrent>::SharedPtr          sub_cmd_p_cur_;
-        rclcpp::Subscription<DynamixelCommandPControlExtendedPosition>::SharedPtr sub_cmd_p_epos_;
+        rclcpp::Publisher<DynamixelGain>::SharedPtr  pub_gain_;
+        rclcpp::Publisher<DynamixelLimit>::SharedPtr pub_limit_;
+        rclcpp::Publisher<DynamixelError>::SharedPtr pub_error_;
+        rclcpp::Subscription<DxlCommandsX>::SharedPtr sub_dxl_commands_;
+        rclcpp::Subscription<DynamixelCommonCmd>::SharedPtr                sub_common_cmd_;
+        rclcpp::Subscription<DynamixelControlXPwm>::SharedPtr              sub_ctrl_x_pwm_;
+        rclcpp::Subscription<DynamixelControlXCurrent>::SharedPtr          sub_ctrl_x_cur_;
+        rclcpp::Subscription<DynamixelControlXVelocity>::SharedPtr         sub_ctrl_x_vel_;
+        rclcpp::Subscription<DynamixelControlXPosition>::SharedPtr         sub_ctrl_x_pos_;
+        rclcpp::Subscription<DynamixelControlXCurrentBasePosition>::SharedPtr  sub_ctrl_x_cpos_;
+        rclcpp::Subscription<DynamixelControlXExtendedPosition>::SharedPtr sub_ctrl_x_epos_;
+        rclcpp::Subscription<DynamixelControlPPwm>::SharedPtr              sub_ctrl_p_pwm_;
+        rclcpp::Subscription<DynamixelControlPCurrent>::SharedPtr          sub_ctrl_p_cur_;
+        rclcpp::Subscription<DynamixelControlPVelocity>::SharedPtr         sub_ctrl_p_vel_;
+        rclcpp::Subscription<DynamixelControlPPosition>::SharedPtr         sub_ctrl_p_pos_;
+        rclcpp::Subscription<DynamixelControlPExtendedPosition>::SharedPtr sub_ctrl_p_epos_;
+        rclcpp::Subscription<DynamixelGoal>::SharedPtr  sub_goal_;
         rclcpp::Subscription<DynamixelGain>::SharedPtr  sub_gain_;
         rclcpp::Subscription<DynamixelLimit>::SharedPtr sub_limit_;
-        rclcpp::Subscription<DynamixelGoal>::SharedPtr  sub_goal_;
   
         //* 各種のフラグとパラメータ
         unsigned int loop_rate_ = 50;

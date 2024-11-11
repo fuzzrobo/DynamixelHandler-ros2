@@ -1,4 +1,3 @@
-builtin_interfaces/Time stamp
 uint16[] id_list
 
 uint16[] velocity_i_gain_pulse

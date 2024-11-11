@@ -134,22 +134,19 @@ ros2 topic pub /dynamixel/x_cmd/position \
 
 ### 4. Dynamixelの情報を取得
 
-`/dyanmixel/state` topic 等として一定周期で raed & pub され続けている．  
+`/dynamixel/state` topic 等として一定周期で raed & pub され続けている．  
 publishされてる topic については [Topic](#topic) の章を参照．
 また，read周期については[Parameters](#parameters)の章の[実行時の動作設定](#実行時の動作設定)を参照．
 
 例: ID:5とID:6のモータが接続している場合
 
 ```
-ros2 topic echo --flow-style /dyanmixel/state
+ros2 topic echo --flow-style /dynamixel/state
 ```
 
 出力例
 ```yml
 ---
-stamp: 
-  secs: 1703962959
-  nsecs: 388530440
 id_list: [5, 6] # 認識されているサーボのID
 pwm_percent: []
 current_ma: [0.0, -2.69] # 現在の電流値
@@ -157,7 +154,7 @@ velocity_deg_s: [0.0, 0.0] # 現在の各速度
 position_deg: [89.91210937499999, -0.2636718750000023] # 現在の角度
 vel_trajectory_deg_s: [] # 目標速度 みたいなもの
 pos_trajectory_deg: [] # 目標角度 みたいなもの
-temperature_deg_c: [] # 現在の温度
+temperature_degc: [] # 現在の温度
 input_voltage_v: [] # 現在の入力電圧
 ---
 ```
@@ -180,7 +177,7 @@ read & pub される情報の選択については[Parameters](#parameters)の�
 
 さらなる詳細は[メッセージの定義](https://github.com/SHINOBI-organization/DynamixelHandler-ros2/tree/main/msg)を参照
 
-### Subscribed by dyanmixel_handler　
+### Subscribed by dynamixel_handler　
 
 サーボへの入力を行うためのtopic.
 
@@ -252,7 +249,7 @@ read & pub される情報の選択については[Parameters](#parameters)の�
  - `/dynamixel/limit/w` (`DynamixelLimit` type) : 
  - `/dynamixel/goal/w`
  
-#### Published from dyanmixel_handler　
+#### Published from dynamixel_handler　
 
 サーボからの出力を監視するためのtopic.
 
@@ -603,7 +600,7 @@ sudo update-alternatives --install /usr/local/bin/usbip usbip `ls /usr/lib/linux
 
 1. DynamixelHandler classが`rclcpp::Node`を継承するように変更
    - これによりnode kill時にエラーが発生しなくなる 
-2. `DynamixelCommandXControlPosition.msg`から`time stamp`を削除
+2. `DynamixelControlXPosition.msg`から`time stamp`を削除
 3. array型の変数の要素数指定から，マジックナンバーを排除
 4. StopDynamixels関数が実は sync write を使っていたので，SyncStopDynamixels関数に変更
 5. Sync系関数をテンプレート化して p seriesへ対応
