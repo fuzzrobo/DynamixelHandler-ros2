@@ -67,7 +67,7 @@ add_executable(
 	include/mylib_dynamixel/src/dynamixel_communicator_main.cpp
 	include/mylib_dynamixel/src/dynamixel_communicator_retry.cpp
   
-	script/main_dynamixel_unify_baudrate.cpp
+	src/sub_node/main_dynamixel_unify_baudrate.cpp
 )
 target_include_directories(
   dynamixel_unify_baudrate_node PUBLIC

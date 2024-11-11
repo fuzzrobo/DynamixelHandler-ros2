@@ -1,13 +1,22 @@
 # Custom msg design
 
-## お気持ち
- - `\#inclde ~` する数を減らしたい -> 大きめの msg を作る．
- - コマンドラインから制御 or 確認するときに大きな msg はだるいので小さくしたい -> 入れ子構造で作る
+## Abstract
+   プログラムとコマンドライン両方での使用する場合の利便性を考慮して設計を行った．
+   コマンドラインで使用する場合は，できるだけ細かく分割されたmsgの方が，閲覧や送信が楽である．
+   しかし，プログラムで使用する場合は，pub/subするトピック数を減らしたいため，全ての情報を一つのmsgにまとめることが有効である．
+   そのため，コマンドラインで使用する細かいmsgを用意し，それらを複数まとめた大きなmsgをプログラムで使用することとした．
+
+ - Usage in program
+   - read: `/dynamixel/states` topic
+   - write: `/dynamixel/commands/x` topic (for X series), `/dynamixel/commands/p` topic (for P series)
+ - Usage in command line
+   - read: `/dynamixel/state/...` topics, `/dynamixel/debug` topic
+   - write: `/dynamixel/command/...` topics
 
 ## topic list 
-想定するtopicのリストを示す．
+全てのtopicのリストを示す．
 ```bash
-### publish
+### publish ###
 # コマンドライン用
 /dynamixel/debug #debug型 <- 動かなかったときのデバッグ用
 /dynamixel/state/status #status型
@@ -20,9 +29,8 @@
 # プログラム用
 /dynamixel/states # states型
    # = status型 + present型 + goal型 + mode型 + limit型 + gain型
-/dynamixel/ex_port/read # ex_port型
 
-### subscribe
+### subscribe ###
 # コマンドライン用
 /dynamixel/command/common # common_cmd型
 /dynamixel/command/pwm_control # cnt_x_pwm型
@@ -40,6 +48,9 @@
 /dynamixel/commands #commands_x型
    # = common_cmd型 + cnt_x_pos型 + cnt_x_vel型 + cnt_x_cur型 + cnt_x_c_pos 
    # + cnt_x_e_pos型 + mode型 + goal型 + limit型 + gain型
+
+### pub/sub ###
+/dynamixel/ex_port/read # ex_port型
 /dynamixel/ex_port/write # ex_port型
 ```
 ---
@@ -80,7 +91,7 @@ Pシリーズを併用する場合
 #### プログラムでの使用
 以下のように利用する想定
 ```cpp
-dynamixel_handler::msg::DynamixelStates msg; //すべての状態が確認できる
+dynamixel_handler::msg::DxlStates msg; //すべての状態が確認できる
 // statusの確認 
 for (size_t i = 0; i < msg.status.id_list.size(); i++) {
    auto id = msg.status.id_list[i];
@@ -102,7 +113,7 @@ for (size_t i=0; i < msg.present.id_list.size(); i++) {
    printf("servo [%d], current %f, velocity %f, position %f\n", id, current_ma, velocity_deg_s, position_deg)
 }
 ```
-`dynamixel_handler::msg::DynamixelStates` の中身
+`dynamixel_handler::msg::DxlStates` の中身
 ```yaml 
 $ ros2 topic echo --flow-style /dynamixel/states #このtopicはコマンドラインから見る想定ではない．
 # 全てのfieldがid_listを持つ必要がある．∵コマンドラインから扱うため
