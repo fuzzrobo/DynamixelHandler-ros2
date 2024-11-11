@@ -151,8 +151,8 @@ class DynamixelHandler : public rclcpp::Node {
         bool use_split_write_     = false;
         bool use_split_read_      = false;
         bool use_fast_read_       = false;
-        map<string, bool> varbose_; // 各種のverboseフラグ
-                    bool  varbose_callback_ = false;
+        map<string, bool> verbose_; // 各種のverboseフラグ
+                    bool  verbose_callback_ = false;
 
         //* Dynamixelとの通信
         DynamixelCommunicator dyn_comm_;

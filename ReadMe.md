@@ -272,7 +272,7 @@ read & pub される情報の選択については[Parameters](#parameters)の�
 # 通信の設定
   dyn_comm/retry_num: 10 # 通信失敗時のリトライ回数
   dyn_comm/inerval_msec: 5 # 通信失敗時のインターバル時間
-  dyn_comm/varbose: false # 通信失敗時の詳細をエラーとして出すか
+  dyn_comm/verbose: false # 通信失敗時の詳細をエラーとして出すか
 ```
 ### 初期化時の動作設定
 ```yml
@@ -295,7 +295,7 @@ read & pub される情報の選択については[Parameters](#parameters)の�
   ratio/state_read: 2     # この回数に一回 State を読み取る, 0=初回のみ 
   ratio/option_read: 1000 # この回数に一回 Option を読み取る, 0=初回のみ
   ratio/error_read: 200   # この回数に一回 Hardware error を読み取る, 0=初回のみ
-  ratio/varbose_loop: 100 # メインループの処理時間，通信の成功率を出力, ex 100なら100回に1回出力
+  ratio/verbose_loop: 100 # メインループの処理時間，通信の成功率を出力, ex 100なら100回に1回出力
 # Read/Write方式
   use/fast_read: true        # Fast Sync Readを使用するかどうか． falseにすると遅い
   use/split_read: false      # 複数のアドレスからの読み込みを分割するか同時に行うか, trueだと遅い
@@ -327,14 +327,14 @@ state の read 周期は `loop_rate` を `ratio/state_read` で割った値と�
 ```yml
 # デバッグ用
   max_log_width: 6 # 以下のlog出力で，サーボ何個ごとに改行を入れるか
-  varbose/callback: false # コールバック関数の呼び出しを出力
-  varbose/write_commad: true # 書き込みするcommandデータのpulse値を出力
-  varbose/write_options: false # 書き込みするoptionデータのpulse値を出力
-  varbose/read_state/raw: false # 読み込んだstateデータのpulse値を出力
-  varbose/read_state/err: false # stateデータの読み込みエラーを出力
-  varbose/read_options/raw: false # 読み込んだoptionデータのpulse値を出力
-  varbose/read_options/err: false # optionデータの読み込みエラーを出力
-  varbose/read_hardware_error: true # 検出したHardware errorを出力
+  verbose/callback: false # コールバック関数の呼び出しを出力
+  verbose/write_commad: true # 書き込みするcommandデータのpulse値を出力
+  verbose/write_options: false # 書き込みするoptionデータのpulse値を出力
+  verbose/read_state/raw: false # 読み込んだstateデータのpulse値を出力
+  verbose/read_state/err: false # stateデータの読み込みエラーを出力
+  verbose/read_options/raw: false # 読み込んだoptionデータのpulse値を出力
+  verbose/read_options/err: false # optionデータの読み込みエラーを出力
+  verbose/read_hardware_error: true # 検出したHardware errorを出力
 ```
 
 ***************************

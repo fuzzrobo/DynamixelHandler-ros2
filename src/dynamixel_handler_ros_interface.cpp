@@ -50,7 +50,7 @@ void DynamixelHandler::CallbackCmd_Common(const DynamixelCommonCmd& msg) {
     if ( msg.id_list.empty() || msg.id_list[0]==0xFE) for (auto id : id_set_    ) id_list.push_back(id);
                                                  else for (auto id : msg.id_list) id_list.push_back(id);
     char header[100]; sprintf(header, "Command [%s] \n (id_list=[] or [254] means all IDs)", msg.command.c_str());
-    if (varbose_callback_ && msg.command!="") ROS_INFO_STREAM(id_list_layout(id_list, string(header)));
+    if (verbose_callback_ && msg.command!="") ROS_INFO_STREAM(id_list_layout(id_list, string(header)));
     if (msg.command == "clear_error" || msg.command == "CE")
         for (auto id : id_list) { ClearHardwareError(id); TorqueOn(id);}
     if (msg.command == "torque_on"   || msg.command == "TON") 
@@ -79,7 +79,7 @@ void DynamixelHandler::CallbackCmd_X_Pwm(const DynamixelControlXPwm& msg) {
         if (has_pwm) store_goal( msg.id_list[i], msg.pwm_percent[i], GOAL_PWM, {PWM_LIMIT, PWM_LIMIT} );
         if ( is_change_mode || has_pwm ) changed_id_list.push_back(msg.id_list[i]);
     }
-    if (varbose_callback_ && has_pwm) ROS_INFO_STREAM(update_info(changed_id_list, "goal_pwm (x series)"));
+    if (verbose_callback_ && has_pwm) ROS_INFO_STREAM(update_info(changed_id_list, "goal_pwm (x series)"));
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
@@ -95,9 +95,9 @@ void DynamixelHandler::CallbackCmd_X_Position(const DynamixelControlXPosition& m
         if (has_pa ) store_goal( msg.id_list[i], msg.profile_acc_deg_ss[i]*DEG, PROFILE_ACC,   {ACCELERATION_LIMIT, ACCELERATION_LIMIT} );
         if ( is_change_mode || (has_pos || has_pv || has_pa) ) changed_id_list.push_back(msg.id_list[i]);
     }
-    if (varbose_callback_ && has_pos) ROS_INFO_STREAM(update_info(changed_id_list, "goal_position (x series)"));
-    if (varbose_callback_ && has_pv ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_velocity (x series)"));
-    if (varbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (x series)"));
+    if (verbose_callback_ && has_pos) ROS_INFO_STREAM(update_info(changed_id_list, "goal_position (x series)"));
+    if (verbose_callback_ && has_pv ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_velocity (x series)"));
+    if (verbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (x series)"));
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
@@ -111,8 +111,8 @@ void DynamixelHandler::CallbackCmd_X_Velocity(const DynamixelControlXVelocity& m
         if (has_pa ) store_goal( msg.id_list[i], msg.profile_acc_deg_ss[i]*DEG, PROFILE_ACC  , {ACCELERATION_LIMIT, ACCELERATION_LIMIT} );
         if ( is_change_mode || (has_vel || has_pa) ) changed_id_list.push_back(msg.id_list[i]);
     }
-    if (varbose_callback_ && has_vel) ROS_INFO_STREAM(update_info(changed_id_list, "goal_velocity (x series)"));
-    if (varbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (x series)"));
+    if (verbose_callback_ && has_vel) ROS_INFO_STREAM(update_info(changed_id_list, "goal_velocity (x series)"));
+    if (verbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (x series)"));
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
@@ -124,7 +124,7 @@ void DynamixelHandler::CallbackCmd_X_Current(const DynamixelControlXCurrent& msg
         if (has_cur) store_goal( msg.id_list[i], msg.current_ma[i], GOAL_CURRENT, {CURRENT_LIMIT, CURRENT_LIMIT} );
         if ( is_change_mode || has_cur ) changed_id_list.push_back(msg.id_list[i]);
     }
-    if (varbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current (x series)"));
+    if (verbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current (x series)"));
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
@@ -144,10 +144,10 @@ void DynamixelHandler::CallbackCmd_X_CurrentBasePosition(const DynamixelControlX
         if (has_pa            ) store_goal( msg.id_list[i], msg.profile_acc_deg_ss[i]*DEG, PROFILE_ACC,   {ACCELERATION_LIMIT, ACCELERATION_LIMIT} );
         if ( is_change_mode || (has_pos || has_cur || has_pv || has_pa) ) changed_id_list.push_back(msg.id_list[i]);
     }
-    if (varbose_callback_ && has_pos) ROS_INFO_STREAM(update_info(changed_id_list, "goal_position (x series)"));
-    if (varbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current (x series)"));
-    if (varbose_callback_ && has_pv ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_velocity (x series)"));
-    if (varbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (x series)"));
+    if (verbose_callback_ && has_pos) ROS_INFO_STREAM(update_info(changed_id_list, "goal_position (x series)"));
+    if (verbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current (x series)"));
+    if (verbose_callback_ && has_pv ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_velocity (x series)"));
+    if (verbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (x series)"));
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
@@ -165,9 +165,9 @@ void DynamixelHandler::CallbackCmd_X_ExtendedPosition(const DynamixelControlXExt
         if (has_pa            ) store_goal( msg.id_list[i], msg.profile_acc_deg_ss[i]*DEG, PROFILE_ACC,   {ACCELERATION_LIMIT, ACCELERATION_LIMIT} );
         if ( is_change_mode || (has_pos || has_pv || has_pa) ) changed_id_list.push_back(msg.id_list[i]);
     }
-    if (varbose_callback_ && has_pos) ROS_INFO_STREAM(update_info(changed_id_list, "goal_position (x series)"));
-    if (varbose_callback_ && has_pv ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_velocity (x series)"));
-    if (varbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (x series)"));
+    if (verbose_callback_ && has_pos) ROS_INFO_STREAM(update_info(changed_id_list, "goal_position (x series)"));
+    if (verbose_callback_ && has_pv ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_velocity (x series)"));
+    if (verbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (x series)"));
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
@@ -179,7 +179,7 @@ void DynamixelHandler::CallbackCmd_P_Pwm(const DynamixelControlPPwm& msg) {
         if (has_pwm) store_goal( msg.id_list[i], msg.pwm_percent[i], GOAL_PWM, {PWM_LIMIT, PWM_LIMIT} );
         if ( is_change_mode || has_pwm ) changed_id_list.push_back(msg.id_list[i]);
     }
-    if (varbose_callback_ && has_pwm) ROS_INFO_STREAM(update_info(changed_id_list, "goal_pwm (p series)"));
+    if (verbose_callback_ && has_pwm) ROS_INFO_STREAM(update_info(changed_id_list, "goal_pwm (p series)"));
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
@@ -191,7 +191,7 @@ void DynamixelHandler::CallbackCmd_P_Current(const DynamixelControlPCurrent& msg
         if (has_cur) store_goal( msg.id_list[i], msg.current_ma[i], GOAL_CURRENT, {CURRENT_LIMIT, CURRENT_LIMIT} );
         if ( is_change_mode || has_cur ) changed_id_list.push_back(msg.id_list[i]);
     }
-    if (varbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current (p series)"));
+    if (verbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current (p series)"));
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
@@ -207,9 +207,9 @@ void DynamixelHandler::CallbackCmd_P_Velocity(const DynamixelControlPVelocity& m
         if (has_pa ) store_goal( msg.id_list[i], msg.profile_acc_deg_ss[i]*DEG, PROFILE_ACC  , {ACCELERATION_LIMIT, ACCELERATION_LIMIT});
         if ( is_change_mode || (has_cur || has_vel || has_pa) ) changed_id_list.push_back(msg.id_list[i]);
     }
-    if (varbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current (p series)"));
-    if (varbose_callback_ && has_vel) ROS_INFO_STREAM(update_info(changed_id_list, "goal_velocity (p series)"));
-    if (varbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (p series)"));
+    if (verbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current (p series)"));
+    if (verbose_callback_ && has_vel) ROS_INFO_STREAM(update_info(changed_id_list, "goal_velocity (p series)"));
+    if (verbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (p series)"));
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
@@ -229,11 +229,11 @@ void DynamixelHandler::CallbackCmd_P_Position(const DynamixelControlPPosition& m
         if (has_pa ) store_goal( msg.id_list[i], msg.profile_acc_deg_ss[i]*DEG, PROFILE_ACC  , {ACCELERATION_LIMIT, ACCELERATION_LIMIT});
         if ( is_change_mode || (has_cur || has_pos || has_vel || has_pv || has_pa) ) changed_id_list.push_back(msg.id_list[i]);
     }
-    if (varbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current (p series)"));
-    if (varbose_callback_ && has_pos) ROS_INFO_STREAM(update_info(changed_id_list, "goal_position (p series)"));
-    if (varbose_callback_ && has_vel) ROS_INFO_STREAM(update_info(changed_id_list, "goal_velocity (p series)"));
-    if (varbose_callback_ && has_pv ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_velocity (p series)"));
-    if (varbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (p series)"));
+    if (verbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current (p series)"));
+    if (verbose_callback_ && has_pos) ROS_INFO_STREAM(update_info(changed_id_list, "goal_position (p series)"));
+    if (verbose_callback_ && has_vel) ROS_INFO_STREAM(update_info(changed_id_list, "goal_velocity (p series)"));
+    if (verbose_callback_ && has_pv ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_velocity (p series)"));
+    if (verbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (p series)"));
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
@@ -255,11 +255,11 @@ void DynamixelHandler::CallbackCmd_P_ExtendedPosition(const DynamixelControlPExt
         if (has_pa            ) store_goal( msg.id_list[i], msg.profile_acc_deg_ss[i]*DEG, PROFILE_ACC  , {ACCELERATION_LIMIT, ACCELERATION_LIMIT} );
         if ( is_change_mode && (has_cur || has_pos || has_rot || has_vel || has_pv || has_pa) ) changed_id_list.push_back(msg.id_list[i]);
     }
-    if (varbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current (p series)"));
-    if (varbose_callback_ && has_pos) ROS_INFO_STREAM(update_info(changed_id_list, "goal_position (p series)"));
-    if (varbose_callback_ && has_vel) ROS_INFO_STREAM(update_info(changed_id_list, "goal_velocity (p series)"));
-    if (varbose_callback_ && has_pv ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_velocity (p series)"));
-    if (varbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (p series)"));
+    if (verbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current (p series)"));
+    if (verbose_callback_ && has_pos) ROS_INFO_STREAM(update_info(changed_id_list, "goal_position (p series)"));
+    if (verbose_callback_ && has_vel) ROS_INFO_STREAM(update_info(changed_id_list, "goal_velocity (p series)"));
+    if (verbose_callback_ && has_pv ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_velocity (p series)"));
+    if (verbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (p series)"));
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
@@ -285,12 +285,12 @@ void DynamixelHandler::CallbackCmd_Goal(const DynamixelGoal& msg) {
         if (has_pa ) store_goal( msg.id_list[i], msg.profile_acc_deg_ss[i]*DEG, PROFILE_ACC  , {ACCELERATION_LIMIT, ACCELERATION_LIMIT});
         if ( has_pwm || has_cur || has_vel || has_pos || has_pv || has_pa ) changed_id_list.push_back(msg.id_list[i]);
     }
-    if (varbose_callback_ && has_pwm) ROS_INFO_STREAM(update_info(changed_id_list, "goal_pwm"));
-    if (varbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current"));
-    if (varbose_callback_ && has_pos) ROS_INFO_STREAM(update_info(changed_id_list, "goal_position"));
-    if (varbose_callback_ && has_vel) ROS_INFO_STREAM(update_info(changed_id_list, "goal_velocity"));
-    if (varbose_callback_ && has_pv ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_velocity"));
-    if (varbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration"));
+    if (verbose_callback_ && has_pwm) ROS_INFO_STREAM(update_info(changed_id_list, "goal_pwm"));
+    if (verbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current"));
+    if (verbose_callback_ && has_pos) ROS_INFO_STREAM(update_info(changed_id_list, "goal_position"));
+    if (verbose_callback_ && has_vel) ROS_INFO_STREAM(update_info(changed_id_list, "goal_velocity"));
+    if (verbose_callback_ && has_pv ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_velocity"));
+    if (verbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration"));
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
@@ -309,19 +309,19 @@ void DynamixelHandler::CallbackCmd_Gain(const DynamixelGain& msg) {
     };
  
     auto store_vi = store_gain(msg.id_list, msg.velocity_i_gain_pulse, VELOCITY_I_GAIN);
-    if (varbose_callback_ && !store_vi.empty()) ROS_INFO_STREAM(update_info(store_vi, "velocity i gain"));
+    if (verbose_callback_ && !store_vi.empty()) ROS_INFO_STREAM(update_info(store_vi, "velocity i gain"));
     auto store_vp = store_gain(msg.id_list, msg.velocity_p_gain_pulse, VELOCITY_P_GAIN);
-    if (varbose_callback_ && !store_vp.empty()) ROS_INFO_STREAM(update_info(store_vp, "velocity p gain"));
+    if (verbose_callback_ && !store_vp.empty()) ROS_INFO_STREAM(update_info(store_vp, "velocity p gain"));
     auto store_pd = store_gain(msg.id_list, msg.position_d_gain_pulse, POSITION_D_GAIN);
-    if (varbose_callback_ && !store_pd.empty()) ROS_INFO_STREAM(update_info(store_pd, "position d gain"));
+    if (verbose_callback_ && !store_pd.empty()) ROS_INFO_STREAM(update_info(store_pd, "position d gain"));
     auto store_pi = store_gain(msg.id_list, msg.position_i_gain_pulse, POSITION_I_GAIN);
-    if (varbose_callback_ && !store_pi.empty()) ROS_INFO_STREAM(update_info(store_pi, "position i gain"));
+    if (verbose_callback_ && !store_pi.empty()) ROS_INFO_STREAM(update_info(store_pi, "position i gain"));
     auto store_pp = store_gain(msg.id_list, msg.position_p_gain_pulse, POSITION_P_GAIN);
-    if (varbose_callback_ && !store_pp.empty()) ROS_INFO_STREAM(update_info(store_pp, "position p gain"));
+    if (verbose_callback_ && !store_pp.empty()) ROS_INFO_STREAM(update_info(store_pp, "position p gain"));
     auto store_fa = store_gain(msg.id_list, msg.feedforward_2nd_gain_pulse, FEEDFORWARD_ACC_GAIN);
-    if (varbose_callback_ && !store_fa.empty()) ROS_INFO_STREAM(update_info(store_fa, "feedforward 2nd gain"));
+    if (verbose_callback_ && !store_fa.empty()) ROS_INFO_STREAM(update_info(store_fa, "feedforward 2nd gain"));
     auto store_fv = store_gain(msg.id_list, msg.feedforward_1st_gain_pulse, FEEDFORWARD_VEL_GAIN);
-    if (varbose_callback_ && !store_fv.empty()) ROS_INFO_STREAM(update_info(store_fv, "feedforward 1st gain"));
+    if (verbose_callback_ && !store_fv.empty()) ROS_INFO_STREAM(update_info(store_fv, "feedforward 1st gain"));
 
     if ( store_vi.empty() && store_vp.empty() && 
          store_pd.empty() && store_pi.empty() && store_pp.empty() && 
@@ -344,21 +344,21 @@ void DynamixelHandler::CallbackCmd_Limit(const DynamixelLimit& msg) {
     };
 
     auto store_temp = store_limit(msg.id_list, msg.temperature_limit_degc, TEMPERATURE_LIMIT);
-    if (varbose_callback_ && !store_temp.empty()) ROS_INFO_STREAM(update_info(store_temp, "temperature limit"));
+    if (verbose_callback_ && !store_temp.empty()) ROS_INFO_STREAM(update_info(store_temp, "temperature limit"));
     auto store_max_v = store_limit(msg.id_list, msg.max_voltage_limit_v, MAX_VOLTAGE_LIMIT);
-    if (varbose_callback_ && !store_max_v.empty()) ROS_INFO_STREAM(update_info(store_max_v, "max voltage limit"));
+    if (verbose_callback_ && !store_max_v.empty()) ROS_INFO_STREAM(update_info(store_max_v, "max voltage limit"));
     auto store_min_v = store_limit(msg.id_list, msg.min_voltage_limit_v, MIN_VOLTAGE_LIMIT);
-    if (varbose_callback_ && !store_min_v.empty()) ROS_INFO_STREAM(update_info(store_min_v, "min voltage limit"));
+    if (verbose_callback_ && !store_min_v.empty()) ROS_INFO_STREAM(update_info(store_min_v, "min voltage limit"));
     auto store_pwm = store_limit(msg.id_list, msg.pwm_limit_percent, PWM_LIMIT);
-    if (varbose_callback_ && !store_pwm.empty()) ROS_INFO_STREAM(update_info(store_pwm, "pwm limit"));
+    if (verbose_callback_ && !store_pwm.empty()) ROS_INFO_STREAM(update_info(store_pwm, "pwm limit"));
     auto store_cur = store_limit(msg.id_list, msg.current_limit_ma, CURRENT_LIMIT);
-    if (varbose_callback_ && !store_cur.empty()) ROS_INFO_STREAM(update_info(store_cur, "current limit"));
+    if (verbose_callback_ && !store_cur.empty()) ROS_INFO_STREAM(update_info(store_cur, "current limit"));
     auto store_acc = store_limit(msg.id_list, msg.acceleration_limit_deg_ss, ACCELERATION_LIMIT, true);
-    if (varbose_callback_ && !store_acc.empty()) ROS_INFO_STREAM(update_info(store_acc, "acceleration limit"));
+    if (verbose_callback_ && !store_acc.empty()) ROS_INFO_STREAM(update_info(store_acc, "acceleration limit"));
     auto store_vel = store_limit(msg.id_list, msg.velocity_limit_deg_s, VELOCITY_LIMIT, true);
-    if (varbose_callback_ && !store_vel.empty()) ROS_INFO_STREAM(update_info(store_vel, "velocity limit"));
+    if (verbose_callback_ && !store_vel.empty()) ROS_INFO_STREAM(update_info(store_vel, "velocity limit"));
     auto store_max_p = store_limit(msg.id_list, msg.max_position_limit_deg, MAX_POSITION_LIMIT, true);
-    if (varbose_callback_ && !store_max_p.empty()) ROS_INFO_STREAM(update_info(store_max_p, "max position limit"));
+    if (verbose_callback_ && !store_max_p.empty()) ROS_INFO_STREAM(update_info(store_max_p, "max position limit"));
     auto store_min_p = store_limit(msg.id_list, msg.min_position_limit_deg, MIN_POSITION_LIMIT, true);
 
     if ( store_temp.empty() && store_max_v.empty() && store_min_v.empty() && store_pwm.empty() && store_cur.empty() && 

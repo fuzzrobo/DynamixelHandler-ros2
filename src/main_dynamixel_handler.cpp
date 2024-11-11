@@ -21,9 +21,9 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
         ROS_ERROR("Failed to open USB device [%s]", dyn_comm_.port_name().c_str()); 
         if ( !is_debug ) throw std::runtime_error("Initialization failed (device open)");
     } 
-    // serial通信のvarbose設定
-    bool serial_varbose; get_parameter_or("dyn_comm/varbose", serial_varbose, false);
-    dyn_comm_.set_varbose(serial_varbose); fflush(stdout);
+    // serial通信のverbose設定
+    bool serial_verbose; get_parameter_or("dyn_comm/verbose", serial_verbose, false);
+    dyn_comm_.set_verbose(serial_verbose); fflush(stdout);
 
     // serial通信のretry設定
     int num_try      ; get_parameter_or("dyn_comm/retry_num"   , num_try      ,  5);
@@ -32,7 +32,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
 
     // main loop の設定
     this->get_parameter_or("loop_rate", loop_rate_, 50u);
-    this->get_parameter_or("varbose_ratio", ratio_mainloop_ , 100u);
+    this->get_parameter_or("verbose_ratio", ratio_mainloop_ , 100u);
     this->get_parameter_or("pub_ratio/present.pwm"                 , pub_ratio_present_[PRESENT_PWM          ],  0u);
     this->get_parameter_or("pub_ratio/present.current"             , pub_ratio_present_[PRESENT_CURRENT      ],  1u);
     this->get_parameter_or("pub_ratio/present.velocity"            , pub_ratio_present_[PRESENT_VELOCITY     ],  1u);
@@ -50,21 +50,21 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     this->get_parameter_or("use/split_write"    , use_split_write_    , false);
     this->get_parameter_or("use/split_read"     , use_split_read_     , false);
     this->get_parameter_or("use/fast_read"      , use_fast_read_      , true);
-    this->get_parameter_or("varbose/callback"           , varbose_callback_, false);
-    this->get_parameter_or("varbose/write_goal"         , varbose_["w_goal"  ], false);
-    this->get_parameter_or("varbose/write_gain"         , varbose_["w_gain"  ], false);
-    this->get_parameter_or("varbose/write_limit"        , varbose_["w_limit" ], false);
-    this->get_parameter_or("varbose/read_status/raw"    , varbose_["r_status"    ], false);
-    this->get_parameter_or("varbose/read_status/err"    , varbose_["r_status_err"], false);
-    this->get_parameter_or("varbose/read_present/raw"   , varbose_["r_present"    ], false);
-    this->get_parameter_or("varbose/read_present/err"   , varbose_["r_present_err"], false);
-    this->get_parameter_or("varbose/read_goal/raw"      , varbose_["r_goal"    ], false);
-    this->get_parameter_or("varbose/read_goal/err"      , varbose_["r_goal_err"], false);
-    this->get_parameter_or("varbose/read_gain/raw"      , varbose_["r_gain"    ], false);
-    this->get_parameter_or("varbose/read_gain/err"      , varbose_["r_gain_err"], false);
-    this->get_parameter_or("varbose/read_limit/raw"     , varbose_["r_limit"    ], false);
-    this->get_parameter_or("varbose/read_limit/err"     , varbose_["r_limit_err"], false);
-    this->get_parameter_or("varbose/read_hardware_error", varbose_["r_hwerr" ], false);
+    this->get_parameter_or("verbose/callback"           , verbose_callback_, false);
+    this->get_parameter_or("verbose/write_goal"         , verbose_["w_goal"  ], false);
+    this->get_parameter_or("verbose/write_gain"         , verbose_["w_gain"  ], false);
+    this->get_parameter_or("verbose/write_limit"        , verbose_["w_limit" ], false);
+    this->get_parameter_or("verbose/read_status/raw"    , verbose_["r_status"    ], false);
+    this->get_parameter_or("verbose/read_status/err"    , verbose_["r_status_err"], false);
+    this->get_parameter_or("verbose/read_present/raw"   , verbose_["r_present"    ], false);
+    this->get_parameter_or("verbose/read_present/err"   , verbose_["r_present_err"], false);
+    this->get_parameter_or("verbose/read_goal/raw"      , verbose_["r_goal"    ], false);
+    this->get_parameter_or("verbose/read_goal/err"      , verbose_["r_goal_err"], false);
+    this->get_parameter_or("verbose/read_gain/raw"      , verbose_["r_gain"    ], false);
+    this->get_parameter_or("verbose/read_gain/err"      , verbose_["r_gain_err"], false);
+    this->get_parameter_or("verbose/read_limit/raw"     , verbose_["r_limit"    ], false);
+    this->get_parameter_or("verbose/read_limit/err"     , verbose_["r_limit_err"], false);
+    this->get_parameter_or("verbose/read_hardware_error", verbose_["r_hwerr" ], false);
     this->get_parameter_or("middle/no_response_id_auto_remove_count", auto_remove_count_   , 0u);
 
     // id_listの作成

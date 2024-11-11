@@ -37,7 +37,7 @@ template <typename Addr> void DynamixelHandler::SyncWriteGoal(set<GoalIndex> lis
     }
     if ( id_goal_vec_map.empty() ) return; // 書き込むデータがない場合は即時return
     //* id_goal_vec_mapの中身を確認
-    if ( varbose_["w_goal"] ) {
+    if ( verbose_["w_goal"] ) {
         char header[100]; sprintf(header, "[%d] servo(s) will be written", (int)id_goal_vec_map.size());
         auto ss = control_table_layout(width_log_, id_goal_vec_map, goal_addr_list, string(header));
         ROS_INFO_STREAM(ss);
@@ -85,7 +85,7 @@ template <typename Addr> void DynamixelHandler::SyncWriteGain(set<GainIndex> lis
     }
     if ( id_gain_vec_map.empty() ) return; // 書き込むデータがない場合は即時return
     //* id_gain_vec_mapの中身を確認
-    if ( varbose_["w_gain"] ) {
+    if ( verbose_["w_gain"] ) {
         char header[100]; sprintf(header, "[%d] servo(s) will be written", (int)id_gain_vec_map.size());
         auto ss = control_table_layout(width_log_, id_gain_vec_map, gain_addr_list, string(header));
         ROS_INFO_STREAM(ss);
@@ -137,7 +137,7 @@ template <typename Addr> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> l
     }
     if ( id_limit_vec_map.empty() ) return; // 書き込むデータがない場合は即時return
     //* id_limit_vec_mapの中身を確認
-    if ( varbose_["w_limit"] ) {
+    if ( verbose_["w_limit"] ) {
         char header[100]; sprintf(header, "[%d] servo(s) will be written", (int)id_limit_vec_map.size());
         auto ss = control_table_layout(width_log_, id_limit_vec_map, limit_addr_list, string(header));
         ROS_INFO_STREAM(ss);
@@ -197,7 +197,7 @@ template <typename Addr> double DynamixelHandler::SyncReadPresent(set<PresentInd
     const bool is_comm_err_ = dyn_comm_.comm_error_last_read();
     has_hardware_err_ = dyn_comm_.hardware_error_last_read();
     //* 通信エラーの表示
-    if ( varbose_["r_present_err"] ) if ( is_timeout_ || is_comm_err_ ) {
+    if ( verbose_["r_present_err"] ) if ( is_timeout_ || is_comm_err_ ) {
         vector<uint8_t> failed_id_list;
         for ( auto id : target_id_list ) if ( id_st_vec_map.find(id) == id_st_vec_map.end() ) failed_id_list.push_back(id);
         char header[99]; sprintf(header, "[%d] servo(s) failed to read", N_total - N_suc);
@@ -205,7 +205,7 @@ template <typename Addr> double DynamixelHandler::SyncReadPresent(set<PresentInd
         ROS_WARN_STREAM(ss);
     }
     //* id_st_vec_mapの中身を確認
-    if ( varbose_["r_present"] ) if ( N_suc>0 ) {
+    if ( verbose_["r_present"] ) if ( N_suc>0 ) {
         char header[99]; sprintf(header, "[%d] servo(s) are read", N_suc);
         auto ss = control_table_layout(width_log_, id_st_vec_map, state_addr_list, string(header));
         ROS_INFO_STREAM(ss);
@@ -261,7 +261,7 @@ template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(){
     }
 
     // コンソールへの表示
-    if ( varbose_["r_hwerr"] ) {
+    if ( verbose_["r_hwerr"] ) {
         ROS_WARN( "Hardware error are Checked");
         for (auto id : target_id_list) {
             if (hardware_error_[id][INPUT_VOLTAGE     ]) ROS_WARN (" * servo id [%d] has INPUT_VOLTAGE error"     ,id);
@@ -317,7 +317,7 @@ template <typename Addr> double DynamixelHandler::SyncReadGain(set<GainIndex> li
     const bool is_timeout   = dyn_comm_.timeout_last_read();
     const bool has_comm_err = dyn_comm_.comm_error_last_read();
     // 通信エラーの表示
-    if ( varbose_["r_gain_err"] ) if ( has_comm_err || is_timeout ) {
+    if ( verbose_["r_gain_err"] ) if ( has_comm_err || is_timeout ) {
         vector<uint8_t> failed_id_list;
         for ( auto id : target_id_list ) if ( id_gain_vec_map.find(id) == id_gain_vec_map.end() ) failed_id_list.push_back(id);
         char header[100]; sprintf(header, "[%d] servo(s) failed to read", N_total - N_suc);
@@ -325,7 +325,7 @@ template <typename Addr> double DynamixelHandler::SyncReadGain(set<GainIndex> li
         ROS_WARN_STREAM(ss);
     }
     // id_gain_vec_mapの中身を確認
-    if ( varbose_["r_gain"] ) if ( N_suc>0 ) {
+    if ( verbose_["r_gain"] ) if ( N_suc>0 ) {
         char header[100]; sprintf(header, "[%d] servo(s) are read", N_suc);
         auto ss = control_table_layout(width_log_, id_gain_vec_map, gain_addr_list, string(header));
         ROS_INFO_STREAM(ss);
@@ -387,7 +387,7 @@ template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> 
     const bool is_timeout   = dyn_comm_.timeout_last_read();
     const bool has_comm_err = dyn_comm_.comm_error_last_read();
     // 通信エラーの表示
-    if ( varbose_["r_limit_err"] ) if ( has_comm_err || is_timeout ) {
+    if ( verbose_["r_limit_err"] ) if ( has_comm_err || is_timeout ) {
         vector<uint8_t> failed_id_list;
         for ( auto id : target_id_list ) if ( id_limit_vec_map.find(id) == id_limit_vec_map.end() ) failed_id_list.push_back(id);
         char header[100]; sprintf(header, "[%d] servo(s) failed to read", N_total - N_suc);
@@ -403,7 +403,7 @@ template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> 
             limit[ACCELERATION_LIMIT-*start] = 32767; //  Xシリーズのprofile_accの設定ができる最大値
         }
     // id_limit_vec_mapの中身を確認
-    if ( varbose_["r_limit"] ) if ( N_suc>0 ) {
+    if ( verbose_["r_limit"] ) if ( N_suc>0 ) {
         char header[100]; sprintf(header, "[%d] servo(s) are read", N_suc);
         auto ss = control_table_layout(width_log_, id_limit_vec_map, limit_addr_list, string(header));
         ROS_INFO_STREAM(ss);
@@ -467,14 +467,14 @@ template <typename Addr> double DynamixelHandler::SyncReadGoal(set<GoalIndex> li
     const bool is_timeout   = dyn_comm_.timeout_last_read();
     const bool has_comm_err = dyn_comm_.comm_error_last_read();
     // 通信エラーの表示
-    if ( varbose_["r_goal_err"] ) if ( has_comm_err || is_timeout ) {
+    if ( verbose_["r_goal_err"] ) if ( has_comm_err || is_timeout ) {
         vector<uint8_t> failed_id_list;
         for ( auto id : target_id_list ) if ( id_goal_vec_map.find(id) == id_goal_vec_map.end() ) failed_id_list.push_back(id);
         char header[100]; sprintf(header, "[%d] servo(s) failed to read",N_total - N_suc);
         auto ss = id_list_layout(failed_id_list, string(header) + (is_timeout? " (time out)" : " (some kind packet error)"));
         ROS_WARN_STREAM(ss);
     }
-    if ( varbose_["r_goal"] ) if ( N_suc>0 ) {
+    if ( verbose_["r_goal"] ) if ( N_suc>0 ) {
         char header[100]; sprintf(header, "[%d] servo(s) are read", N_suc);
         auto ss = control_table_layout(width_log_, id_goal_vec_map, goal_addr_list, string(header));
         ROS_INFO_STREAM(ss);
