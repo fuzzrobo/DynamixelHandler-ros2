@@ -7,7 +7,7 @@ string update_info(const vector<uint8_t>& id_list, const string& what_updated) {
 }
 
 void store_goal(
-    uint16_t id, double value, DynamixelHandler::GoalValueIndex goal_index, 
+    uint16_t id, double value, DynamixelHandler::GoalIndex goal_index, 
     pair<DynamixelHandler::LimitIndex, DynamixelHandler::LimitIndex> lim_index
 ) {
     const auto& limit = DynamixelHandler::limit_r_[id];
@@ -19,45 +19,71 @@ void store_goal(
     DynamixelHandler::list_write_goal_.insert(goal_index);
 }
 
-//* ROS関係
-
-void DynamixelHandler::CallBackDxlCommand(const DxlCommandsX::SharedPtr msg) {
-    // vector<uint8_t> id_list;
-    // if ( msg->id_list.empty() || msg->id_list[0]==0xFE) for (auto id : id_set_    ) id_list.push_back(id);
-    //                                              else for (auto id : msg->id_list) id_list.push_back(id);
-    // char header[100]; sprintf(header, "Command [%s] \n (id_list=[] or [254] means all IDs)", msg->command.c_str());
-    // if (varbose_callback_ && msg->command!="") ROS_INFO_STREAM(id_list_layout(id_list, string(header)));
-    // if (msg->command == "clear_error" || msg->command == "CE")
-    //     for (auto id : id_list) { ClearHardwareError(id); TorqueOn(id);}
-    // if (msg->command == "torque_on"   || msg->command == "TON") 
-    //     for (auto id : id_list) TorqueOn(id);
-    // if (msg->command == "torque_off"  || msg->command == "TOFF")
-    //     for (auto id : id_list) TorqueOff(id);
-    // if (msg->command == "remove_id"   || msg->command == "RMID")
-    //     for (auto id : id_list) id_set_.erase( id );
-    // if (msg->command == "add_id"      || msg->command == "ADID")
-    //     for (auto id : id_list) addDynamixel(id);
-    // if (msg->command == "reset_offset" || msg->command == "RO") 
-    //     for (auto id : id_list) WriteHomingOffset(id, 0);
-    // if (msg->command == "enable") 
-    //     for (auto id : id_list) WriteTorqueEnable(id, TORQUE_ENABLE);
-    // if (msg->command == "disable")
-    //     for (auto id : id_list) WriteTorqueEnable(id, TORQUE_DISABLE);
-    // if (msg->command == "reboot") 
-    //     for (auto id : id_list) dyn_comm_.Reboot(id);
-
-    // CallBackDxlCmd_X_Position(msg->x_pos);
-    // CallBackDxlCmd_X_Velocity(msg->x_vel);
-    // CallBackDxlCmd_X_Current(msg->x_cur);
-    // CallBackDxlCmd_X_CurrentPosition(msg->x_cur_pos);
-    // CallBackDxlCmd_X_ExtendedPosition(msg->x_ext_pos);
-    // CallBackDxlCmd_P_Current(msg->p_cur);
-    // CallBackDxlCmd_P_Velocity(msg->p_vel);
-    // CallBackDxlCmd_P_Position(msg->p_pos);
-    // CallBackDxlCmd_P_ExtendedPosition(msg->p_ext_pos);
+void DynamixelHandler::CallbackCmdsX(const DxlCommandsX::SharedPtr msg) {
+    CallbackCmd_Common(msg->common);
+    CallbackCmd_X_Pwm(msg->pwm_control);
+    CallbackCmd_X_Current(msg->current_control);
+    CallbackCmd_X_Velocity(msg->velocity_control);
+    CallbackCmd_X_Position(msg->position_control);
+    CallbackCmd_X_ExtendedPosition(msg->extended_position_control);
+    CallbackCmd_X_CurrentBasePosition(msg->current_base_position_control);
+    CallbackCmd_Status(msg->status);
+    CallbackCmd_Goal  (msg->goal);
+    CallbackCmd_Gain  (msg->gain);
+    CallbackCmd_Limit (msg->limit);
+}
+void DynamixelHandler::CallbackCmdsP(const DxlCommandsP::SharedPtr msg) {
+    CallbackCmd_Common(msg->common);
+    CallbackCmd_P_Pwm(msg->pwm_control);
+    CallbackCmd_P_Current(msg->current_control);
+    CallbackCmd_P_Velocity(msg->velocity_control);
+    CallbackCmd_P_Position(msg->position_control);
+    CallbackCmd_P_ExtendedPosition(msg->extended_position_control);
+    CallbackCmd_Status(msg->status);
+    CallbackCmd_Goal  (msg->goal);
+    CallbackCmd_Gain  (msg->gain);
+    CallbackCmd_Limit (msg->limit);
 }
 
-void DynamixelHandler::CallBackDxlCmd_X_Position(const DynamixelControlXPosition& msg) {
+void DynamixelHandler::CallbackCmd_Common(const DynamixelCommonCmd& msg) {
+    vector<uint8_t> id_list;
+    if ( msg.id_list.empty() || msg.id_list[0]==0xFE) for (auto id : id_set_    ) id_list.push_back(id);
+                                                 else for (auto id : msg.id_list) id_list.push_back(id);
+    char header[100]; sprintf(header, "Command [%s] \n (id_list=[] or [254] means all IDs)", msg.command.c_str());
+    if (varbose_callback_ && msg.command!="") ROS_INFO_STREAM(id_list_layout(id_list, string(header)));
+    if (msg.command == "clear_error" || msg.command == "CE")
+        for (auto id : id_list) { ClearHardwareError(id); TorqueOn(id);}
+    if (msg.command == "torque_on"   || msg.command == "TON") 
+        for (auto id : id_list) TorqueOn(id);
+    if (msg.command == "torque_off"  || msg.command == "TOFF")
+        for (auto id : id_list) TorqueOff(id);
+    if (msg.command == "remove_id"   || msg.command == "RMID")
+        for (auto id : id_list) id_set_.erase( id );
+    if (msg.command == "add_id"      || msg.command == "ADID")
+        for (auto id : id_list) addDynamixel(id);
+    if (msg.command == "reset_offset" || msg.command == "RO") 
+        for (auto id : id_list) WriteHomingOffset(id, 0);
+    if (msg.command == "enable") 
+        for (auto id : id_list) WriteTorqueEnable(id, TORQUE_ENABLE);
+    if (msg.command == "disable")
+        for (auto id : id_list) WriteTorqueEnable(id, TORQUE_DISABLE);
+    if (msg.command == "reboot") 
+        for (auto id : id_list) dyn_comm_.Reboot(id);
+}
+
+void DynamixelHandler::CallbackCmd_X_Pwm(const DynamixelControlXPwm& msg) {
+    const bool has_pwm = !msg.id_list.empty() && msg.id_list.size() == msg.pwm_percent.size();
+    vector<uint8_t> changed_id_list;
+    for ( size_t i=0; i<msg.id_list.size(); i++ ) if ( series_[msg.id_list[i]] == SERIES_X ) {
+        const bool is_change_mode = ChangeOperatingMode(msg.id_list[i], OPERATING_MODE_PWM);
+        if (has_pwm) store_goal( msg.id_list[i], msg.pwm_percent[i], GOAL_PWM, {PWM_LIMIT, PWM_LIMIT} );
+        if ( is_change_mode || has_pwm ) changed_id_list.push_back(msg.id_list[i]);
+    }
+    if (varbose_callback_ && has_pwm) ROS_INFO_STREAM(update_info(changed_id_list, "goal_pwm (x series)"));
+    if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
+}
+
+void DynamixelHandler::CallbackCmd_X_Position(const DynamixelControlXPosition& msg) {
     const bool has_pos = !msg.id_list.empty() && msg.id_list.size() == msg.position_deg.size();
     const bool has_pv  = !msg.id_list.empty() && msg.id_list.size() == msg.profile_vel_deg_s.size();
     const bool has_pa  = !msg.id_list.empty() && msg.id_list.size() == msg.profile_acc_deg_ss.size();
@@ -75,7 +101,7 @@ void DynamixelHandler::CallBackDxlCmd_X_Position(const DynamixelControlXPosition
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
-void DynamixelHandler::CallBackDxlCmd_X_Velocity(const DynamixelControlXVelocity& msg) {
+void DynamixelHandler::CallbackCmd_X_Velocity(const DynamixelControlXVelocity& msg) {
     const bool has_vel = !msg.id_list.empty() && msg.id_list.size() == msg.velocity_deg_s.size();
     const bool has_pa  = !msg.id_list.empty() && msg.id_list.size() == msg.profile_acc_deg_ss.size();
     vector<uint8_t> changed_id_list;
@@ -90,7 +116,7 @@ void DynamixelHandler::CallBackDxlCmd_X_Velocity(const DynamixelControlXVelocity
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
-void DynamixelHandler::CallBackDxlCmd_X_Current(const DynamixelControlXCurrent& msg) {
+void DynamixelHandler::CallbackCmd_X_Current(const DynamixelControlXCurrent& msg) {
     const bool has_cur = !msg.id_list.empty() && msg.id_list.size() == msg.current_ma.size();
     vector<uint8_t> changed_id_list;
     for ( size_t i=0; i<msg.id_list.size(); i++ ) if ( series_[msg.id_list[i]] == SERIES_X ) {
@@ -102,7 +128,7 @@ void DynamixelHandler::CallBackDxlCmd_X_Current(const DynamixelControlXCurrent& 
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
-void DynamixelHandler::CallBackDxlCmd_X_CurrentPosition(const DynamixelControlXCurrentBasePosition& msg) {
+void DynamixelHandler::CallbackCmd_X_CurrentBasePosition(const DynamixelControlXCurrentBasePosition& msg) {
     const bool has_pos = !msg.id_list.empty() && msg.id_list.size() == msg.position_deg.size();
     const bool has_rot = !msg.id_list.empty() && msg.id_list.size() == msg.rotation.size();
     const bool has_cur = !msg.id_list.empty() && msg.id_list.size() == msg.current_ma.size();
@@ -125,7 +151,7 @@ void DynamixelHandler::CallBackDxlCmd_X_CurrentPosition(const DynamixelControlXC
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
-void DynamixelHandler::CallBackDxlCmd_X_ExtendedPosition(const DynamixelControlXExtendedPosition& msg) {
+void DynamixelHandler::CallbackCmd_X_ExtendedPosition(const DynamixelControlXExtendedPosition& msg) {
     const bool has_pos = !msg.id_list.empty() && msg.id_list.size() == msg.position_deg.size();
     const bool has_rot = !msg.id_list.empty() && msg.id_list.size() == msg.rotation.size();
     const bool has_pv  = !msg.id_list.empty() && msg.id_list.size() == msg.profile_vel_deg_s.size();
@@ -145,7 +171,19 @@ void DynamixelHandler::CallBackDxlCmd_X_ExtendedPosition(const DynamixelControlX
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
-void DynamixelHandler::CallBackDxlCmd_P_Current(const DynamixelControlPCurrent& msg) {
+void DynamixelHandler::CallbackCmd_P_Pwm(const DynamixelControlPPwm& msg) {
+    const bool has_pwm = !msg.id_list.empty() && msg.id_list.size() == msg.pwm_percent.size();
+    vector<uint8_t> changed_id_list;
+    for ( size_t i=0; i<msg.id_list.size(); i++ ) if ( series_[msg.id_list[i]] == SERIES_P ) {
+        const bool is_change_mode = ChangeOperatingMode(msg.id_list[i], OPERATING_MODE_PWM);
+        if (has_pwm) store_goal( msg.id_list[i], msg.pwm_percent[i], GOAL_PWM, {PWM_LIMIT, PWM_LIMIT} );
+        if ( is_change_mode || has_pwm ) changed_id_list.push_back(msg.id_list[i]);
+    }
+    if (varbose_callback_ && has_pwm) ROS_INFO_STREAM(update_info(changed_id_list, "goal_pwm (p series)"));
+    if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
+}
+
+void DynamixelHandler::CallbackCmd_P_Current(const DynamixelControlPCurrent& msg) {
     const bool has_cur = !msg.id_list.empty() && msg.id_list.size() == msg.current_ma.size();
     vector<uint8_t> changed_id_list;
     for ( size_t i=0; i<msg.id_list.size(); i++ ) if ( series_[msg.id_list[i]] == SERIES_P ) {
@@ -157,7 +195,7 @@ void DynamixelHandler::CallBackDxlCmd_P_Current(const DynamixelControlPCurrent& 
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
-void DynamixelHandler::CallBackDxlCmd_P_Velocity(const DynamixelControlPVelocity& msg) {
+void DynamixelHandler::CallbackCmd_P_Velocity(const DynamixelControlPVelocity& msg) {
     const bool has_cur = !msg.id_list.empty() && msg.id_list.size() == msg.current_ma.size();
     const bool has_vel = !msg.id_list.empty() && msg.id_list.size() == msg.velocity_deg_s.size();
     const bool has_pa  = !msg.id_list.empty() && msg.id_list.size() == msg.profile_acc_deg_ss.size();
@@ -175,7 +213,7 @@ void DynamixelHandler::CallBackDxlCmd_P_Velocity(const DynamixelControlPVelocity
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
-void DynamixelHandler::CallBackDxlCmd_P_Position(const DynamixelControlPPosition& msg) {
+void DynamixelHandler::CallbackCmd_P_Position(const DynamixelControlPPosition& msg) {
     const bool has_pos = !msg.id_list.empty() && msg.id_list.size() == msg.position_deg.size();
     const bool has_cur = !msg.id_list.empty() && msg.id_list.size() == msg.current_ma.size();
     const bool has_vel = !msg.id_list.empty() && msg.id_list.size() == msg.velocity_deg_s.size();
@@ -199,7 +237,7 @@ void DynamixelHandler::CallBackDxlCmd_P_Position(const DynamixelControlPPosition
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
-void DynamixelHandler::CallBackDxlCmd_P_ExtendedPosition(const DynamixelControlPExtendedPosition& msg) {
+void DynamixelHandler::CallbackCmd_P_ExtendedPosition(const DynamixelControlPExtendedPosition& msg) {
     const bool has_pos = !msg.id_list.empty() && msg.id_list.size() == msg.position_deg.size();
     const bool has_rot = !msg.id_list.empty() && msg.id_list.size() == msg.rotation.size();
     const bool has_cur = !msg.id_list.empty() && msg.id_list.size() == msg.current_ma.size();
@@ -225,7 +263,12 @@ void DynamixelHandler::CallBackDxlCmd_P_ExtendedPosition(const DynamixelControlP
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
-void DynamixelHandler::CallBackDxlGoal(const DynamixelGoal& msg) {
+void DynamixelHandler::CallbackCmd_Status(const DynamixelStatus& msg) {
+    // あとで実装する
+    // 各ステータスの指令値をもとにCommonCmd型の命令を生成する．
+}
+
+void DynamixelHandler::CallbackCmd_Goal(const DynamixelGoal& msg) {
     const bool has_pwm = !msg.id_list.empty() && msg.id_list.size() == msg.pwm_percent.size();
     const bool has_cur = !msg.id_list.empty() && msg.id_list.size() == msg.current_ma.size();
     const bool has_vel = !msg.id_list.empty() && msg.id_list.size() == msg.velocity_deg_s.size();
@@ -251,7 +294,7 @@ void DynamixelHandler::CallBackDxlGoal(const DynamixelGoal& msg) {
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
 }
 
-void DynamixelHandler::CallBackDxlGain(const DynamixelGain& msg) {
+void DynamixelHandler::CallbackCmd_Gain(const DynamixelGain& msg) {
     static const auto store_gain = [&](const vector<uint16_t>& id_list, const vector<uint16_t>& value_list, GainIndex index) {
         if ( id_list.size() != value_list.size() ) return vector<uint8_t>();
         vector<uint8_t> store_id_list;
@@ -286,7 +329,7 @@ void DynamixelHandler::CallBackDxlGain(const DynamixelGain& msg) {
         ROS_ERROR("Element size all dismatch; skiped callback");
 }
 
-void DynamixelHandler::CallBackDxlLimit(const DynamixelLimit& msg) {
+void DynamixelHandler::CallbackCmd_Limit(const DynamixelLimit& msg) {
     static const auto store_limit = [&](const vector<uint16_t>& id_list, const vector<double>& value_list, LimitIndex index, bool is_angle=false) {
         if ( id_list.size() != value_list.size() ) return vector<uint8_t>();
         vector<uint8_t> store_id_list;
@@ -333,39 +376,44 @@ void DynamixelHandler::CallBackDxlLimit(const DynamixelLimit& msg) {
 
 double round4(double val) { return round(val*10000.0)/10000.0; }
 
-void DynamixelHandler::BroadcastDxlState(){
+void DynamixelHandler::BroadcastState_Status(){
     DynamixelStatus msg;
-    DxlStates st;
-    // msg.stamp = this->get_clock()->now();
     for (const auto& [id, value] : state_r_) if ( is_in(id, id_set_) ) {
         msg.id_list.push_back(id);
 
         msg.torque.push_back(tq_mode_[id]==TORQUE_ENABLE);
+        msg.error.push_back(has_hardware_err_);
         msg.ping.push_back(ping_err_[id]==0);
-        // switch(op_mode_[id]) {
-        //     case OPERATING_MODE_CURRENT:              msg.mode.operating_mode.push_back("current");           break;
-        //     case OPERATING_MODE_VELOCITY:             msg.mode.operating_mode.push_back("velocity");          break;
-        //     case OPERATING_MODE_POSITION:             msg.mode.operating_mode.push_back("position");          break;
-        //     case OPERATING_MODE_EXTENDED_POSITION:    msg.mode.operating_mode.push_back("extended_position"); break;
-        //     case OPERATING_MODE_CURRENT_BASE_POSITION:msg.mode.operating_mode.push_back("current_position");  break;
-        // }
-
-        for (auto state : list_read_state_) switch(state) {
-            case PRESENT_PWM:          st.present.pwm_percent.push_back         (round4(value[state]    )); break;
-            case PRESENT_CURRENT:      st.present.current_ma.push_back          (round4(value[state]    )); break;
-            case PRESENT_VELOCITY:     st.present.velocity_deg_s.push_back      (round4(value[state]/DEG)); break;
-            case PRESENT_POSITION:     st.present.position_deg.push_back        (round4(value[state]/DEG)); break;
-            case VELOCITY_TRAJECTORY:  st.present.vel_trajectory_deg_s.push_back(round4(value[state]/DEG)); break;
-            case POSITION_TRAJECTORY:  st.present.pos_trajectory_deg.push_back  (round4(value[state]/DEG)); break;
-            case PRESENT_TEMPERATURE:  st.present.temperature_degc.push_back   (round4(value[state]    )); break;
-            case PRESENT_INPUT_VOLTAGE:st.present.input_voltage_v.push_back     (round4(value[state]    )); break;
+        switch(op_mode_[id]) {
+            case OPERATING_MODE_CURRENT:              msg.mode.push_back("current");               break;
+            case OPERATING_MODE_VELOCITY:             msg.mode.push_back("velocity");              break;
+            case OPERATING_MODE_POSITION:             msg.mode.push_back("position");              break;
+            case OPERATING_MODE_EXTENDED_POSITION:    msg.mode.push_back("extended_position");     break;
+            case OPERATING_MODE_CURRENT_BASE_POSITION:msg.mode.push_back("current_base_position"); break;
         }
     }
     pub_status_->publish(msg);
-    pub_dxl_states_->publish(st);
 }
 
-void DynamixelHandler::BroadcastDxlError(){
+void DynamixelHandler::BroadcastState_Present(){
+    DynamixelPresent msg;
+    for (const auto& [id, value] : state_r_) if ( is_in(id, id_set_) ) {
+        msg.id_list.push_back(id);
+        for (auto state : list_read_present_) switch(state) {
+            case PRESENT_PWM:          msg.pwm_percent.push_back         (round4(value[state]    )); break;
+            case PRESENT_CURRENT:      msg.current_ma.push_back          (round4(value[state]    )); break;
+            case PRESENT_VELOCITY:     msg.velocity_deg_s.push_back      (round4(value[state]/DEG)); break;
+            case PRESENT_POSITION:     msg.position_deg.push_back        (round4(value[state]/DEG)); break;
+            case VELOCITY_TRAJECTORY:  msg.vel_trajectory_deg_s.push_back(round4(value[state]/DEG)); break;
+            case POSITION_TRAJECTORY:  msg.pos_trajectory_deg.push_back  (round4(value[state]/DEG)); break;
+            case PRESENT_TEMPERATURE:  msg.temperature_degc.push_back    (round4(value[state]    )); break;
+            case PRESENT_INPUT_VOLTAGE:msg.input_voltage_v.push_back     (round4(value[state]    )); break;
+        }
+    }
+    pub_present_->publish(msg);
+}
+
+void DynamixelHandler::BroadcastState_Error(){
     DynamixelError msg;
     // msg.stamp = this->get_clock()->now();
     for (const auto& [id, error]: hardware_error_) if ( is_in(id, id_set_) ) {
@@ -379,7 +427,7 @@ void DynamixelHandler::BroadcastDxlError(){
     pub_error_->publish(msg);
 }
 
-void DynamixelHandler::BroadcastDxlLimit(){
+void DynamixelHandler::BroadcastState_Limit(){
     DynamixelLimit msg;
     // msg.stamp = this->get_clock()->now();
     for (const auto& [id, limit] : limit_r_) if ( is_in(id, id_set_) ) {
@@ -397,7 +445,7 @@ void DynamixelHandler::BroadcastDxlLimit(){
     pub_limit_->publish(msg);
 }
 
-void DynamixelHandler::BroadcastDxlGain(){
+void DynamixelHandler::BroadcastState_Gain(){
     DynamixelGain msg;
     // msg.stamp = this->get_clock()->now();
     for ( const auto& [id, gain] : gain_r_ ) if ( is_in(id, id_set_) ) {
@@ -413,7 +461,7 @@ void DynamixelHandler::BroadcastDxlGain(){
     pub_gain_->publish(msg);
 }
 
-void DynamixelHandler::BroadcastDxlGoal(){
+void DynamixelHandler::BroadcastState_Goal(){
     DynamixelGoal msg;
     // msg.stamp = this->get_clock()->now();
     for ( const auto& [id, goal] : goal_r_ ) if ( is_in(id, id_set_) ) {

@@ -19,32 +19,32 @@
         <param name="latency_timer" value="$(var latency_timer)"/>
 
         <!-- 細かいパラメータの設定 -->
-        <param from="$(find-pkg-share $(var name_pkg))/config/dynamixel_handler.yaml"/>
+        <param from="$(find-pkg-share $(var name_pkg))/config/config_dynamixel_handler.yaml"/>
 
         <!-- トピックの設定 -->
         <!-- 書き込み -->
-        <remap from="dynamixel/commnad"   to="dynamixel/commnad"/>
-        <remap from="dynamixel/x_cmd/position"          to="dynamixel/x_cmd/position"/>
-        <remap from="dynamixel/x_cmd/velocity"          to="dynamixel/x_cmd/velocity"/>
-        <remap from="dynamixel/x_cmd/current"           to="dynamixel/x_cmd/current"/>
-        <remap from="dynamixel/x_cmd/current_position"  to="dynamixel/x_cmd/current_position"/>
-        <remap from="dynamixel/x_cmd/extended_position" to="dynamixel/x_cmd/extended_position"/>
-        <remap from="dynamixel/p_cmd/position"          to="dynamixel/p_cmd/position"/>
-        <remap from="dynamixel/p_cmd/velocity"          to="dynamixel/p_cmd/velocity"/>
-        <remap from="dynamixel/p_cmd/current"           to="dynamixel/p_cmd/current"/>
-        <remap from="dynamixel/p_cmd/extended_position" to="dynamixel/p_cmd/extended_position"/>
-        <remap from="dynamixel/limit/w" to="dynamixel/limit/w"/>
-        <remap from="dynamixel/gain/w"  to="dynamixel/gain/w" />
-        <remap from="dynamixel/mode/w"  to="dynamixel/mode/w" />
-        <remap from="dynamixel/goal/w"  to="dynamixel/goal/w" />
+        <remap from="dynamixel/commnads/x"   to="dynamixel/commnads"/>
+        <remap from="dynamixel/command/x/pwm"                   to="dynamixel/command/pwm"/>
+        <remap from="dynamixel/command/x/current"               to="dynamixel/command/current"/>
+        <remap from="dynamixel/command/x/velocity"              to="dynamixel/command/velocity"/>
+        <remap from="dynamixel/command/x/position"              to="dynamixel/command/position"/>
+        <remap from="dynamixel/command/x/extended_position"     to="dynamixel/command/extended_position"/>
+        <remap from="dynamixel/command/x/current_base_position" to="dynamixel/command/current_position"/>
+        <remap from="dynamixel/command/status" to="dynamixel/command/status"/>
+        <remap from="dynamixel/command/goal"   to="dynamixel/command/goal"/>
+        <remap from="dynamixel/command/gain"   to="dynamixel/command/gain"/>
+        <remap from="dynamixel/command/limit"  to="dynamixel/command/limit"/>
+        <remap from="dynamixel/command/extra"  to="dynamixel/command/extra"/>
 
         <!-- 読み込み -->
-        <remap from="dynamixel/state" to="dynamixel/state"/>
-        <remap from="dynamixel/error" to="dynamixel/error"/>
-        <remap from="dynamixel/limit/r" to="dynamixel/limit/r"/>
-        <remap from="dynamixel/gain/r"  to="dynamixel/gain/r" />
-        <remap from="dynamixel/mode/r"  to="dynamixel/mode/r" />
-        <remap from="dynamixel/goal/r"  to="dynamixel/goal/r" />
+        <remap from="dynamixel/states" to="dynamixel/states"/>
+        <remap from="dynamixel/state/status"  to="dynamixel/status"/>
+        <remap from="dynamixel/state/present" to="dynamixel/present"/>
+        <remap from="dynamixel/state/goal"    to="dynamixel/goal" />
+        <remap from="dynamixel/state/gain"    to="dynamixel/gain" />
+        <remap from="dynamixel/state/limit"   to="dynamixel/limit"/>
+        <remap from="dynamixel/state/error"   to="dynamixel/error"/>
+        <remap from="dynamixel/state/extra"   to="dynamixel/extra"/>
     </node>
 
 </launch>

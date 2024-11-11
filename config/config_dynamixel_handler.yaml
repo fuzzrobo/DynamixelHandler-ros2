@@ -17,45 +17,42 @@
         init/hardware_error_auto_clean: true # 初期化時に Hardware error を自動でクリアするかどうか
         init/torque_auto_enable: true # 初期化時に Torque を自動でONにするかどうか
         term/torque_auto_disable: true # 終了時に Torque を自動でOFFにするかどうか
-        middle/no_response_id_auto_remove_time: 0 # [s] 通信が途切れた場合に何秒で自動で削除するかどうか
+        middle/no_response_id_auto_remove_count: 0 # 通信が途切れた場合に何カウントで自動で削除するかどうか
     # ループの設定
         loop_rate: 50 # メインループの周期
-        ratio/read_state: 3 # この回数に一回 State を読み取る, 0=初回のみ
-        ratio/read_error: 10 # この回数に一回 Hardware error を読み取る, 0=初回のみ
-        ratio/read_limit: 300 # この回数に一回 Limit を読み取る, 0=初回のみ
-        ratio/read_gain: 300 # この回数に一回 Gain を読み取る, 0=初回のみ
-        ratio/read_goal: 10  # この回数に一回 Goal を読み取る, 0=初回のみ
-        ratio/varbose_loop: 300 # メインループの処理時間，通信の成功率を出力, ex 100なら100回に1回出力
+        varbose_ratio: 300 # メインループの処理時間，通信の成功率を出力, ex 100なら100回に1回出力
+        pub_ratio/present: # present_XXXを読み取る割合
+            pwm:                 0 # この回数に一回present_pwmを読み取る
+            current:             1 # この回数に一回present_currentを読み取る
+            velocity:            1 # この回数に一回present_velocityを読み取る
+            position:            1 # この回数に一回present_positionを読み取る
+            velocity_trajectory: 0 # この回数に一回velocity_trajectoryを読み取る
+            position_trajectory: 0 # この回数に一回position_trajectoryを読み取る
+            input_voltage:      10 # この回数に一回present_input_voltageを読み取る
+            temperature:        10 # この回数に一回present_temperatureを読み取る
+        pub_ratio/status: 50 # この回数に一回 Status を読み取る, 0=初回のみ
+        pub_ratio/goal: 10  # この回数に一回 Goal を読み取る, 0=初回のみ
+        pub_ratio/gain: 300 # この回数に一回 Gain を読み取る, 0=初回のみ
+        pub_ratio/limit: 300 # この回数に一回 Limit を読み取る, 0=初回のみ
+        pub_ratio/error: 10 # この回数に一回 Hardware error を読み取る, 0=初回のみ
     # Read/Write方式
         use/fast_read: false
         use/split_read: false
         use/split_write: true
-        use/multi_rate_read: false
-    # Readする情報
-        read/present_pwm: false
-        read/present_current: true
-        read/present_velocity: true
-        read/present_position: true
-        read/velocity_trajectory: false
-        read/position_trajectory: false
-        read/present_input_voltage: false
-        read/present_temperature: false
-    # 多周期でReadする情報
-        multi_rate_read/ratio/present_pwm:             0
-        multi_rate_read/ratio/present_current:         1
-        multi_rate_read/ratio/present_velocity:        1
-        multi_rate_read/ratio/present_position:        1
-        multi_rate_read/ratio/velocity_trajectory:     0
-        multi_rate_read/ratio/position_trajectory:     0
-        multi_rate_read/ratio/present_input_voltage:   10
-        multi_rate_read/ratio/present_temperature:     10
     # デバッグ用
         max_log_width: 6
         varbose/callback: false
-        varbose/write_command: true
-        varbose/write_options: false
-        varbose/read_state/raw: false
-        varbose/read_state/err: false
-        varbose/read_options/raw: false
-        varbose/read_options/err: false
+        varbose/write_goal: true
+        varbose/write_gain: false
+        varbose/write_limit: false
+        varbose/read_status/raw: false
+        varbose/read_status/err: false
+        varbose/read_present/raw: false
+        varbose/read_present/err: false
+        varbose/read_goal/raw: false
+        varbose/read_goal/err: false
+        varbose/read_gain/raw: false
+        varbose/read_gain/err: false
+        varbose/read_limit/raw: false
+        varbose/read_limit/err: false
         varbose/read_hardware_error: false

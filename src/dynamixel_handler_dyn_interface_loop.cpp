@@ -7,11 +7,11 @@
  * @brief 指定した範囲のコマンド値を書き込む
  * @param list_write_goal 書き込むコマンドのEnumのリスト
 */
-template <> void DynamixelHandler::SyncWriteGoal(set<GoalValueIndex> list_write_goal){
+template <> void DynamixelHandler::SyncWriteGoal(set<GoalIndex> list_write_goal){
     SyncWriteGoal<AddrX>(list_write_goal);
     SyncWriteGoal<AddrP>(list_write_goal);
 }
-template <typename Addr> void DynamixelHandler::SyncWriteGoal(set<GoalValueIndex> list_write_goal){
+template <typename Addr> void DynamixelHandler::SyncWriteGoal(set<GoalIndex> list_write_goal){
     if ( list_write_goal.empty() ) return; // 空なら即時return
     //* 書き込む範囲のイテレータを取得, 分割書き込みが有効な場合書き込む範囲を1つ目のみに制限,残りは再帰的に処理する．
     auto [start,end] = minmax_element(list_write_goal.begin(), list_write_goal.end()); 
@@ -19,7 +19,7 @@ template <typename Addr> void DynamixelHandler::SyncWriteGoal(set<GoalValueIndex
     //* 書き込みに必要な変数を用意
     vector<DynamixelAddress> goal_addr_list;  // 書き込むコマンドのアドレスのベクタ
     map<uint8_t, vector<int64_t>> id_goal_vec_map; // id と 書き込むデータのベクタのマップ
-    for (GoalValueIndex goal = *start; goal <= *end; goal++) { // アドレスのベクタと，データのベクタの並びは対応している必要があるので，同一のループで作成する．
+    for (GoalIndex goal = *start; goal <= *end; goal++) { // アドレスのベクタと，データのベクタの並びは対応している必要があるので，同一のループで作成する．
         switch (goal) {
             case GOAL_PWM      : goal_addr_list.push_back(Addr::goal_pwm            ); break;
             case GOAL_CURRENT  : goal_addr_list.push_back(Addr::goal_current        ); break;
@@ -37,7 +37,7 @@ template <typename Addr> void DynamixelHandler::SyncWriteGoal(set<GoalValueIndex
     }
     if ( id_goal_vec_map.empty() ) return; // 書き込むデータがない場合は即時return
     //* id_goal_vec_mapの中身を確認
-    if ( varbose_write_cmd_ ) {
+    if ( varbose_["w_goal"] ) {
         char header[100]; sprintf(header, "[%d] servo(s) will be written", (int)id_goal_vec_map.size());
         auto ss = control_table_layout(width_log_, id_goal_vec_map, goal_addr_list, string(header));
         ROS_INFO_STREAM(ss);
@@ -85,7 +85,7 @@ template <typename Addr> void DynamixelHandler::SyncWriteGain(set<GainIndex> lis
     }
     if ( id_gain_vec_map.empty() ) return; // 書き込むデータがない場合は即時return
     //* id_gain_vec_mapの中身を確認
-    if ( varbose_write_opt_ ) {
+    if ( varbose_["w_gain"] ) {
         char header[100]; sprintf(header, "[%d] servo(s) will be written", (int)id_gain_vec_map.size());
         auto ss = control_table_layout(width_log_, id_gain_vec_map, gain_addr_list, string(header));
         ROS_INFO_STREAM(ss);
@@ -137,7 +137,7 @@ template <typename Addr> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> l
     }
     if ( id_limit_vec_map.empty() ) return; // 書き込むデータがない場合は即時return
     //* id_limit_vec_mapの中身を確認
-    if ( varbose_write_opt_ ) {
+    if ( varbose_["w_limit"] ) {
         char header[100]; sprintf(header, "[%d] servo(s) will be written", (int)id_limit_vec_map.size());
         auto ss = control_table_layout(width_log_, id_limit_vec_map, limit_addr_list, string(header));
         ROS_INFO_STREAM(ss);
@@ -156,24 +156,24 @@ using std::chrono::duration_cast;
 using std::chrono::microseconds;
 
 /**
- * @func SyncReadState
+ * @func SyncReadPresent
  * @brief 指定した範囲の状態値を読み込む
  * @param list_read_state 読み込む状態値のEnumのリスト
  * @return 読み取りの成功率, なんで再帰で頑張って実装してるんだろう．．．
 */
-template <>double DynamixelHandler::SyncReadState(set<StValueIndex> list_read_state){
-    double suc_rate_X = SyncReadState<AddrX>(list_read_state);
-    double suc_rate_P = SyncReadState<AddrP>(list_read_state);
+template <>double DynamixelHandler::SyncReadPresent(set<PresentIndex> list_read_state){
+    double suc_rate_X = SyncReadPresent<AddrX>(list_read_state);
+    double suc_rate_P = SyncReadPresent<AddrP>(list_read_state);
     return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / (num_[SERIES_X]+num_[SERIES_P]);
 }
-template <typename Addr> double DynamixelHandler::SyncReadState(set<StValueIndex> list_read_state){
+template <typename Addr> double DynamixelHandler::SyncReadPresent(set<PresentIndex> list_read_state){
     if ( list_read_state.empty() ) return 1.0; // 空なら即時return
     //* 読み込む範囲のstate_addr_listのインデックスを取得
     auto [start, end] = minmax_element(list_read_state.begin(), list_read_state.end());
     if ( use_split_read_ ) end = start; // 分割読み込みが有効な場合は読み込む範囲を1つ目のみに制限
     //* 読み込みに必要な変数を用意
     vector<DynamixelAddress> state_addr_list;
-    for (StValueIndex st=*start; st<=*end; st++) switch (st) {
+    for (PresentIndex st=*start; st<=*end; st++) switch (st) {
         case PRESENT_PWM          : state_addr_list.push_back(Addr::present_pwm          ); break; 
         case PRESENT_CURRENT      : state_addr_list.push_back(Addr::present_current      ); break; 
         case PRESENT_VELOCITY     : state_addr_list.push_back(Addr::present_velocity     ); break;    
@@ -197,7 +197,7 @@ template <typename Addr> double DynamixelHandler::SyncReadState(set<StValueIndex
     const bool is_comm_err_ = dyn_comm_.comm_error_last_read();
     has_hardware_err_ = dyn_comm_.hardware_error_last_read();
     //* 通信エラーの表示
-    if ( varbose_read_st_err_ ) if ( is_timeout_ || is_comm_err_ ) {
+    if ( varbose_["r_present_err"] ) if ( is_timeout_ || is_comm_err_ ) {
         vector<uint8_t> failed_id_list;
         for ( auto id : target_id_list ) if ( id_st_vec_map.find(id) == id_st_vec_map.end() ) failed_id_list.push_back(id);
         char header[99]; sprintf(header, "[%d] servo(s) failed to read", N_total - N_suc);
@@ -205,7 +205,7 @@ template <typename Addr> double DynamixelHandler::SyncReadState(set<StValueIndex
         ROS_WARN_STREAM(ss);
     }
     //* id_st_vec_mapの中身を確認
-    if ( varbose_read_st_ ) if ( N_suc>0 ) {
+    if ( varbose_["r_present"] ) if ( N_suc>0 ) {
         char header[99]; sprintf(header, "[%d] servo(s) are read", N_suc);
         auto ss = control_table_layout(width_log_, id_st_vec_map, state_addr_list, string(header));
         ROS_INFO_STREAM(ss);
@@ -221,7 +221,7 @@ template <typename Addr> double DynamixelHandler::SyncReadState(set<StValueIndex
     // 今回読み込んだ範囲を消去して残りを再帰的に処理, use_split_read_=falseの場合は全て削除されるので,再帰しない
     list_read_state.erase(start, ++end); // 今回読み込んだ範囲を消去
     const unsigned int num_state_next = list_read_state.size();
-    double suc_rate = SyncReadState<Addr>(list_read_state);
+    double suc_rate = SyncReadPresent<Addr>(list_read_state);
     return       suc_rate       *num_state_next / (num_state_now+num_state_next) // 再帰的な意味で前回までの成功率に重しをかけたもの
          + N_suc/(double)N_total*num_state_now  / (num_state_now+num_state_next);// 今回の成功率に今回読み込んだデータの数を重しとしてかけたもの
 }
@@ -261,7 +261,7 @@ template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(){
     }
 
     // コンソールへの表示
-    if ( varbose_read_hwerr_ ) {
+    if ( varbose_["r_hwerr"] ) {
         ROS_WARN( "Hardware error are Checked");
         for (auto id : target_id_list) {
             if (hardware_error_[id][INPUT_VOLTAGE     ]) ROS_WARN (" * servo id [%d] has INPUT_VOLTAGE error"     ,id);
@@ -317,7 +317,7 @@ template <typename Addr> double DynamixelHandler::SyncReadGain(set<GainIndex> li
     const bool is_timeout   = dyn_comm_.timeout_last_read();
     const bool has_comm_err = dyn_comm_.comm_error_last_read();
     // 通信エラーの表示
-    if ( varbose_read_opt_err_ ) if ( has_comm_err || is_timeout ) {
+    if ( varbose_["r_gain_err"] ) if ( has_comm_err || is_timeout ) {
         vector<uint8_t> failed_id_list;
         for ( auto id : target_id_list ) if ( id_gain_vec_map.find(id) == id_gain_vec_map.end() ) failed_id_list.push_back(id);
         char header[100]; sprintf(header, "[%d] servo(s) failed to read", N_total - N_suc);
@@ -325,7 +325,7 @@ template <typename Addr> double DynamixelHandler::SyncReadGain(set<GainIndex> li
         ROS_WARN_STREAM(ss);
     }
     // id_gain_vec_mapの中身を確認
-    if ( varbose_read_opt_ ) if ( N_suc>0 ) {
+    if ( varbose_["r_gain"] ) if ( N_suc>0 ) {
         char header[100]; sprintf(header, "[%d] servo(s) are read", N_suc);
         auto ss = control_table_layout(width_log_, id_gain_vec_map, gain_addr_list, string(header));
         ROS_INFO_STREAM(ss);
@@ -387,7 +387,7 @@ template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> 
     const bool is_timeout   = dyn_comm_.timeout_last_read();
     const bool has_comm_err = dyn_comm_.comm_error_last_read();
     // 通信エラーの表示
-    if ( varbose_read_opt_err_ ) if ( has_comm_err || is_timeout ) {
+    if ( varbose_["r_limit_err"] ) if ( has_comm_err || is_timeout ) {
         vector<uint8_t> failed_id_list;
         for ( auto id : target_id_list ) if ( id_limit_vec_map.find(id) == id_limit_vec_map.end() ) failed_id_list.push_back(id);
         char header[100]; sprintf(header, "[%d] servo(s) failed to read", N_total - N_suc);
@@ -403,7 +403,7 @@ template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> 
             limit[ACCELERATION_LIMIT-*start] = 32767; //  Xシリーズのprofile_accの設定ができる最大値
         }
     // id_limit_vec_mapの中身を確認
-    if ( varbose_read_opt_ ) if ( N_suc>0 ) {
+    if ( varbose_["r_limit"] ) if ( N_suc>0 ) {
         char header[100]; sprintf(header, "[%d] servo(s) are read", N_suc);
         auto ss = control_table_layout(width_log_, id_limit_vec_map, limit_addr_list, string(header));
         ROS_INFO_STREAM(ss);
@@ -433,19 +433,19 @@ template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> 
  * @brief 目標値をすべて読み込む
  * @return 読み取りの成功率
 */
-template <> double DynamixelHandler::SyncReadGoal(set<GoalValueIndex> list_read_goal){
+template <> double DynamixelHandler::SyncReadGoal(set<GoalIndex> list_read_goal){
     double suc_rate_X = SyncReadGoal<AddrX>(list_read_goal);
     double suc_rate_P = SyncReadGoal<AddrP>(list_read_goal);
     return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / series_.size();
 }
-template <typename Addr> double DynamixelHandler::SyncReadGoal(set<GoalValueIndex> list_read_goal) {
+template <typename Addr> double DynamixelHandler::SyncReadGoal(set<GoalIndex> list_read_goal) {
     if ( list_read_goal.empty() ) return 1.0; // 空なら即時return
     //* 読み込む範囲のgoal_addr_listのインデックスを取得
     auto [start, end] = minmax_element(list_read_goal.begin(), list_read_goal.end());
     if ( use_split_read_ || id_set_.size()>5 ) end = start; // 分割読み込みを常に有効にする．
     //* 読み込みに必要な変数を用意
     vector<DynamixelAddress> goal_addr_list;
-    for (GoalValueIndex g=*start; g<=*end; g++) switch ( g ) {
+    for (GoalIndex g=*start; g<=*end; g++) switch ( g ) {
         case GOAL_PWM      : goal_addr_list.push_back(Addr::goal_pwm      ); break;
         case GOAL_CURRENT  : goal_addr_list.push_back(Addr::goal_current  ); break;
         case GOAL_VELOCITY : goal_addr_list.push_back(Addr::goal_velocity ); break;
@@ -467,14 +467,14 @@ template <typename Addr> double DynamixelHandler::SyncReadGoal(set<GoalValueInde
     const bool is_timeout   = dyn_comm_.timeout_last_read();
     const bool has_comm_err = dyn_comm_.comm_error_last_read();
     // 通信エラーの表示
-    if ( varbose_read_opt_err_ ) if ( has_comm_err || is_timeout ) {
+    if ( varbose_["r_goal_err"] ) if ( has_comm_err || is_timeout ) {
         vector<uint8_t> failed_id_list;
         for ( auto id : target_id_list ) if ( id_goal_vec_map.find(id) == id_goal_vec_map.end() ) failed_id_list.push_back(id);
         char header[100]; sprintf(header, "[%d] servo(s) failed to read",N_total - N_suc);
         auto ss = id_list_layout(failed_id_list, string(header) + (is_timeout? " (time out)" : " (some kind packet error)"));
         ROS_WARN_STREAM(ss);
     }
-    if ( varbose_read_opt_ ) if ( N_suc>0 ) {
+    if ( varbose_["r_goal"] ) if ( N_suc>0 ) {
         char header[100]; sprintf(header, "[%d] servo(s) are read", N_suc);
         auto ss = control_table_layout(width_log_, id_goal_vec_map, goal_addr_list, string(header));
         ROS_INFO_STREAM(ss);
