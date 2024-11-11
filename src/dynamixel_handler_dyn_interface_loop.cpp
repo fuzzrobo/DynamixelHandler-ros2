@@ -1,4 +1,7 @@
 #include "dynamixel_handler.hpp"
+#include "myUtils/formatting_output.hpp"
+#include "myUtils/logging_like_ros1.hpp"
+#include "myUtils/make_iterator_convenient.hpp"
 
 //* Main loop 内で使う全モータへの一括読み書き関数たち
 

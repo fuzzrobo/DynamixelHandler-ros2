@@ -67,7 +67,7 @@ add_executable(
 	include/mylib_dynamixel/src/dynamixel_communicator_main.cpp
 	include/mylib_dynamixel/src/dynamixel_communicator_retry.cpp
   
-	src/sub_node/main_dynamixel_unify_baudrate.cpp
+	src/sub_node/dynamixel_unify_baudrate.cpp
 )
 target_include_directories(
   dynamixel_unify_baudrate_node PUBLIC
@@ -107,10 +107,11 @@ add_executable(
 	include/mylib_dynamixel/src/dynamixel_communicator_main.cpp
 	include/mylib_dynamixel/src/dynamixel_communicator_retry.cpp
   
-	src/dynamixel_handler_ros_interface.cpp
+	src/dynamixel_handler_ros_interface_sub.cpp
+	src/dynamixel_handler_ros_interface_pub.cpp
 	src/dynamixel_handler_dyn_interface_loop.cpp
 	src/dynamixel_handler_dyn_interface_once.cpp
-	src/main_dynamixel_handler.cpp
+	src/main.cpp
 )
 target_include_directories(
   dynamixel_handler_node PUBLIC

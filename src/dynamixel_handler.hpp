@@ -1,5 +1,5 @@
-#ifndef DYNAMIXEL_HANDLER_H_
-#define DYNAMIXEL_HANDLER_H_
+#ifndef DYNAMIXEL_HANDLER_H
+#define DYNAMIXEL_HANDLER_H
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -51,27 +51,6 @@ using std::min_element;
 using std::clamp;
 using std::min;
 using std::max;
-
-// 角度変換
-static const double DEG = M_PI/180.0; // degを単位に持つ数字に掛けるとradになる
-static double deg2rad(double deg){ return deg*DEG; }
-static double rad2deg(double rad){ return rad/DEG; }
-// 一定時間待つための関数
-static void rsleep(int millisec) { std::this_thread::sleep_for(std::chrono::milliseconds(millisec));}
-// enum でインクリメントをするため
-template<typename T> T& operator ++ (T& v     ) { v = static_cast<T>(v + 1); return v;}
-template<typename T> T  operator ++ (T& v, int) { T p=v; ++v; return p;}
-// ROS1 のようにログを出力するためのマクロ
-#define ROS_INFO(...)  RCLCPP_INFO(this->get_logger(), __VA_ARGS__)
-#define ROS_WARN(...)  RCLCPP_WARN(this->get_logger(), __VA_ARGS__)
-#define ROS_ERROR(...) RCLCPP_ERROR(this->get_logger(), __VA_ARGS__)
-#define ROS_STOP(...)  {RCLCPP_ERROR(this->get_logger(), __VA_ARGS__); rclcpp::shutdown();}
-#define ROS_INFO_STREAM(...)  RCLCPP_INFO_STREAM(this->get_logger(), __VA_ARGS__)
-#define ROS_WARN_STREAM(...)  RCLCPP_WARN_STREAM(this->get_logger(), __VA_ARGS__)
-#define ROS_ERROR_STREAM(...) RCLCPP_ERROR_STREAM(this->get_logger(), __VA_ARGS__)
-// vectorやsetに値が含まれているかどうかを調べる関数
-template <typename T> bool is_in(const T& val, const vector<T>& v) { return std::find(v.begin(), v.end(), val) != v.end(); }
-template <typename T> bool is_in(const T& val, const    set<T>& s) { return s.find(val) != s.end(); }
 
 /**
  * DynamixelをROSで動かすためのクラス．本pkgのメインクラス． 
@@ -295,43 +274,4 @@ class DynamixelHandler : public rclcpp::Node {
         template <typename Addr=AddrCommon> void CheckDynamixels();
 };
 
-// ちょっとした文字列の整形を行う補助関数
-
-using std::setw;
-using std::prev;
-using std::next;
-
-static string control_table_layout(int width, const map<uint8_t, vector<int64_t>>& id_data_map, const vector<DynamixelAddress>& dp_list, const string& header=""){
-    std::stringstream ss;
-    ss << header;
-    if (id_data_map.empty()) return ss.str();
-    // width 以上のID数がある場合は，再帰させることで，縦に並べる
-	width = min(width, (int)id_data_map.size());
-    map<uint8_t, vector<int64_t>> first(id_data_map.begin(), prev(id_data_map.end(), id_data_map.size() - width));
-    map<uint8_t, vector<int64_t>> second(next(id_data_map.begin(), width), id_data_map.end());
-    // 分割した前半を処理
-    ss << "\n" << "ADDR|"; 
-    for (const auto& [id, data] : first) ss << "  [" << setw(3) << (int)id << "] "; 
-    ss << "\n";
-    for (size_t i = 0; i < dp_list.size(); ++i) {
-        ss << "-" << setw(3) << dp_list[i].address() << "|" ;
-        for (const auto& [id, data] : first) ss << std::setfill(' ') << setw(7) << data[i] << " "; 
-        ss << "\n";
-    }
-    // 分割した前半に後半を処理したものを追加する
-    return ss.str() + control_table_layout(width, second, dp_list);
-}
-
-static string id_list_layout(const vector<uint8_t>& id_list, const string& header=""){
-    std::stringstream ss;
-    ss << header << "\n";
-    ss << " ID : [ "; 
-    for ( auto id : id_list ) {
-        ss << (int)id; 
-        if ( id != id_list.back()) ss << ", ";
-    }
-    ss << " ]";
-    return ss.str();
-}
-
-#endif /* DYNAMIXEL_HANDLER_H_ */
+#endif /* DYNAMIXEL_HANDLER_H */

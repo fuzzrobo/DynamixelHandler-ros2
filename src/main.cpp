@@ -1,5 +1,11 @@
 #include "dynamixel_handler.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "myUtils/logging_like_ros1.hpp"
+#include "myUtils/make_iterator_convenient.hpp"
+static constexpr double DEG = M_PI/180.0; // degを単位に持つ数字に掛けるとradになる
+
+// 一定時間待つための関数
+static void rsleep(int millisec) { std::this_thread::sleep_for(std::chrono::milliseconds(millisec));}
 
 using std::bind;
 using std::placeholders::_1;
