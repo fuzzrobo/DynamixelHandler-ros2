@@ -5,9 +5,9 @@ bool[] error
 bool[] ping
 string[] mode
 
-uint16 CONTROL_PWM = 0
-uint16 CONTROL_CURRENT = 1
-uint16 CONTROL_VELOCITY = 2
-uint16 CONTROL_POSITION = 3
-uint16 CONTROL_EXTENDED_POSITION = 4
-uint16 CONTROL_CURRENT_BASED_POSITION = 5
+string CONTROL_PWM = "pwm"
+string CONTROL_CURRENT = "current"
+string CONTROL_VELOCITY = "velocity"
+string CONTROL_POSITION = "position"
+string CONTROL_EXTENDED_POSITION = "ex_position"
+string CONTROL_CURRENT_BASED_POSITION = "cur_position"

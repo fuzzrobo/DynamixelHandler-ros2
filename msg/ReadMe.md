@@ -94,23 +94,25 @@ Pシリーズを併用する場合
 dynamixel_handler::msg::DxlStates msg; //すべての状態が確認できる
 // statusの確認 
 for (size_t i = 0; i < msg.status.id_list.size(); i++) {
-   auto id = msg.status.id_list[i];
-   auto torque = msg.status.torque[i] ? "on" : "off";
-   auto error = msg.status.error[i] ? "error" : "no error";
-   auto ping = msg.status.ping[i] ? "response" : "no response";
-   auto mode = msg.status.mode[i];
-   printf("servo [%d], torque %s, has %s, ping is %s, mode is %s\n", id, torque, error, ping, mode); 
+   printf("servo [%d], torque %s, has %s, ping is %s, mode is %s\n", 
+      msg.status.id_list[i],
+      msg.status.torque[i] ? "on" : "off",
+      msg.status.error[i] ? "error" : "no error",
+      msg.status.ping[i] ? "response" : "no response",
+      msg.status.mode[i]
+   ); 
 }
-// 現在値の確認, present valueはすべての要素があるとは限らないので確認が必要
+// present valueの確認, present valueはすべての要素があるとは限らないので確認が必要
 if ( msg.present.current_ma.empty()     ) return;
 if ( msg.present.velocity_deg_s.empty() ) return;
 if ( msg.present.position_deg.empty()   ) return;
 for (size_t i=0; i < msg.present.id_list.size(); i++) {
-   auto id = msg.present.id_list[i];
-   auto current_ma = msg.present.current_ma[i];
-   auto velocity_deg_s = msg.present.velocity_deg_s[i];
-   auto position_deg = msg.present.position_deg[i];
-   printf("servo [%d], current %f, velocity %f, position %f\n", id, current_ma, velocity_deg_s, position_deg)
+   printf("servo [%d], current: %f mA, velocity: %f deg/s, position: %f deg\n", 
+      msg.present.id_list[i], 
+      msg.present.current_ma[i], 
+      msg.present.velocity_deg_s[i], 
+      msg.present.position_deg[i]
+   );
 }
 ```
 `dynamixel_handler::msg::DxlStates` の中身
