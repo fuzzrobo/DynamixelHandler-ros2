@@ -24,6 +24,10 @@ set(msg_files
   "msg/DynamixelLimit.msg"
   "msg/DynamixelError.msg"
   "msg/DynamixelExtra.msg"
+  "msg/DynamixelExtraDrivemode.msg"
+  "msg/DynamixelExtraShutdown.msg"
+  "msg/DynamixelExtraRestureconfig.msg"
+  "msg/DynamixelExtraMovingstatus.msg"
 
   "msg/DynamixelDebug.msg"
   "msg/DynamixelDebugElement.msg"
@@ -40,6 +44,8 @@ set(msg_files
   "msg/DynamixelControlPVelocity.msg"
   "msg/DynamixelControlPPosition.msg"
   "msg/DynamixelControlPExtendedPosition.msg"
+
+  "msg/ExternalPort.msg"
 )
 set(srv_files
 

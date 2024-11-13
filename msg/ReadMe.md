@@ -92,7 +92,7 @@ Pシリーズを併用する場合
 以下のように利用する想定
 ```cpp
 dynamixel_handler::msg::DxlStates msg; //すべての状態が確認できる
-// statusの確認 
+// subscribe した status の確認, 単に表示するだけ
 for (size_t i = 0; i < msg.status.id_list.size(); i++) {
    printf("servo [%d], torque %s, has %s, ping is %s, mode is %s\n", 
       msg.status.id_list[i],
@@ -102,17 +102,13 @@ for (size_t i = 0; i < msg.status.id_list.size(); i++) {
       msg.status.mode[i]
    ); 
 }
-// present valueの確認, present valueはすべての要素があるとは限らないので確認が必要
-if ( msg.present.current_ma.empty()     ) return;
-if ( msg.present.velocity_deg_s.empty() ) return;
-if ( msg.present.position_deg.empty()   ) return;
-for (size_t i=0; i < msg.present.id_list.size(); i++) {
-   printf("servo [%d], current: %f mA, velocity: %f deg/s, position: %f deg\n", 
-      msg.present.id_list[i], 
-      msg.present.current_ma[i], 
-      msg.present.velocity_deg_s[i], 
-      msg.present.position_deg[i]
-   );
+// subscribe した present value を変数に格納, present valueはすべての要素があるとは限らないので確認が必要
+auto p = msg.present;
+for (size_t i=0; i < p.id_list.size(); i++) {
+   auto id = p.id_list[i];
+   if ( !p.current_ma.empty()     ) cur_map[id] = p.current_ma[i];
+   if ( !p.velocity_deg_s.empty() ) vel_map[id] = p.velocity_deg_s[i];
+   if ( !p.position_deg.empty()   ) pos_map[id] = p.position_deg[i];
 }
 ```
 `dynamixel_handler::msg::DxlStates` の中身
@@ -250,10 +246,20 @@ cmd.gain.position_d_gain_pulse.push_back(50.0);
 // id:3 のサーボのgoal値を直接書き換え
 cmd.goal.id_list.push_back(3);
 cmd.goal.position_deg.push_back(100.0);//  goal値への書き込みはcontrol mode次第で有効
+// より実践的には以下のように使う
+for ( auto [id, target] : target_map ) {
+   auto [pos, cur] = target;
+   cmd.current_base_position_control.id_list.push_back(id);
+   cmd.current_base_position_control.position_deg.push_back(pos);
+   cmd.current_base_position_control.current_ma.push_back(cur);
+   cmd.current_base_position_control.profile_vel_deg_s.push_back(100.0);
+   cmd.current_base_position_control.profile_acc_deg_ss.push_back(100.0);
+}
+pub_dxl_cmd_->publish( cmd );
 ```
 `dynamixel_handler::msg::DxlCommandsX` の中身
 ```yaml
-$ ros2 topic pub /dynamixel/commands dynamixel_handler::msg::DxlCommandsX  #このtopicはコマンドラインから送る想定ではない．
+$ ros2 topic echo --flow-style /dynamixel/commands #このtopicはコマンドラインから送る想定ではない．
 common: #common_cmd型
    command: "torque_on" #要素が1つの時は全idに適用
    id_list: [1,2,3,4]
@@ -338,39 +344,74 @@ extra:
 
 #### コマンドラインでの使用
 ```yaml
-ros2 topic pub /dynamixel/command/common dynamixel_handler::msg::DynamixelCommonCmd
+ros2 topic echo --flow-style /dynamixel/command/common
 command: "torque_on"
 id_list: [1,2,3,4]
+
+ros2 topic echo --flow-style /dynamixel/command/current_base_position_control
+id_list: [1,2,3,4]
+current_ma: [0.0, 0.0, 0.0, 0.0]
+position_deg: [0.0, 0.0, 0.0, 0.0]
+rotation: [0.0, 0.0, 0.0, 0.0]
+profile_vel_deg_s: [0.0, 0.0, 0.0, 0.0]
+profile_acc_deg_ss: [0.0, 0.0, 0.0, 0.0]
 ```
 
 ## external port に関して
 こいつだけ, XH540シリーズだけで使える機能なので，独立させる．
+これ難しいんだよな，ID × Port_num に対して，機能を設定したいんだけど...
+```cpp
+// ID: 1 のサーボのポート1と2にはLEDが接続されている
+constexpr int ID_LIGHT = 1;
+constexpr int PORT_LIGHT1 = 1;
+constexpr int PORT_LIGHT2 = 2;
+// ID: 1 のサーボのポート3はマグネットセンサが接続されている
+constexpr int ID_MAGNET = 2;
+constexpr int PORT_MAGNET = 3;
+// 使い方1 書き込み
+ExternalPort msg;
+msg.set__id_list({ID_LIGHT            , ID_LIGHT            });
+msg.set__port   ({PORT_LIGHT1         , PORT_LIGHT2         });
+msg.set__mode   ({msg.MODE_DIGITAL_OUT, msg.MODE_DIGITAL_OUT});
+msg.set__data   ({level>0 ? 1 : 0, level>1 ? 1 : 0});
+msg.id_list.push_back(ID_MAGNET);
+msg.port.push_back(PORT_MAGNET);
+msg.mode.push_back(msg.MODE_ANALOG_IN);
+pub_ex_port_->publish( msg );
 
-### Read
+// 使い方2 読み込み
+const int val_magnet = 0;
+for ( size_t i = 0; i < msg.id_list.size(); i++ ) {
+   if ( msg.id_list[i] != ID_MAGNET ) continue;
+   if ( msg.port[i] != PORT_MAGNET ) continue;
+   val_magnet = msg.data[i];
+}
+printf("magnet sensor is %d\n", val_magnet);
+```
+`dynamixel_handler::msg::ExternalPort` の中身
 ```yaml
-$ ros2 topic echo --flow-style /dynamixel/ex_port/read # あんまり一般的じゃないし，独立させようかな
+$ ros2 topic echo --flow-style /dynamixel/ex_port/write # ex_port型
 stamp: 0000
-id_list: [1, 2, 3, 4]
-port_1:
-   mode: ['read', 'read', 'read', 'read']
-   value: [0, 0, 0, 0]
-port_2:
-   mode: ['write', 'read', 'read', 'read']
-   value: [0, 0, 0, 0]
-port_3:
-   mode: ['write', 'read', 'read', 'read']
-   value: [0, 0, 0, 0]
-port_4:
-   mode: []
-   value: []
-```
-### Write
-```yaml
-$ ros2 topic pub /dynamixel/ex_port/write dynamixel_handler::msg::DynamixelExternalPort
-id_list: [1, 2, 3, 4]
-port_num: [1, 1, 1, 2]
-port: 
-   mode: ['read', 'read', 'read', 'read']
-   value: [0, 0, 0, 0]
-```
+id_list: [1, 1, 2]
+port: [1, 2, 3]
+mode: ["d_out", "d_out", "a_in"]
+data: [1, 0, 0]
 
+$ ros2 topic echo --flow-style /dynamixel/ex_port/read # ex_port型
+stamp: 0000
+id_list: [1, 1, 2]
+port: [1, 2, 3]
+mode: ["d_out", "d_out", "a_in"]
+data: [1, 0, 100]
+---
+stamp: 0001
+id_list: [2]
+port: [3]
+mode: ["a_in"]
+data: [200]
+---
+```
+高周期でreadする可能性もあるし，readするしないを決めるための方法が必要かもしれない．
+
+取りあえず，ex_port/writeトピックで触れてないポートは，readしないことにしよう．
+そして，a_in/d_in系の書き込みをしたものについては，常時read, それ以外は，ex_port/writeトピックの直後だけreadする．
