@@ -528,10 +528,10 @@ template <typename Addr> void DynamixelHandler::CheckDynamixels(){
     auto id_torque_map     = dyn_comm_.SyncRead( Addr::torque_enable, target_id_list );
     for ( const auto& [id, torque] : id_torque_map ) tq_mode_[id] = torque;
 
-    // 通信エラーがあれば，モータの応答を確認
+    // 直前に通信エラーがあれば，モータの応答を確認
     const bool is_timeout   = dyn_comm_.timeout_last_read();
     const bool has_comm_err = dyn_comm_.comm_error_last_read();
-    if ( !is_timeout && !has_comm_err ) {ping_err_.clear(); return;} // 通信エラーがない場合は即時return
+    if ( !is_timeout && !has_comm_err ) { ping_err_.clear(); return; } // 通信エラーがない場合は即時return
 
     vector<uint8_t> alive_id_list;
     for (auto id : target_id_list) if ( dyn_comm_.Ping(id) ) alive_id_list.push_back(id);
@@ -552,10 +552,4 @@ template <typename Addr> void DynamixelHandler::CheckDynamixels(){
                 ping_err_[id] = 0;
             }
     }
-
-    // auto id_dv_op_mode_map = dyn_comm_.SyncRead({Addr::drive_mode, Addr::operating_mode}, target_id_list);  fflush(stdout);
-    // for ( const auto& [id, dv_op]  : id_dv_op_mode_map ) {
-    //     dv_mode_[id] = dv_op[0];
-    //     op_mode_[id] = dv_op[1];
-    // }
 }

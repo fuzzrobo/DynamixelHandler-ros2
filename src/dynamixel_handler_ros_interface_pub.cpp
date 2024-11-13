@@ -5,6 +5,10 @@
 static constexpr double DEG = M_PI/180.0; // degを単位に持つ数字に掛けるとradになる
 double round4(double val) { return round(val*10000.0)/10000.0; }
 
+void DynamixelHandler::BroadcastStates(){
+    // msg.stamp = this->get_clock()->now();
+}
+
 void DynamixelHandler::BroadcastState_Status(){
     DynamixelStatus msg;
     for (const auto& [id, value] : state_r_) if ( is_in(id, id_set_) ) {
@@ -14,11 +18,13 @@ void DynamixelHandler::BroadcastState_Status(){
         msg.error.push_back(has_hardware_err_);
         msg.ping.push_back(ping_err_[id]==0);
         switch(op_mode_[id]) {
-            case OPERATING_MODE_CURRENT:              msg.mode.push_back("current");               break;
-            case OPERATING_MODE_VELOCITY:             msg.mode.push_back("velocity");              break;
-            case OPERATING_MODE_POSITION:             msg.mode.push_back("position");              break;
-            case OPERATING_MODE_EXTENDED_POSITION:    msg.mode.push_back("extended_position");     break;
-            case OPERATING_MODE_CURRENT_BASE_POSITION:msg.mode.push_back("current_base_position"); break;
+            case OPERATING_MODE_PWM:                  msg.mode.push_back(msg.CONTROL_PWM                  ); break;
+            case OPERATING_MODE_CURRENT:              msg.mode.push_back(msg.CONTROL_CURRENT              ); break;
+            case OPERATING_MODE_VELOCITY:             msg.mode.push_back(msg.CONTROL_VELOCITY             ); break;
+            case OPERATING_MODE_POSITION:             msg.mode.push_back(msg.CONTROL_POSITION             ); break;
+            case OPERATING_MODE_EXTENDED_POSITION:    msg.mode.push_back(msg.CONTROL_EXTENDED_POSITION    ); break;
+            case OPERATING_MODE_CURRENT_BASE_POSITION:msg.mode.push_back(msg.CONTROL_CURRENT_BASE_POSITION); break;
+            default:                                  msg.mode.push_back(""); break;
         }
     }
     pub_status_->publish(msg);
@@ -45,7 +51,6 @@ void DynamixelHandler::BroadcastState_Present(){
 
 void DynamixelHandler::BroadcastState_Error(){
     DynamixelError msg;
-    // msg.stamp = this->get_clock()->now();
     for (const auto& [id, error]: hardware_error_) if ( is_in(id, id_set_) ) {
         if (error[INPUT_VOLTAGE     ]) msg.input_voltage.push_back     (id);
         if (error[MOTOR_HALL_SENSOR ]) msg.motor_hall_sensor.push_back (id);
@@ -59,7 +64,6 @@ void DynamixelHandler::BroadcastState_Error(){
 
 void DynamixelHandler::BroadcastState_Limit(){
     DynamixelLimit msg;
-    // msg.stamp = this->get_clock()->now();
     for (const auto& [id, limit] : limit_r_) if ( is_in(id, id_set_) ) {
         msg.id_list.push_back(id);
         msg.temperature_limit_degc.push_back   (round4(limit[TEMPERATURE_LIMIT ]    ));
@@ -77,7 +81,6 @@ void DynamixelHandler::BroadcastState_Limit(){
 
 void DynamixelHandler::BroadcastState_Gain(){
     DynamixelGain msg;
-    // msg.stamp = this->get_clock()->now();
     for ( const auto& [id, gain] : gain_r_ ) if ( is_in(id, id_set_) ) {
         msg.id_list.push_back(id);
         msg.velocity_i_gain_pulse.push_back     (gain[VELOCITY_I_GAIN     ]);
@@ -93,7 +96,6 @@ void DynamixelHandler::BroadcastState_Gain(){
 
 void DynamixelHandler::BroadcastState_Goal(){
     DynamixelGoal msg;
-    // msg.stamp = this->get_clock()->now();
     for ( const auto& [id, goal] : goal_r_ ) if ( is_in(id, id_set_) ) {
         msg.id_list.push_back(id);
         msg.pwm_percent.push_back       (round4(goal[GOAL_PWM     ]));
@@ -104,4 +106,18 @@ void DynamixelHandler::BroadcastState_Goal(){
         msg.position_deg.push_back      (round4(goal[GOAL_POSITION]/DEG));
     }
     pub_goal_->publish(msg);
+}
+
+void DynamixelHandler::BroadcastDebug(){
+    DynamixelDebug msg;
+    // msg.status = BroadcastState_status();
+    for ( auto id : id_set_ ) {
+        msg.current_ma.present.push_back    (state_r_[id][PRESENT_CURRENT]);
+        msg.current_ma.goal.push_back       ( goal_r_[id][GOAL_CURRENT   ]);
+        msg.velocity_deg_s.present.push_back(state_r_[id][PRESENT_VELOCITY]/DEG);
+        msg.velocity_deg_s.goal.push_back   ( goal_r_[id][GOAL_VELOCITY   ]/DEG);
+        msg.position_deg.present.push_back  (state_r_[id][PRESENT_POSITION]/DEG);
+        msg.position_deg.goal.push_back     ( goal_r_[id][GOAL_POSITION   ]/DEG);
+    }
+    pub_debug_->publish(msg);
 }

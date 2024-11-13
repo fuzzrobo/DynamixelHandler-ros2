@@ -65,7 +65,7 @@ class DynamixelHandler : public rclcpp::Node {
         void MainLoop();     // メインループ
 
         //* ROS publishを担う関数と subscliber callback関数
-        // void BroadcastDebug();
+        void BroadcastDebug();
         void BroadcastState_Status();
         void BroadcastState_Present();
         void BroadcastState_Goal(); 
