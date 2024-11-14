@@ -203,13 +203,13 @@ class DynamixelHandler : public rclcpp::Node {
         static inline map<uint8_t, uint8_t> op_mode_; // 各dynamixelの id と 制御モード のマップ
         static inline map<uint8_t, uint8_t> dv_mode_; // 各dynamixelの id と ドライブモード のマップ
         static inline map<uint8_t, array<bool,   _num_hw_err >> hardware_error_; // 各dynamixelの id と サーボが起こしたハードウェアエラーのマップ, 中身の並びはHWErrIndexに対応する
-        static inline map<uint8_t, array<double, _num_present>> present_r_;  // 各dynamixelの id と サーボから読み込んだ状態のマップ
-        static inline map<uint8_t, array<double, _num_goal   >> goal_w_; // 各dynamixelの id と サーボへ書き込む指令のマップ
-        static inline map<uint8_t, array<double ,_num_goal   >> goal_r_; // 各dynamixelの id と サーボから読み込んだ指令のマップ
-        static inline map<uint8_t, array<uint16_t,_num_gain  >> gain_w_;    // 各dynamixelの id と サーボ
-        static inline map<uint8_t, array<uint16_t,_num_gain  >> gain_r_;    // 各dynamixelの id と サーボ
-        static inline map<uint8_t, array<double, _num_limit  >> limit_w_;   // 各dynamixelの id と サーボ
-        static inline map<uint8_t, array<double, _num_limit  >> limit_r_;   // 各dynamixelの id と サーボ
+        static inline map<uint8_t, array<double, _num_present>> present_r_; // 各dynamixelの id と サーボから読み込んだ状態のマップ
+        static inline map<uint8_t, array<double, _num_goal   >> goal_w_;    // 各dynamixelの id と サーボへ書き込む目標状態のマップ
+        static inline map<uint8_t, array<double ,_num_goal   >> goal_r_;    // 各dynamixelの id と サーボから読み込んだ目標状態のマップ
+        static inline map<uint8_t, array<uint16_t,_num_gain  >> gain_w_;    // 各dynamixelの id と サーボへ書き込むゲインのマップ
+        static inline map<uint8_t, array<uint16_t,_num_gain  >> gain_r_;    // 各dynamixelの id と サーボから読み込んだゲインのマップ
+        static inline map<uint8_t, array<double, _num_limit  >> limit_w_;   // 各dynamixelの id と サーボへ書き込む制限値のマップ
+        static inline map<uint8_t, array<double, _num_limit  >> limit_r_;   // 各dynamixelの id と サーボから読み込んだ制限値のマップ
 
         // 上記の変数を適切に使うための補助的なフラグ
         static inline map<uint8_t, double> when_op_mode_updated_; // 各dynamixelの id と op_mode_ が更新された時刻のマップ
