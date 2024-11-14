@@ -86,6 +86,13 @@ bool DynamixelHandler::addDynamixel(uint8_t id){
     return true;
 }
 
+void DynamixelHandler::RemoveDynamixel(uint8_t id){
+    if ( !is_in(id, id_set_) ) return;
+    id_set_.erase(id);
+    num_[series_[id]]--;
+    ROS_INFO("ID [%d] is removed", id);
+}
+
 // 回転数が消えることを考慮して，モータをリブートする．
 bool DynamixelHandler::ClearHardwareError(uint8_t id){
     if ( !is_in(id, id_set_) ) return false;

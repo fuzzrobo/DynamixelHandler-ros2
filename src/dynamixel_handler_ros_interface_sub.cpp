@@ -65,7 +65,7 @@ void DynamixelHandler::CallbackCmd_Common(const DynamixelCommonCmd& msg) {
     if (msg.command == "torque_off"  || msg.command == "TOFF")
         for (auto id : id_list) TorqueOff(id);
     if (msg.command == "remove_id"   || msg.command == "RMID")
-        for (auto id : id_list) id_set_.erase( id );
+        for (auto id : id_list) RemoveDynamixel(id);
     if (msg.command == "add_id"      || msg.command == "ADID")
         for (auto id : id_list) addDynamixel(id);
     if (msg.command == "reset_offset" || msg.command == "RO") 

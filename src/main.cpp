@@ -200,6 +200,8 @@ void DynamixelHandler::MainLoop(){
     list_write_goal_.clear();
     SyncWriteGain(list_write_gain_);
     list_write_gain_.clear();
+    // SyncWriteLimit(list_write_limit_);
+    // list_write_limit_.clear();
 /* 処理時間時間の計測 */ wtime += duration_cast<microseconds>(system_clock::now()-wstart).count() / 1000.0;
 
     //* present value について read する情報を決定
@@ -221,6 +223,8 @@ void DynamixelHandler::MainLoop(){
     if ( pub_ratio_["status"] && cnt % pub_ratio_["status"] == 0 ) {
         CheckDynamixels(); // Statusに該当するもろもろをチェック
         success_rate[STATUS] = 1.0;
+        for (auto id: id_set_) if ( auto_remove_count_ ) 
+            if ( ping_err_[id] > auto_remove_count_) RemoveDynamixel(id);
         if (success_rate[STATUS]) msg.status = BroadcastState_Status();
     }
     if ( !list_read_present_.empty() ){

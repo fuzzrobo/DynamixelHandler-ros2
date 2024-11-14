@@ -544,10 +544,6 @@ template <typename Addr> void DynamixelHandler::CheckDynamixels(){
                 ping_err_[id]++;
                 ROS_WARN("Servo id [%d] is dead (%d count / %s)", id, (int)ping_err_[id],
                  auto_remove_count_ ? (std::to_string(auto_remove_count_)+"count").c_str() : "inf");
-                if (auto_remove_count_ && ping_err_[id] > auto_remove_count_) {
-                    ROS_ERROR("Servo id [%d] is removed", id);
-                    id_set_.erase(id);
-                }
             } else {
                 ping_err_[id] = 0;
             }
