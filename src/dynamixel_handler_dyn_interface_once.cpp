@@ -15,6 +15,7 @@ uint8_t DynamixelHandler::ScanDynamixels(uint8_t id_min, uint8_t id_max, uint32_
         addDynamixel(id);
         if ( !is_in(id, id_set_) && is_in(id-1, id_set_) ) ROS_INFO("Scanning: ");
         if ( !is_in(id, id_set_)                         ) ROS_INFO("          %c[1A%d", 0x1b, id);
+        if ( !rclcpp::ok() ) return 0;
     } 
     auto num_found = id_set_.size();
     // 再帰から脱する条件

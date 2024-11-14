@@ -214,12 +214,12 @@ template <typename Addr> double DynamixelHandler::SyncReadPresent(set<PresentInd
         ROS_INFO_STREAM(ss);
         if ( has_hardware_err_ ) ROS_WARN( "Hardware Error are detected");
     }
-    //* state_r_に反映
+    //* present_r_に反映
     const unsigned int num_state_now  = *end-*start+1;
     for ( size_t i = 0; i < num_state_now; i++ ) {
         const auto addr = state_addr_list[i];
         for (const auto& [id, data_int] : id_st_vec_map)
-            state_r_[id][*start+i] = addr.pulse2val( data_int[i], model_[id]);
+            present_r_[id][*start+i] = addr.pulse2val( data_int[i], model_[id]);
     }
     // 今回読み込んだ範囲を消去して残りを再帰的に処理, use_split_read_=falseの場合は全て削除されるので,再帰しない
     list_read_state.erase(start, ++end); // 今回読み込んだ範囲を消去

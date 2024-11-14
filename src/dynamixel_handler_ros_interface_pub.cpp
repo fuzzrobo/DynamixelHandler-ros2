@@ -7,7 +7,7 @@ double round4(double val) { return round(val*10000.0)/10000.0; }
 
 DynamixelStatus DynamixelHandler::BroadcastState_Status(){
     DynamixelStatus msg;
-    for (const auto& [id, value] : state_r_) if ( is_in(id, id_set_) ) {
+    for (const auto id : id_set_ ) {
         msg.id_list.push_back(id);
         msg.torque.push_back(tq_mode_[id]==TORQUE_ENABLE);
         msg.error.push_back(has_hardware_err_);
@@ -19,7 +19,7 @@ DynamixelStatus DynamixelHandler::BroadcastState_Status(){
             case OPERATING_MODE_POSITION:             msg.mode.push_back(msg.CONTROL_POSITION             ); break;
             case OPERATING_MODE_EXTENDED_POSITION:    msg.mode.push_back(msg.CONTROL_EXTENDED_POSITION    ); break;
             case OPERATING_MODE_CURRENT_BASE_POSITION:msg.mode.push_back(msg.CONTROL_CURRENT_BASE_POSITION); break;
-            default:                                  msg.mode.push_back(""); break;
+            default:                                  msg.mode.push_back(""                               ); break;
         }
     }
     pub_status_->publish(msg);
@@ -28,7 +28,7 @@ DynamixelStatus DynamixelHandler::BroadcastState_Status(){
 
 DynamixelPresent DynamixelHandler::BroadcastState_Present(){
     DynamixelPresent msg;
-    for (const auto& [id, value] : state_r_) if ( is_in(id, id_set_) ) {
+    for (const auto& [id, value] : present_r_) if ( is_in(id, id_set_) ) {
         msg.id_list.push_back(id);
         for (auto state : list_read_present_) switch(state) {
             case PRESENT_PWM:          msg.pwm_percent.push_back         (round4(value[state]    )); break;
@@ -111,7 +111,7 @@ DynamixelGoal DynamixelHandler::BroadcastState_Goal(){
 
 DynamixelDebug DynamixelHandler::BroadcastDebug(){
     DynamixelDebug msg;
-    for (const auto& [id, value] : state_r_) if ( is_in(id, id_set_) ) {
+    for (const auto id : id_set_ ) {
         msg.status.id_list.push_back(id);
         msg.status.torque.push_back(tq_mode_[id]==TORQUE_ENABLE);
         msg.status.error.push_back(has_hardware_err_);
@@ -125,12 +125,12 @@ DynamixelDebug DynamixelHandler::BroadcastDebug(){
             case OPERATING_MODE_CURRENT_BASE_POSITION:msg.status.mode.push_back(msg.status.CONTROL_CURRENT_BASE_POSITION); break;
             default:                                  msg.status.mode.push_back(""); break;
         }
-        msg.current_ma.present.push_back    (state_r_[id][PRESENT_CURRENT]);
-        msg.current_ma.goal.push_back       ( goal_r_[id][GOAL_CURRENT   ]);
-        msg.velocity_deg_s.present.push_back(state_r_[id][PRESENT_VELOCITY]/DEG);
-        msg.velocity_deg_s.goal.push_back   ( goal_r_[id][GOAL_VELOCITY   ]/DEG);
-        msg.position_deg.present.push_back  (state_r_[id][PRESENT_POSITION]/DEG);
-        msg.position_deg.goal.push_back     ( goal_r_[id][GOAL_POSITION   ]/DEG);
+        msg.current_ma.present.push_back    (round4(present_r_[id][PRESENT_CURRENT ]));
+        msg.current_ma.goal.push_back       (round4(   goal_r_[id][GOAL_CURRENT    ]));
+        msg.velocity_deg_s.present.push_back(round4(present_r_[id][PRESENT_VELOCITY]/DEG));
+        msg.velocity_deg_s.goal.push_back   (round4(   goal_r_[id][GOAL_VELOCITY   ]/DEG));
+        msg.position_deg.present.push_back  (round4(present_r_[id][PRESENT_POSITION]/DEG));
+        msg.position_deg.goal.push_back     (round4(   goal_r_[id][GOAL_POSITION   ]/DEG));
     }
     pub_debug_->publish(msg);
     return msg;

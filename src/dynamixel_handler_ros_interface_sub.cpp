@@ -165,7 +165,7 @@ void DynamixelHandler::CallbackCmd_X_ExtendedPosition(const DynamixelControlXExt
     const bool has_pa  = !msg.id_list.empty() && msg.id_list.size() == msg.profile_acc_deg_ss.size();
     vector<uint8_t> changed_id_list;
     for ( size_t i=0; i<msg.id_list.size(); i++ ) if ( series_[msg.id_list[i]] == SERIES_X ) {
-        const bool is_change_mode = ChangeOperatingMode(msg.id_list[i], OPERATING_MODE_CURRENT_BASE_POSITION);
+        const bool is_change_mode = ChangeOperatingMode(msg.id_list[i], OPERATING_MODE_EXTENDED_POSITION);
         const double position_deg = (has_pos ? msg.position_deg[i] : 0.0) + (has_rot ? msg.rotation[i]*360 : 0.0);
         if (has_pos || has_rot) store_goal( msg.id_list[i], position_deg             *DEG, GOAL_POSITION, {NONE              , NONE              } );
         if (has_pv            ) store_goal( msg.id_list[i], msg.profile_vel_deg_s[i] *DEG, PROFILE_VEL,   {VELOCITY_LIMIT    , VELOCITY_LIMIT    } );
