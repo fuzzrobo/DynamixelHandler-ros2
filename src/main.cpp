@@ -188,9 +188,11 @@ using std::chrono::system_clock;
 using std::chrono::duration_cast;
 using std::chrono::microseconds;
 
+enum state { STATUS, PRESENT, GOAL, GAIN, LIMIT, ERROR, _num_state };
+
 void DynamixelHandler::MainLoop(){
     static int cnt = -1; cnt++;
-    static float rtime=0, wtime=0, num_pre_suc_p=1, num_pre_suc_f=1, num_pre_read=1;
+    static float rtime=0, wtime=0, num_pre_suc_p=1, num_pre_suc_f=1, num_pre_read=1, num_read=1;
 
 /* 処理時間時間の計測 */ auto wstart = system_clock::now();
     //* topicをSubscribe & Dynamixelへ目標角をWrite
@@ -214,37 +216,41 @@ void DynamixelHandler::MainLoop(){
 
 /* 処理時間時間の計測 */ auto rstart = system_clock::now();
     //* Dynamixelから状態Read & topicをPublish
-    DxlStates msg;
+    auto msg = DxlStates().set__stamp(this->get_clock()->now());
+    std::array<double, _num_state> success_rate{}; // 0初期化する．
     if ( pub_ratio_["status"] && cnt % pub_ratio_["status"] == 0 ) {
         CheckDynamixels(); // Statusに該当するもろもろをチェック
-        BroadcastState_Status();
+        success_rate[STATUS] = 1.0;
+        if (success_rate[STATUS]) msg.status = BroadcastState_Status();
     }
-    if ( !list_read_present_.empty() && pub_ratio_["present"] && cnt % pub_ratio_["present"] == 0 ) {
-        double rate_suc_pre = SyncReadPresent(list_read_present_);
+    if ( !list_read_present_.empty() ){
+        success_rate[PRESENT] = SyncReadPresent(list_read_present_);
         num_pre_read++;
-        num_pre_suc_p += rate_suc_pre > 0.0;
-        num_pre_suc_f += rate_suc_pre > 1.0-1e-6;
-        BroadcastState_Present();
-        // if ( rate_suc_pre >0.0 ) msg->present = BroadcastState_Present();
+        num_pre_suc_p += success_rate[PRESENT] > 0.0;
+        num_pre_suc_f += success_rate[PRESENT] > 1.0-1e-6;
+        if ( success_rate[PRESENT]>0.0 ) msg.present = BroadcastState_Present();
     }
-    if ( !list_read_goal_.empty() && pub_ratio_["goal"] && cnt % pub_ratio_["goal"] == 0 ) {
-        double rate_suc_goal = SyncReadGoal(list_read_goal_);
-        // if ( rate_suc_goal>0.0 ) msg->goal = BroadcastState_Goal();
+    if ( pub_ratio_["goal"] && cnt % pub_ratio_["goal"] == 0 ) {
+        success_rate[GOAL] = SyncReadGoal(list_read_goal_);
+        if ( success_rate[GOAL   ]>0.0 ) msg.goal = BroadcastState_Goal();
     }
-    if ( !list_read_goal_.empty() && pub_ratio_["gain"] && cnt % pub_ratio_["gain"] == 0 ) {
-        double rate_suc_gain = SyncReadGain(list_read_gain_);
-        // if ( rate_suc_gain>0.0 ) msg->gain = BroadcastState_Gain();
+    if ( pub_ratio_["gain"] && cnt % pub_ratio_["gain"] == 0 ) {
+        success_rate[GAIN] = SyncReadGain(list_read_gain_);
+        if ( success_rate[GAIN   ]>0.0 ) msg.gain = BroadcastState_Gain();
     }
-    if ( !list_read_limit_.empty() && pub_ratio_["limit"] && cnt % pub_ratio_["limit"] == 0 ) {
-        double rate_suc_lim = SyncReadLimit(list_read_limit_); // 処理を追加する可能性を考えて，変数を別で用意する冗長な書き方をしている．
-        // if ( rate_suc_lim >0.0 ) msg->limit = BroadcastState_Limit();
+    if ( pub_ratio_["limit"] && cnt % pub_ratio_["limit"] == 0 ) {
+        success_rate[LIMIT] = SyncReadLimit(list_read_limit_); // 処理を追加する可能性を考えて，変数を別で用意する冗長な書き方をしている．
+        if ( success_rate[LIMIT  ]>0.0 ) msg.limit = BroadcastState_Limit();
     }
-    if ( /*                    */    pub_ratio_["error"] && cnt % pub_ratio_["error"] == 0 ) {
-        double rate_suc_err = SyncReadHardwareErrors();
-        // if ( rate_suc_err >0.0 ) msg->error = BroadcastState_Error();
+    if ( pub_ratio_["error"] && cnt % pub_ratio_["error"] == 0 ) {
+        success_rate[ERROR] = SyncReadHardwareErrors();
+        if ( success_rate[ERROR  ]>0.0 ) msg.error = BroadcastState_Error();
     }
-    if ( /*                    */    pub_ratio_["debug"] && cnt % pub_ratio_["debug"] == 0 ) {
+    bool is_any_read = std::any_of( success_rate.begin(), success_rate.end(), [](auto& x){ return x > 0.0; });
+    if ( is_any_read ) {
+        num_read++;
         BroadcastDebug();
+        pub_dxl_states_->publish(msg);
     }
 /* 処理時間時間の計測 */ rtime += duration_cast<microseconds>(system_clock::now()-rstart).count() / 1000.0;
 
@@ -254,12 +260,12 @@ void DynamixelHandler::MainLoop(){
         float partial_suc = 100*num_pre_suc_p/num_pre_read; 
         float full_suc = 100*num_pre_suc_f/num_pre_read;
         char msg[100]; sprintf(msg, "Loop [%d]: write=%.2fms read=%.2fms(p/f=%3.0f%%/%3.0f%%)",
-                               cnt, wtime/ratio_mainloop_, rtime/num_pre_read, partial_suc, full_suc);
+                               cnt, wtime/ratio_mainloop_, rtime/num_read, partial_suc, full_suc);
         if (full_suc < 80) ROS_ERROR("%s", msg); else if (partial_suc < 99) ROS_WARN("%s", msg); else ROS_INFO("%s", msg);
         wtime = 0.0; /* mainloopで行われてる処理の計測時間を初期化 */
     }
     if ( cnt % max({(int)loop_rate_, (int)ratio_mainloop_, 10}) == 0)
-        rtime = num_pre_suc_p = num_pre_suc_f = num_pre_read=0.00001; /* present value の read の周期で行われてる処理の初期化 */ 
+        rtime = num_pre_suc_p = num_pre_suc_f = num_pre_read = num_read = 0.00001; /* present value の read の周期で行われてる処理の初期化 */ 
 }
 
 DynamixelHandler::~DynamixelHandler(){

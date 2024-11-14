@@ -237,7 +237,7 @@ template <typename Addr> double DynamixelHandler::SyncReadPresent(set<PresentInd
 template <> double DynamixelHandler::SyncReadHardwareErrors(){
     double suc_rate_X = SyncReadHardwareErrors<AddrX>();
     double suc_rate_P = SyncReadHardwareErrors<AddrP>();
-    return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / series_.size();
+    return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / (num_[SERIES_X]+num_[SERIES_P]);
 }
 template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(){
     if ( !has_hardware_err_ ) { hardware_error_.clear(); return 1.0; } // 事前にエラーが検出できていない場合は省略
@@ -288,7 +288,7 @@ template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(){
 template <> double DynamixelHandler::SyncReadGain(set<GainIndex> list_read_gain){
     double suc_rate_X = SyncReadGain<AddrX>(list_read_gain);
     double suc_rate_P = SyncReadGain<AddrP>(list_read_gain);
-    return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / series_.size();
+    return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / (num_[SERIES_X]+num_[SERIES_P]);
 }
 template <typename Addr> double DynamixelHandler::SyncReadGain(set<GainIndex> list_read_gain){
     if ( list_read_gain.empty() ) return 1.0; // 空なら即時return
@@ -356,7 +356,7 @@ template <typename Addr> double DynamixelHandler::SyncReadGain(set<GainIndex> li
 template <> double DynamixelHandler::SyncReadLimit(set<LimitIndex> list_read_limit){
     double suc_rate_X = SyncReadLimit<AddrX>(list_read_limit);
     double suc_rate_P = SyncReadLimit<AddrP>(list_read_limit);
-    return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / series_.size();
+    return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / (num_[SERIES_X]+num_[SERIES_P]);
 }
 template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> list_read_limit){
     if ( list_read_limit.empty() ) return 1.0; // 空なら即時return
@@ -439,7 +439,7 @@ template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> 
 template <> double DynamixelHandler::SyncReadGoal(set<GoalIndex> list_read_goal){
     double suc_rate_X = SyncReadGoal<AddrX>(list_read_goal);
     double suc_rate_P = SyncReadGoal<AddrP>(list_read_goal);
-    return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / series_.size();
+    return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / (num_[SERIES_X]+num_[SERIES_P]);
 }
 template <typename Addr> double DynamixelHandler::SyncReadGoal(set<GoalIndex> list_read_goal) {
     if ( list_read_goal.empty() ) return 1.0; // 空なら即時return
