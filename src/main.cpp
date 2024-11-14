@@ -2,10 +2,6 @@
 #include "rclcpp/rclcpp.hpp"
 #include "myUtils/logging_like_ros1.hpp"
 #include "myUtils/make_iterator_convenient.hpp"
-static constexpr double DEG = M_PI/180.0; // degを単位に持つ数字に掛けるとradになる
-
-// 一定時間待つための関数
-static void rsleep(int millisec) { std::this_thread::sleep_for(std::chrono::milliseconds(millisec));}
 
 using std::bind;
 using std::placeholders::_1;
@@ -78,11 +74,16 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     int times_retry ; this->get_parameter_or("init/auto_search_retry_times", times_retry , 5);
     int id_min      ; this->get_parameter_or("init/auto_search_min_id"     , id_min      , 1);
     int id_max      ; this->get_parameter_or("init/auto_search_max_id"     , id_max      , 35);
-
+    this->get_parameter_or("init/default_profile_vel", default_profile_vel_deg_s_, 100.0);
+    this->get_parameter_or("init/default_profile_acc", default_profile_acc_deg_ss_, 600.0);
+    this->get_parameter_or("init/hardware_error_auto_clean", do_clean_hwerr_, true);
+    this->get_parameter_or("init/torque_auto_enable"       , do_torque_on_  , true);
     if ( num_expected>0 ) ROS_INFO("Expected number of Dynamixel is [%d]", num_expected);
     else                  ROS_WARN("\nExpected number of Dynamixel is not set. Free number of Dynamixel is allowed");
     ROS_INFO(" Auto scanning Dynamixel (id range [%d] to [%d]) ...", id_min, id_max);
-    auto num_found = ScanDynamixels(id_min, id_max, num_expected, times_retry);
+    /* *********************** dynamixelを探索し，初期化する ***********************************/
+    /* */auto num_found = ScanDynamixels(id_min, id_max, num_expected, times_retry);
+    /* ***********************************************************************************/
     if( num_found==0 ) { // 見つからなかった場合は初期化失敗で終了
         ROS_ERROR("Dynamixel is not found in USB device [%s]", dyn_comm_.port_name().c_str());
         if ( !is_debug ) throw std::runtime_error("Initialization failed (no dynamixel found)");
@@ -129,57 +130,11 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     if ( pub_ratio_["error"] ) pub_error_  = create_publisher<DynamixelError>  ("dynamixel/state/error"  , 4);
     pub_debug_ = create_publisher<DynamixelDebug>("dynamixel/debug", 4);
 
-    // 状態のreadの前にやるべき初期化
-    double init_pa; this->get_parameter_or("init/profile_acceleration", init_pa, 600.0*DEG);
-    double init_pv; this->get_parameter_or("init/profile_velocity"    , init_pv, 100.0*DEG);
-    for (auto id : id_set_) {
-        WriteBusWatchdog (id, 0.0 );
-        WriteHomingOffset(id, 0.0 );
-        WriteProfileAcc(id, init_pa ); //  設定ファイルからとってこれるようにする
-        WriteProfileVel(id, init_pv ); //  設定ファイルからとってこれるようにする
-    }
-
-    // 最初の一回は全ての情報をread & publish
-    ROS_INFO(" Reading dynamixel states  ...");  
-
-    ROS_INFO(" * present values reading .. "); 
-        while ( rclcpp::ok() && SyncReadPresent( list_read_present_ ) < 1.0-1e-6 ) rsleep(50);                                           
-    ROS_INFO(" * goal values reading  .. "); 
-        while ( rclcpp::ok() && SyncReadGoal ( list_read_goal_  ) < 1.0-1e-6 ) rsleep(50); 
-    ROS_INFO(" * gain values reading  .. "); 
-        while ( rclcpp::ok() && SyncReadGain ( list_read_gain_  ) < 1.0-1e-6 ) rsleep(50); 
-    ROS_INFO(" * limit values reading .. "); 
-        while ( rclcpp::ok() && SyncReadLimit( list_read_limit_ ) < 1.0-1e-6 ) rsleep(50); 
-    ROS_INFO(" * hardware error reading .. "); 
-        while ( rclcpp::ok() && SyncReadHardwareErrors() < 1.0-1e-6 ) rsleep(50); // 最後にやる
-    ROS_INFO(" * other status values reading  ..");
-    for (auto id : id_set_) {
-        tq_mode_[id] = ReadTorqueEnable(id);
-        op_mode_[id] = ReadOperatingMode(id);
-        dv_mode_[id] = ReadDriveMode(id);
-        limit_w_[id] = limit_r_[id];
-        gain_w_[id] = gain_r_[id];
-        goal_w_[id] = goal_r_[id];
-    }
-    ROS_INFO("  ... states reading done");
-   
     BroadcastState_Status();
     BroadcastState_Limit();
     BroadcastState_Gain();  
     BroadcastState_Goal();   
     BroadcastState_Error(); 
-
-    for ( auto id : id_set_ ) if ( abs(init_pa - goal_r_[id][PROFILE_ACC]) > 0.1 ) ROS_WARN("\nProfile acceleration is not set correctly [%d], your setting [%f], but [%f]", id, init_pa, goal_r_[id][PROFILE_ACC]);
-    for ( auto id : id_set_ ) if ( abs(init_pv - goal_r_[id][PROFILE_VEL]) > 0.1 ) ROS_WARN("\nProfile velocity is not set correctly [%d], your setting [%f], but [%f]", id, init_pv, goal_r_[id][PROFILE_VEL]);
-
-    // 状態のreadの後にやるべき初期化
-    ROS_INFO( " Initializing dynamixel state  ...");
-    bool do_clean_hwerr; this->get_parameter_or("init/hardware_error_auto_clean", do_clean_hwerr, true);
-    bool do_torque_on  ; this->get_parameter_or("init/torque_auto_enable"       , do_torque_on  , true);
-    for (auto id : id_set_) {
-        if ( do_clean_hwerr ) ClearHardwareError(id); // 現在の状態を変えない
-        if ( do_torque_on )   TorqueOn(id);           // 現在の状態を変えない
-    } ROS_INFO( "  ... state initialization done ");
 
     ROS_INFO( "..... DynamixelHandler is initialized");
 }

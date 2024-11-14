@@ -131,6 +131,10 @@ class DynamixelHandler : public rclcpp::Node {
         bool use_fast_read_       = false;
         map<string, bool> verbose_; // 各種のverboseフラグ
                     bool  verbose_callback_ = false;
+        double default_profile_vel_deg_s_ = 0.0;
+        double default_profile_acc_deg_ss_ = 0.0;
+        bool do_clean_hwerr_ = false;
+        bool do_torque_on_   = false;
 
         //* Dynamixelとの通信
         DynamixelCommunicator dyn_comm_;
@@ -189,11 +193,11 @@ class DynamixelHandler : public rclcpp::Node {
             /*Indexの最大値*/_num_gain           
         };
         // 連結したサーボの基本情報
-        set<uint8_t> id_set_; // chained dynamixel id list
-        map<uint8_t, uint16_t> model_; // 各dynamixelの id と model のマップ
-        map<uint8_t, uint16_t> series_; // 各dynamixelの id と series のマップ
-        map<uint8_t, size_t  > num_;  // 各dynamixelの series と　個数のマップ 無くても何とかなるけど, 効率を考えて保存する
-        map<uint8_t, uint64_t> ping_err_; // 各dynamixelの id と 連続でpingに応答しなかった回数のマップ
+        static inline set<uint8_t> id_set_; // chained dynamixel id list
+        static inline map<uint8_t, uint16_t> model_; // 各dynamixelの id と model のマップ
+        static inline map<uint8_t, uint16_t> series_; // 各dynamixelの id と series のマップ
+        static inline map<uint8_t, size_t  > num_;  // 各dynamixelの series と　個数のマップ 無くても何とかなるけど, 効率を考えて保存する
+        static inline map<uint8_t, uint64_t> ping_err_; // 各dynamixelの id と 連続でpingに応答しなかった回数のマップ
         // 連結しているサーボの個々の状態を保持するmap
         static inline map<uint8_t, bool> tq_mode_;    // 各dynamixelの id と トルクON/OFF のマップ
         static inline map<uint8_t, uint8_t> op_mode_; // 各dynamixelの id と 制御モード のマップ
@@ -262,16 +266,16 @@ class DynamixelHandler : public rclcpp::Node {
         bool WriteBusWatchdog(uint8_t servo_id, double time);
         bool WriteGains(uint8_t servo_id, array<uint16_t, _num_gain> gains);
         //* 連結しているDynamixelに一括で読み書きするloopで使用する機能
-        template <typename Addr=AddrCommon> void SyncWriteGoal(set<GoalIndex> list_write_goal);
-        template <typename Addr=AddrCommon> void SyncWriteGain (set<GainIndex> list_write_gain); 
-        template <typename Addr=AddrCommon> void SyncWriteLimit(set<LimitIndex> list_write_limit);
-        template <typename Addr=AddrCommon> double SyncReadPresent(set<PresentIndex> list_read_state);
-        template <typename Addr=AddrCommon> double SyncReadGoal(set<GoalIndex> list_read_goal);
-        template <typename Addr=AddrCommon> double SyncReadGain(set<GainIndex> list_read_gain); 
-        template <typename Addr=AddrCommon> double SyncReadLimit(set<LimitIndex> list_read_limit);
-        template <typename Addr=AddrCommon> double SyncReadHardwareErrors();
-        template <typename Addr=AddrCommon> void StopDynamixels();
-        template <typename Addr=AddrCommon> void CheckDynamixels();
+        template <typename Addr=AddrCommon> void SyncWriteGoal(set<GoalIndex> list_write_goal, set<uint8_t> id_set=id_set_);
+        template <typename Addr=AddrCommon> void SyncWriteGain (set<GainIndex> list_write_gain, set<uint8_t> id_set=id_set_);
+        template <typename Addr=AddrCommon> void SyncWriteLimit(set<LimitIndex> list_write_limit, set<uint8_t> id_set=id_set_);
+        template <typename Addr=AddrCommon> double SyncReadPresent(set<PresentIndex> list_read_state, set<uint8_t> id_set=id_set_);
+        template <typename Addr=AddrCommon> double SyncReadGoal(set<GoalIndex> list_read_goal, set<uint8_t> id_set=id_set_);
+        template <typename Addr=AddrCommon> double SyncReadGain(set<GainIndex> list_read_gain, set<uint8_t> id_set=id_set_); 
+        template <typename Addr=AddrCommon> double SyncReadLimit(set<LimitIndex> list_read_limit, set<uint8_t> id_set=id_set_);
+        template <typename Addr=AddrCommon> double SyncReadHardwareErrors(set<uint8_t> id_set=id_set_);
+        template <typename Addr=AddrCommon> void StopDynamixels(set<uint8_t> id_set=id_set_);
+        template <typename Addr=AddrCommon> void CheckDynamixels(set<uint8_t> id_set=id_set_);
 };
 
 #endif /* DYNAMIXEL_HANDLER_H */

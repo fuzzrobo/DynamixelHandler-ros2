@@ -10,28 +10,18 @@ static constexpr double DEG = M_PI/180.0; // degを単位に持つ数字に掛�
 // 各シリーズのDynamixelを検出する．
 uint8_t DynamixelHandler::ScanDynamixels(uint8_t id_min, uint8_t id_max, uint32_t num_expected, uint32_t times_retry) {
     id_set_.clear();
-    for (int id = id_min; id <= id_max; id++) { fflush(stdout);
-        if ( !dyn_comm_.tryPing(id) ) continue;
-        auto dyn_model = dyn_comm_.tryRead(AddrCommon::model_number, id); fflush(stdout);
-        switch ( dynamixel_series(dyn_model) ) { 
-            case SERIES_X: ROS_INFO(" * X series servo id [%d] is found", id);
-                model_[id] = dyn_model;
-                series_[id] = SERIES_X;
-                num_[SERIES_X]++;
-                id_set_.insert(id); break;
-            case SERIES_P: ROS_INFO(" * P series servo id [%d] is found", id);
-                model_[id] = dyn_model;
-                series_[id] = SERIES_P;
-                num_[SERIES_P]++;
-                id_set_.insert(id); break;
-            default: ROS_WARN(" * Unkwon model [%d] servo id [%d] is found", (int)dyn_model, id);
-        }
-    }
+    ROS_INFO("Scanning: ");
+    for (int id = id_min; id <= id_max; id++){
+        addDynamixel(id);
+        if ( !is_in(id, id_set_) && is_in(id-1, id_set_) ) ROS_INFO("Scanning: ");
+        if ( !is_in(id, id_set_)                         ) ROS_INFO("          %c[1A%d", 0x1b, id);
+    } 
+    auto num_found = id_set_.size();
     // 再帰から脱する条件
-    if ( times_retry <= 0 ) return id_set_.size();
-    if ( id_set_.size() != 0 && id_set_.size() >= num_expected ) return id_set_.size();
+    if ( times_retry <= 0 ) return num_found;
+    if ( num_found != 0 && num_found >= num_expected ) return num_found;
     // 再帰処理
-    if ( id_set_.size() < num_expected )  
+    if ( num_found < num_expected )  
         ROS_WARN( "Less expected number of Dynamixel are found,\n > %d times retry left", times_retry );
     if ( num_expected == 0 )
         ROS_WARN( "Dynamixels are not found yet,\n > %d times retry left", times_retry );
@@ -42,35 +32,33 @@ uint8_t DynamixelHandler::ScanDynamixels(uint8_t id_min, uint8_t id_max, uint32_
 bool DynamixelHandler::addDynamixel(uint8_t id){
     if ( !dyn_comm_.tryPing(id) ) return false;
 
-    auto dyn_model = dyn_comm_.tryRead(AddrCommon::model_number, id); fflush(stdout);
+    auto dyn_model = dyn_comm_.tryRead(AddrCommon::model_number, id);
     switch ( dynamixel_series(dyn_model) ) { 
         case SERIES_X: ROS_INFO(" * X series servo id [%d] is found", id);
             model_[id] = dyn_model;
             series_[id] = SERIES_X;
-            num_[SERIES_X]++;
             id_set_.insert(id);
-            break;
+            num_[SERIES_X]++; break;
         case SERIES_P: ROS_INFO(" * P series servo id [%d] is found", id);
             model_[id] = dyn_model;
             series_[id] = SERIES_P;
-            num_[SERIES_P]++;
             id_set_.insert(id);
-            break;
-        default: 
-            ROS_WARN(" * Unkwon model [%d] servo id [%d] is found", (int)dyn_model, id);
+            num_[SERIES_P]++; break;
+        default: ROS_WARN(" * Unkwon model [%d] servo id [%d] is found", (int)dyn_model, id);
             return false;
     }
 
-    double init_pa; this->get_parameter_or("init/profile_acceleration", init_pa, 600.0*DEG);
-    double init_pv; this->get_parameter_or("init/profile_velocity"    , init_pv, 100.0*DEG);
     WriteBusWatchdog (id, 0.0 );
     WriteHomingOffset(id, 0.0 );
-    WriteProfileAcc(id, init_pa ); //  設定ファイルからとってこれるようにする
-    WriteProfileVel(id, init_pv ); //  設定ファイルからとってこれるようにする
+    WriteProfileAcc(id, default_profile_acc_deg_ss_*DEG ); 
+    WriteProfileVel(id, default_profile_vel_deg_s_*DEG );
 
-    while ( rclcpp::ok() && SyncReadLimit( list_read_limit_ ) < 1.0-1e-6 ) rsleep(50); 
-    while ( rclcpp::ok() && SyncReadGain ( list_read_gain_  ) < 1.0-1e-6 ) rsleep(50); 
-    while ( rclcpp::ok() && SyncReadGoal ( list_read_goal_  ) < 1.0-1e-6 ) rsleep(50); 
+    set<uint8_t> tmp = {id};
+    while ( rclcpp::ok() && SyncReadPresent( list_read_present_, tmp) < 1.0-1e-6 ) rsleep(50);
+    while ( rclcpp::ok() && SyncReadGoal   ( list_read_goal_ , tmp) < 1.0-1e-6 ) rsleep(50); 
+    while ( rclcpp::ok() && SyncReadGain   ( list_read_gain_ , tmp) < 1.0-1e-6 ) rsleep(50); 
+    while ( rclcpp::ok() && SyncReadLimit  ( list_read_limit_, tmp) < 1.0-1e-6 ) rsleep(50); 
+    while ( rclcpp::ok() && SyncReadHardwareErrors(tmp) < 1.0-1e-6 ) rsleep(50);
 
     tq_mode_[id] = ReadTorqueEnable(id);
     op_mode_[id] = ReadOperatingMode(id);
@@ -79,10 +67,13 @@ bool DynamixelHandler::addDynamixel(uint8_t id){
     gain_w_[id] = gain_r_[id];
     goal_w_[id] = goal_r_[id];
 
-    bool do_clean_hwerr; this->get_parameter_or("init/hardware_error_auto_clean", do_clean_hwerr, true);
-    bool do_torque_on  ; this->get_parameter_or("init/torque_auto_enable"       , do_torque_on  , true);
-    if ( do_clean_hwerr ) ClearHardwareError(id); // 現在の状態を変えない
-    if ( do_torque_on )   TorqueOn(id);           // 現在の状態を変えない
+    if ( abs(default_profile_acc_deg_ss_*DEG - goal_r_[id][PROFILE_ACC]) > 0.1 ) 
+        ROS_WARN("\nProfile acceleration is not set correctly [%d],\n your setting [%f], but [%f]", id, default_profile_acc_deg_ss_*DEG, goal_r_[id][PROFILE_ACC]);
+    if ( abs(default_profile_vel_deg_s_*DEG - goal_r_[id][PROFILE_VEL]) > 0.1 ) 
+        ROS_WARN("\nProfile velocity is not set correctly [%d],\n your setting [%f], but [%f]", id, default_profile_vel_deg_s_*DEG, goal_r_[id][PROFILE_VEL]);
+
+    if ( do_clean_hwerr_ ) ClearHardwareError(id); // 現在の状態を変えない
+    if ( do_torque_on_ )   TorqueOn(id);           // 現在の状態を変えない
     return true;
 }
 
