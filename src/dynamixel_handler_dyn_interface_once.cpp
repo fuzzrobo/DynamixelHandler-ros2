@@ -16,7 +16,6 @@ uint8_t DynamixelHandler::ScanDynamixels(uint8_t id_min, uint8_t id_max, uint32_
         if ( !is_in(id, id_set_) && is_in(id-1, id_set_) ) ROS_INFO("Scanning: ");
         if ( !is_in(id, id_set_)                         ) ROS_INFO("          %c[1A%d", 0x1b, id);
     } 
-    id_set_.clear();
     auto num_found = id_set_.size();
     // 再帰から脱する条件
     if ( times_retry <= 0 ) return num_found;
@@ -69,9 +68,9 @@ bool DynamixelHandler::addDynamixel(uint8_t id){
     goal_w_[id] = goal_r_[id];
 
     if ( abs(default_profile_acc_deg_ss_*DEG - goal_r_[id][PROFILE_ACC]) > 0.1 ) 
-        ROS_WARN("\nProfile acceleration is not set correctly [%d], your setting [%f], but [%f]", id, default_profile_acc_deg_ss_*DEG, goal_r_[id][PROFILE_ACC]);
+        ROS_WARN("\nProfile acceleration is not set correctly [%d],\n your setting [%f], but [%f]", id, default_profile_acc_deg_ss_*DEG, goal_r_[id][PROFILE_ACC]);
     if ( abs(default_profile_vel_deg_s_*DEG - goal_r_[id][PROFILE_VEL]) > 0.1 ) 
-        ROS_WARN("\nProfile velocity is not set correctly [%d], your setting [%f], but [%f]", id, default_profile_vel_deg_s_*DEG, goal_r_[id][PROFILE_VEL]);
+        ROS_WARN("\nProfile velocity is not set correctly [%d],\n your setting [%f], but [%f]", id, default_profile_vel_deg_s_*DEG, goal_r_[id][PROFILE_VEL]);
 
     if ( do_clean_hwerr_ ) ClearHardwareError(id); // 現在の状態を変えない
     if ( do_torque_on_ )   TorqueOn(id);           // 現在の状態を変えない
