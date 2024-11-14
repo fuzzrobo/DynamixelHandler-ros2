@@ -58,23 +58,23 @@ void DynamixelHandler::CallbackCmd_Common(const DynamixelCommonCmd& msg) {
                                                  else for (auto id : msg.id_list) id_list.push_back(id);
     char header[100]; sprintf(header, "Command [%s] \n (id_list=[] or [254] means all IDs)", msg.command.c_str());
     if (verbose_callback_ && msg.command!="") ROS_INFO_STREAM(id_list_layout(id_list, string(header)));
-    if (msg.command == "clear_error" || msg.command == "CE")
+    if (msg.command == msg.CLEAR_ERROR  || msg.command == "CE")
         for (auto id : id_list) { ClearHardwareError(id); TorqueOn(id);}
-    if (msg.command == "torque_on"   || msg.command == "TON") 
+    if (msg.command == msg.TORQUE_OFF   || msg.command == "TON") 
         for (auto id : id_list) TorqueOn(id);
-    if (msg.command == "torque_off"  || msg.command == "TOFF")
+    if (msg.command == msg.TORQUE_ON    || msg.command == "TOFF")
         for (auto id : id_list) TorqueOff(id);
-    if (msg.command == "remove_id"   || msg.command == "RMID")
+    if (msg.command == msg.REMOVE_ID    || msg.command == "RMID")
         for (auto id : id_list) RemoveDynamixel(id);
-    if (msg.command == "add_id"      || msg.command == "ADID")
+    if (msg.command == msg.ADD_ID       || msg.command == "ADID")
         for (auto id : id_list) addDynamixel(id);
-    if (msg.command == "reset_offset" || msg.command == "RO") 
+    if (msg.command == msg.RESET_OFFSET || msg.command == "RO") 
         for (auto id : id_list) WriteHomingOffset(id, 0);
-    if (msg.command == "enable") 
+    if (msg.command == msg.ENABLE ) 
         for (auto id : id_list) WriteTorqueEnable(id, TORQUE_ENABLE);
-    if (msg.command == "disable")
+    if (msg.command == msg.DISABLE)
         for (auto id : id_list) WriteTorqueEnable(id, TORQUE_DISABLE);
-    if (msg.command == "reboot") 
+    if (msg.command == msg.REBOOT ) 
         for (auto id : id_list) dyn_comm_.Reboot(id);
 }
 
