@@ -14,12 +14,13 @@
         init/auto_search_min_id: 0
         init/auto_search_max_id: 30
         init/auto_search_retry_times: 3
-        init/default_profile_acc: 600.0 # deg/s^2
-        init/default_profile_vel: 100.0 # deg/s
         init/hardware_error_auto_clean: true # 初期化時に Hardware error を自動でクリアするかどうか
         init/torque_auto_enable: true # 初期化時に Torque を自動でONにするかどうか
         term/torque_auto_disable: true # 終了時に Torque を自動でOFFにするかどうか
         middle/no_response_id_auto_remove_count: 0 # 通信が途切れた場合に何カウントで自動で削除するかどうか
+    # デフォルト値の設定
+        default/profile_acc: 600.0 # deg/s^2
+        default/profile_vel: 100.0 # deg/s
     # ループの設定
         loop_rate: 100 # メインループの周期
         verbose_ratio: 300 # メインループの処理時間，通信の成功率を出力, ex 100なら100回に1回出力

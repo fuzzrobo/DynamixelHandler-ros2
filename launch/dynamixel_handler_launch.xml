@@ -27,12 +27,12 @@
         <!-- トピックの設定 -->
         <!-- 書き込み -->
         <remap from="dynamixel/commnads/x"   to="dynamixel/commnads"/>
-        <remap from="dynamixel/command/x/pwm"                   to="dynamixel/command/pwm"/>
-        <remap from="dynamixel/command/x/current"               to="dynamixel/command/current"/>
-        <remap from="dynamixel/command/x/velocity"              to="dynamixel/command/velocity"/>
-        <remap from="dynamixel/command/x/position"              to="dynamixel/command/position"/>
-        <remap from="dynamixel/command/x/extended_position"     to="dynamixel/command/extended_position"/>
-        <remap from="dynamixel/command/x/current_base_position" to="dynamixel/command/current_position"/>
+        <remap from="dynamixel/command/x/pwm_control"                   to="dynamixel/command/pwm_control"/>
+        <remap from="dynamixel/command/x/current_control"               to="dynamixel/command/current_control"/>
+        <remap from="dynamixel/command/x/velocity_control"              to="dynamixel/command/velocity_control"/>
+        <remap from="dynamixel/command/x/position_control"              to="dynamixel/command/position_control"/>
+        <remap from="dynamixel/command/x/extended_position_control"     to="dynamixel/command/extended_position_control"/>
+        <remap from="dynamixel/command/x/current_base_position_control" to="dynamixel/command/current_position_control"/>
         <remap from="dynamixel/command/common" to="dynamixel/command/common"/>
         <remap from="dynamixel/command/status" to="dynamixel/command/status"/>
         <remap from="dynamixel/command/goal"   to="dynamixel/command/goal"/>
