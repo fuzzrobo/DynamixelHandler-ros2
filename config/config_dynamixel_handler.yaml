@@ -33,7 +33,7 @@
             position_trajectory: 0 # この回数に一回position_trajectoryを読み取る
             input_voltage:      29 # この回数に一回present_input_voltageを読み取る
             temperature:        29 # この回数に一回present_temperatureを読み取る
-        pub_ratio/status: 53 # この回数に一回 Status を読み取る, 0=初回のみ
+        pub_ratio/status: 47 # この回数に一回 Status を読み取る, 0=初回のみ
         pub_ratio/goal: 11  # この回数に一回 Goal を読み取る, 0=初回のみ
         pub_ratio/gain: 101 # この回数に一回 Gain を読み取る, 0=初回のみ
         pub_ratio/limit: 307 # この回数に一回 Limit を読み取る, 0=初回のみ
