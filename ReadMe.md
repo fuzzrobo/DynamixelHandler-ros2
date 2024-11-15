@@ -16,10 +16,11 @@ note: ROS2のみ対応
    - 現在値やハードウェアエラーなどの情報を `dynammixel/states` topic として周期的にpub
       - present value デフォルト: 電流/速度/位置を50Hz
       - hardware error デフォルト: 約2Hz
+      - その他 limit, gain, goal value など．
    - subした `dynamixel/commands/x` topic の内容に合わせて制御モードを自動で変更
    - sub/pubされる情報はパルス値ではなく物理量
-   - ユーザは純粋にサーボの目標状態を指令するだけでサーボを制御でき，  
-     また，同様にサーボの現在状態を受け取れる
+      - 0 ~ 4095 の整数値ではなく，-180.0 ~ 180.0 の浮動小数値など. 
+   - ユーザは純粋にサーボの目標状態を指令するだけでサーボを制御でき，また，同様にサーボの現在状態を受け取れる
  - 比較的高速なRead/Writeを実現 (12サーボに電流/速度/位置を Read/Write しても150Hzくらいは出せる)
    - 複数のアドレスを一括で読み書き & 複数のサーボを同時に読み書き(SyncRead/SyncWrite) によって Serial通信の回数を抑える
    - Fast Sync Read インストラクションを活用して Read を高速化
@@ -90,6 +91,33 @@ config/config_dynamixel_handler.ymlの該当部分を編集し，保存．
 #### 2-2. ターミナルから実行
 ```bash
 ros2 launch dynamixel_handler dynamixel_handler_launch.xml
+```
+出力例
+```bash
+# ... 略 ...
+[dynamixel_handler_node-1] DynamixelHandler(): Initializing DynamixelHandler ..... 
+[dynamixel_handler_node-1] Succeeded to open the port : /dev/ttyUSB0!
+[dynamixel_handler_node-1] Succeeded to change the latency timer : 4!
+[dynamixel_handler_node-1] Succeeded to change the baudrate : 2000000!
+[dynamixel_handler_node-1] DynamixelHandler(): 
+[dynamixel_handler_node-1] Expected number of Dynamixel is not set. Free number of Dynamixel is allowed
+[dynamixel_handler_node-1] DynamixelHandler():  Auto scanning Dynamixel (id range [0] to [30]) 
+...
+[dynamixel_handler_node-1] ScanDynamixels(): Scanning: 0 
+[dynamixel_handler_node-1] addDynamixel():  * X series servo id [1] is found 
+[dynamixel_handler_node-1] TorqueOn(): ID [1] is enabled torque 
+[dynamixel_handler_node-1] ScanDynamixels(): Scanning: 5 
+[dynamixel_handler_node-1] addDynamixel():  * X series servo id [6] is found 
+[dynamixel_handler_node-1] TorqueOn(): ID [6] is enabled torque 
+[dynamixel_handler_node-1] addDynamixel():  * X series servo id [7] is found 
+[dynamixel_handler_node-1] TorqueOn(): ID [7] is enabled torque 
+[dynamixel_handler_node-1] ScanDynamixels(): Scanning: 30
+[dynamixel_handler_node-1] DynamixelHandler():   ... Finish scanning Dynamixel 
+[dynamixel_handler_node-1] DynamixelHandler(): ..... DynamixelHandler is initialized 
+[dynamixel_handler_node-1] MainLoop(): Loop [0]: write=0.00ms read=11.72ms(p/f=100%/100%) 
+[dynamixel_handler_node-1] MainLoop(): Loop [300]: write=0.01ms read=5.55ms(p/f=100%/100%) 
+[dynamixel_handler_node-1] MainLoop(): Loop [600]: write=0.01ms read=5.47ms(p/f=100%/100%) 
+[dynamixel_handler_node-1] MainLoop(): Loop [900]: write=0.01ms read=5.30ms(p/f=100%/100%)
 ```
 
 連結したDynamixelが自動で探索され，見つかったDynamixelの初期設定が行われる．
