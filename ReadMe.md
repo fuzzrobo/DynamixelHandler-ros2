@@ -101,8 +101,7 @@ ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 [dynamixel_handler_node-1] Succeeded to change the baudrate : 2000000!
 [dynamixel_handler_node-1] DynamixelHandler(): 
 [dynamixel_handler_node-1] Expected number of Dynamixel is not set. Free number of Dynamixel is allowed
-[dynamixel_handler_node-1] DynamixelHandler():  Auto scanning Dynamixel (id range [0] to [30]) 
-...
+[dynamixel_handler_node-1] DynamixelHandler():  Auto scanning Dynamixel (id range [0] to [30]) ...
 [dynamixel_handler_node-1] ScanDynamixels(): Scanning: 0 
 [dynamixel_handler_node-1] addDynamixel():  * X series servo id [1] is found 
 [dynamixel_handler_node-1] TorqueOn(): ID [1] is enabled torque 
@@ -131,7 +130,7 @@ ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 
 ### 3. Dynamixelを制御
 
-コマンドラインから指令する用の topic `/dyanmixel/command/x/...` と プログラムから指令する用の topic `/dynamixel/commands/x` が用意されている．
+コマンドラインから指令する用の topic `/dyanmixel/command/...` と プログラムから指令する用の topic `/dynamixel/commands/x` が用意されている．  
 以下ではコマンドラインから指令を送る場合の例を示す．
 プログラムから指令を送る場合は example を参照されたい．(あとでまとめる)
 
@@ -139,7 +138,7 @@ ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 
 #### 例：ID:5のDynamixel Xシリーズ のサーボを位置制御モードで角度を90degにする場合
 
-`/dynamixel/command/x/position` topicにIDと角度を設定してpublish．
+`/dynamixel/command/x/position_control` topicにIDと角度を設定してpublish．
 ```bash
 ros2 topic pub /dynamixel/command/x/position \
  dynamixel_handler/msg/DynamixelControlXPosition \
@@ -237,7 +236,7 @@ position_deg: # 現在の角度と目標角度
 
 サーボへの入力を行うためのtopic.
 
-  - `/dynamixel/commands/x` (`DxlCommandsX` type) : 下記の `/dynamixel/command/x/...` 系トピックすべてをひとまとめにしたtopic. プログラムでの使用を想定
+  - `/dynamixel/commands/x` (`DxlCommandsX` type) : 下記の `/dynamixel/command/...` 系トピックすべてをひとまとめにしたtopic. プログラムでの使用を想定
   - `/dynamixel/command/common` (`DynamixelCommonCmd` type) : dynamixelの起動や停止，エラー解除コマンドなどを送るためのtopic
     ``` cpp
     // DynamixelCommonCmd.msg
@@ -314,7 +313,7 @@ position_deg: # 現在の角度と目標角度
   default/profile_vel: 100.0 # deg/s
 ```
 `init/expected_servo_num` が `0`の時は，1つ以上servoが見つかるまで `init/auto_search_retry_times` の回数分スキャンを繰り返す．  
-`init/expected_servo_num` が `0` でない場合は，その数だけservoが見つかるまで`init/auto_search_retry_times` の回数分スキャンを繰り返す．
+`init/expected_servo_num` が `0` でない場合は，その数だけservoが見つかるまで`init/auto_search_retry_times` の回数分スキャンを繰り返す．  
 `init/auto_search_retry_times`の回数分のスキャンが失敗した場合，初期化失敗でノードは落ちる．
 
 `default/profile_acc`と`default/profile_vel`は位置制御時の最大加速度と最大速度を決める．
