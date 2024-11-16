@@ -48,13 +48,14 @@ DynamixelPresent DynamixelHandler::BroadcastState_Present(){
 
 DynamixelError DynamixelHandler::BroadcastState_Error(){
     DynamixelError msg;
-    for (const auto& [id, error]: hardware_err_) if ( is_in(id, id_set_) ) {
-        if (error[INPUT_VOLTAGE     ]) msg.input_voltage.push_back     (id);
-        if (error[MOTOR_HALL_SENSOR ]) msg.motor_hall_sensor.push_back (id);
-        if (error[OVERHEATING       ]) msg.overheating.push_back       (id);
-        if (error[MOTOR_ENCODER     ]) msg.motor_encoder.push_back     (id);
-        if (error[ELECTRONICAL_SHOCK]) msg.electronical_shock.push_back(id);
-        if (error[OVERLOAD          ]) msg.overload.push_back          (id);
+    for (const auto id: id_set_) {
+        msg.id_list.push_back(id);
+        msg.input_voltage.push_back     (hardware_err_[id][INPUT_VOLTAGE     ]);
+        msg.motor_hall_sensor.push_back (hardware_err_[id][MOTOR_HALL_SENSOR ]);
+        msg.overheating.push_back       (hardware_err_[id][OVERHEATING       ]);
+        msg.motor_encoder.push_back     (hardware_err_[id][MOTOR_ENCODER     ]);
+        msg.electronical_shock.push_back(hardware_err_[id][ELECTRONICAL_SHOCK]);
+        msg.overload.push_back          (hardware_err_[id][OVERLOAD          ]);
     }
     pub_error_->publish(msg);
     return msg;
