@@ -108,14 +108,14 @@ template <typename Addr> void DynamixelHandler::SyncWriteGain(set<GainIndex> lis
  * @param list_write_limit 書き込む制限値のEnumのset
  */
 template <> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> list_write_limit, set<uint8_t> id_set){
-    vector<uint8_t> torque_off_id_list_x, torque_off_id_list_p;
+    map<uint8_t, int64_t> id_torque_map_x, id_torque_map_p;
     for (auto id : id_set) if ( is_limit_updated_[id] ) {
-        if ( series_[id]==AddrX::series() ) torque_off_id_list_x.push_back(id);
-        if ( series_[id]==AddrP::series() ) torque_off_id_list_p.push_back(id);
+        if ( series_[id]==AddrX::series() ) id_torque_map_x[id] = TORQUE_DISABLE;
+        if ( series_[id]==AddrP::series() ) id_torque_map_p[id] = TORQUE_DISABLE;
     }
-    dyn_comm_.SyncWrite(AddrX::torque_enable, torque_off_id_list_x, vector<int64_t>(torque_off_id_list_x.size(), TORQUE_DISABLE));
+    if ( !id_torque_map_x.empty() ) dyn_comm_.SyncWrite(AddrX::torque_enable, id_torque_map_x);
+    if ( !id_torque_map_p.empty() ) dyn_comm_.SyncWrite(AddrP::torque_enable, id_torque_map_p);
     SyncWriteLimit<AddrX>(list_write_limit, id_set);
-    dyn_comm_.SyncWrite(AddrX::torque_enable, torque_off_id_list_x, vector<int64_t>(torque_off_id_list_p.size(), TORQUE_DISABLE));
     SyncWriteLimit<AddrP>(list_write_limit, id_set);
 }
 template <typename Addr> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> list_write_limit, set<uint8_t> id_set){
@@ -534,7 +534,7 @@ template <typename Addr> void DynamixelHandler::CheckDynamixels(set<uint8_t> id_
     if ( target_id_list.empty() ) return; // 読み込むデータがない場合は即時return
 
     // トルクの確認
-    auto id_torque_map     = dyn_comm_.SyncRead( Addr::torque_enable, target_id_list );
+    auto id_torque_map = dyn_comm_.SyncRead( Addr::torque_enable, target_id_list );
     for ( const auto& [id, torque] : id_torque_map ) tq_mode_[id] = torque;
 
     // ハードウェアエラーの確認
@@ -548,17 +548,14 @@ template <typename Addr> void DynamixelHandler::CheckDynamixels(set<uint8_t> id_
 
     vector<uint8_t> alive_id_list;
     for (auto id : target_id_list) if ( dyn_comm_.Ping(id) ) alive_id_list.push_back(id);
-    if ( alive_id_list.empty() ) { 
-        for (auto id : target_id_list) ping_err_[id] = 1;
-    } else { 
-        // 一部生き残っている場合は，生き残ったモータのみ通信断絶扱いとする
-        for (auto id : target_id_list) 
-            if ( !is_in(id, alive_id_list) ) {
-                ping_err_[id]++;
-                ROS_WARN("Servo id [%d] is dead (%d count / %s)", id, (int)ping_err_[id],
-                 auto_remove_count_ ? (std::to_string(auto_remove_count_)+"count").c_str() : "inf");
-            } else {
-                ping_err_[id] = 0;
-            }
+    // すべてのモータが死んでいる場合は，ping_err_=1で固定とする, おそらく根本で電源が切断されているため．
+    // 生き残ったモータのping_err_をリセット
+    // 一部の生き残っていないモータのping_err_をインクリメント
+    for (auto id : target_id_list) { // 効率が悪いが, わかりやすさを優先
+        if ( alive_id_list.empty() )    { ping_err_[id] = 1; continue; }
+        if ( is_in(id, alive_id_list) ) { ping_err_[id] = 0; continue; }
+        /*  !is_in(id, alive_id_list)  */ ping_err_[id]++;
+        ROS_WARN("Servo id [%d] is dead (%d count / %s)", id, (int)ping_err_[id],
+            auto_remove_count_ ? (std::to_string(auto_remove_count_)+"count").c_str() : "inf");
     }
 }
