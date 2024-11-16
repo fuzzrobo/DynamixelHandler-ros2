@@ -6,14 +6,15 @@ using std::setw;
 using std::prev;
 using std::next;
 
-static string control_table_layout(int width, const map<uint8_t, vector<int64_t>>& id_data_map, const vector<DynamixelAddress>& dp_list, const string& header=""){
+template <typename T, typename U>
+static string control_table_layout(int width, const map<T, vector<U>>& id_data_map, const vector<DynamixelAddress>& dp_list, const string& header=""){
     std::stringstream ss;
     ss << header;
     if (id_data_map.empty()) return ss.str();
     // width 以上のID数がある場合は，再帰させることで，縦に並べる
 	width = min(width, (int)id_data_map.size());
-    map<uint8_t, vector<int64_t>> first(id_data_map.begin(), prev(id_data_map.end(), id_data_map.size() - width));
-    map<uint8_t, vector<int64_t>> second(next(id_data_map.begin(), width), id_data_map.end());
+    map<T, vector<U>> first(id_data_map.begin(), prev(id_data_map.end(), id_data_map.size() - width));
+    map<T, vector<U>> second(next(id_data_map.begin(), width), id_data_map.end());
     // 分割した前半を処理
     ss << "\n" << "ADDR|"; 
     for (const auto& [id, data] : first) ss << "  [" << setw(3) << (int)id << "] "; 
@@ -27,7 +28,8 @@ static string control_table_layout(int width, const map<uint8_t, vector<int64_t>
     return ss.str() + control_table_layout(width, second, dp_list);
 }
 
-static string id_list_layout(const vector<uint8_t>& id_list, const string& header=""){
+template <typename T>
+static string id_list_layout(const vector<T>& id_list, const string& header=""){
     std::stringstream ss;
     ss << header << "\n";
     ss << " ID : [ "; 
