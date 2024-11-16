@@ -10,7 +10,7 @@ DynamixelStatus DynamixelHandler::BroadcastState_Status(){
     for (const auto id : id_set_ ) {
         msg.id_list.push_back(id);
         msg.torque.push_back(tq_mode_[id]==TORQUE_ENABLE);
-        msg.error.push_back(has_hardware_err_);
+        msg.error.push_back(has_any_hardware_error_);
         msg.ping.push_back(ping_err_[id]==0);
         switch(op_mode_[id]) {
             case OPERATING_MODE_PWM:                  msg.mode.push_back(msg.CONTROL_PWM                  ); break;
@@ -48,7 +48,7 @@ DynamixelPresent DynamixelHandler::BroadcastState_Present(){
 
 DynamixelError DynamixelHandler::BroadcastState_Error(){
     DynamixelError msg;
-    for (const auto& [id, error]: hardware_error_) if ( is_in(id, id_set_) ) {
+    for (const auto& [id, error]: hardware_err_) if ( is_in(id, id_set_) ) {
         if (error[INPUT_VOLTAGE     ]) msg.input_voltage.push_back     (id);
         if (error[MOTOR_HALL_SENSOR ]) msg.motor_hall_sensor.push_back (id);
         if (error[OVERHEATING       ]) msg.overheating.push_back       (id);
@@ -114,7 +114,7 @@ DynamixelDebug DynamixelHandler::BroadcastDebug(){
     for (const auto id : id_set_ ) {
         msg.status.id_list.push_back(id);
         msg.status.torque.push_back(tq_mode_[id]==TORQUE_ENABLE);
-        msg.status.error.push_back(has_hardware_err_);
+        msg.status.error.push_back(has_any_hardware_error_);
         msg.status.ping.push_back(ping_err_[id]==0);
         switch(op_mode_[id]) {
             case OPERATING_MODE_PWM:                  msg.status.mode.push_back(msg.status.CONTROL_PWM                  ); break;

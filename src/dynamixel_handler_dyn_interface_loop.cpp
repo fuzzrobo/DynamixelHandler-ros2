@@ -198,7 +198,7 @@ template <typename Addr> double DynamixelHandler::SyncReadPresent(set<PresentInd
     const int N_suc   = id_st_vec_map.size();
     const bool is_timeout_  = dyn_comm_.timeout_last_read();
     const bool is_comm_err_ = dyn_comm_.comm_error_last_read();
-    has_hardware_err_ = dyn_comm_.hardware_error_last_read();
+    has_any_hardware_error_ = dyn_comm_.hardware_error_last_read();
     //* 通信エラーの表示
     if ( verbose_["r_present_err"] ) if ( is_timeout_ || is_comm_err_ ) {
         vector<uint8_t> failed_id_list;
@@ -212,7 +212,7 @@ template <typename Addr> double DynamixelHandler::SyncReadPresent(set<PresentInd
         char header[99]; sprintf(header, "[%d] servo(s) are read", N_suc);
         auto ss = control_table_layout(width_log_, id_st_vec_map, state_addr_list, string(header));
         ROS_INFO_STREAM(ss);
-        if ( has_hardware_err_ ) ROS_WARN( "Hardware Error are detected");
+        if ( has_any_hardware_error_ ) ROS_WARN( "Hardware Error are detected");
     }
     //* present_r_に反映
     const unsigned int num_state_now  = *end-*start+1;
@@ -240,7 +240,7 @@ template <> double DynamixelHandler::SyncReadHardwareErrors(set<uint8_t> id_set)
     return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / (num_[SERIES_X]+num_[SERIES_P]);
 }
 template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(set<uint8_t> id_set){
-    if ( !has_hardware_err_ ) { hardware_error_.clear(); return 1.0; } // 事前にエラーが検出できていない場合は省略
+    if ( !has_any_hardware_error_ ) { hardware_err_.clear(); return 1.0; } // 事前にエラーが検出できていない場合は省略
 
     vector<uint8_t> target_id_list;
     for (int id : id_set) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
@@ -254,29 +254,29 @@ template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(set<uin
 
     //  hardware_error_に反映
     for (const auto& [id, error] : id_error_map ){
-        hardware_error_[id].fill(false);
-        if ((error >> HARDWARE_ERROR_INPUT_VOLTAGE     )& 0b1 ) hardware_error_[id][INPUT_VOLTAGE     ] = true;
-        if ((error >> HARDWARE_ERROR_MOTOR_HALL_SENSOR )& 0b1 ) hardware_error_[id][MOTOR_HALL_SENSOR ] = true;
-        if ((error >> HARDWARE_ERROR_OVERHEATING       )& 0b1 ) hardware_error_[id][OVERHEATING       ] = true;
-        if ((error >> HARDWARE_ERROR_MOTOR_ENCODER     )& 0b1 ) hardware_error_[id][MOTOR_ENCODER     ] = true;
-        if ((error >> HARDWARE_ERROR_ELECTRONICAL_SHOCK)& 0b1 ) hardware_error_[id][ELECTRONICAL_SHOCK] = true;
-        if ((error >> HARDWARE_ERROR_OVERLOAD          )& 0b1 ) hardware_error_[id][OVERLOAD          ] = true;
+        hardware_err_[id].fill(false);
+        if ((error >> HARDWARE_ERROR_INPUT_VOLTAGE     )& 0b1 ) hardware_err_[id][INPUT_VOLTAGE     ] = true;
+        if ((error >> HARDWARE_ERROR_MOTOR_HALL_SENSOR )& 0b1 ) hardware_err_[id][MOTOR_HALL_SENSOR ] = true;
+        if ((error >> HARDWARE_ERROR_OVERHEATING       )& 0b1 ) hardware_err_[id][OVERHEATING       ] = true;
+        if ((error >> HARDWARE_ERROR_MOTOR_ENCODER     )& 0b1 ) hardware_err_[id][MOTOR_ENCODER     ] = true;
+        if ((error >> HARDWARE_ERROR_ELECTRONICAL_SHOCK)& 0b1 ) hardware_err_[id][ELECTRONICAL_SHOCK] = true;
+        if ((error >> HARDWARE_ERROR_OVERLOAD          )& 0b1 ) hardware_err_[id][OVERLOAD          ] = true;
     }
 
     // コンソールへの表示
     if ( verbose_["r_hwerr"] ) {
         ROS_WARN( "Hardware error are Checked");
         for (auto id : target_id_list) {
-            if (hardware_error_[id][INPUT_VOLTAGE     ]) ROS_WARN (" * servo id [%d] has INPUT_VOLTAGE error"     ,id);
-            if (hardware_error_[id][MOTOR_HALL_SENSOR ]) ROS_ERROR(" * servo id [%d] has MOTOR_HALL_SENSOR error" ,id);
-            if (hardware_error_[id][OVERHEATING       ]) ROS_ERROR(" * servo id [%d] has OVERHEATING error"       ,id);
-            if (hardware_error_[id][MOTOR_ENCODER     ]) ROS_ERROR(" * servo id [%d] has MOTOR_ENCODER error"     ,id);
-            if (hardware_error_[id][ELECTRONICAL_SHOCK]) ROS_ERROR(" * servo id [%d] has ELECTRONICAL_SHOCK error",id);
-            if (hardware_error_[id][OVERLOAD          ]) ROS_ERROR(" * servo id [%d] has OVERLOAD error"          ,id);
+            if (hardware_err_[id][INPUT_VOLTAGE     ]) ROS_WARN (" * servo id [%d] has INPUT_VOLTAGE error"     ,id);
+            if (hardware_err_[id][MOTOR_HALL_SENSOR ]) ROS_ERROR(" * servo id [%d] has MOTOR_HALL_SENSOR error" ,id);
+            if (hardware_err_[id][OVERHEATING       ]) ROS_ERROR(" * servo id [%d] has OVERHEATING error"       ,id);
+            if (hardware_err_[id][MOTOR_ENCODER     ]) ROS_ERROR(" * servo id [%d] has MOTOR_ENCODER error"     ,id);
+            if (hardware_err_[id][ELECTRONICAL_SHOCK]) ROS_ERROR(" * servo id [%d] has ELECTRONICAL_SHOCK error",id);
+            if (hardware_err_[id][OVERLOAD          ]) ROS_ERROR(" * servo id [%d] has OVERLOAD error"          ,id);
         }
     }
     // 0b00000001 << HARDWARE_ERROR_INPUT_VOLTAGE と error が等しい場合のみ，そのエラーをfalseにする
-    for ( const auto& [id, error] : id_error_map ) if ((error >> HARDWARE_ERROR_INPUT_VOLTAGE     )& 0b1 ) hardware_error_[id][INPUT_VOLTAGE] = false;
+    for ( const auto& [id, error] : id_error_map ) if ((error >> HARDWARE_ERROR_INPUT_VOLTAGE     )& 0b1 ) hardware_err_[id][INPUT_VOLTAGE] = false;
     return id_error_map.size()/double(target_id_list.size());
 }
 
@@ -527,6 +527,8 @@ template <typename Addr> void DynamixelHandler::CheckDynamixels(set<uint8_t> id_
     // トルクの確認
     auto id_torque_map     = dyn_comm_.SyncRead( Addr::torque_enable, target_id_list );
     for ( const auto& [id, torque] : id_torque_map ) tq_mode_[id] = torque;
+
+    // ハードウェアエラーの確認
 
     // 直前に通信エラーがあれば，モータの応答を確認
     const bool is_timeout   = dyn_comm_.timeout_last_read();
