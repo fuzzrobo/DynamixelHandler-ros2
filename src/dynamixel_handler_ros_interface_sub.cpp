@@ -7,7 +7,7 @@
 static constexpr double DEG = M_PI/180.0; // degを単位に持つ数字に掛けるとradになる
 static double deg2rad(double deg){ return deg*DEG; }
 
-string update_info(const vector<uint8_t>& id_list, const string& what_updated) {
+template <typename T> string update_info(const vector<T>& id_list, const string& what_updated) {
     char header[99]; 
     sprintf(header, "[%d] servo(s) %s are updated", (int)id_list.size(), what_updated.c_str());
     return id_list_layout(id_list, string(header));
