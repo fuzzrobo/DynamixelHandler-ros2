@@ -13,12 +13,14 @@ note: ROS2のみ対応
    - ほかのSDKと異なりコントロールテーブルのaddressや分解能などは意識する必要なし
    - 動かしたいDynamixelが「Jointとして使われているのか」「Wheelとして使われているのか」などの事前情報は不要
  - ROS topic の pub/sub のみでDynamixelを制御可能
-   - 指定した周期で指定した情報を state topic としてpub (デフォルト: 電流/速度/位置, 50Hz)
-   - 指定した周期でハードウェアエラーを error topic としてpub (デフォルト: 約2Hz)
-   - subした command topic に合わせて制御モードを自動で変更 (PWM制御は非対応)
+   - 現在値やハードウェアエラーなどの情報を `dynammixel/states` topic として周期的にpub
+      - present value デフォルト: 電流/速度/位置を50Hz
+      - hardware error デフォルト: 約2Hz
+      - その他 limit, gain, goal value など．
+   - subした `dynamixel/commands/x` topic の内容に合わせて制御モードを自動で変更
    - sub/pubされる情報はパルス値ではなく物理量
-   - ユーザは純粋にサーボの目標状態を指令するだけでサーボを制御でき，  
-     また，同様にサーボの現在状態を受け取れる
+      - 0 ~ 4095 の整数値ではなく，-180.0 ~ 180.0 の浮動小数値など. 
+   - ユーザは純粋にサーボの目標状態を指令するだけでサーボを制御でき，また，同様にサーボの現在状態を受け取れる
  - 比較的高速なRead/Writeを実現 (12サーボに電流/速度/位置を Read/Write しても150Hzくらいは出せる)
    - 複数のアドレスを一括で読み書き & 複数のサーボを同時に読み書き(SyncRead/SyncWrite) によって Serial通信の回数を抑える
    - Fast Sync Read インストラクションを活用して Read を高速化
@@ -63,7 +65,7 @@ source ~/.bashrc # 初回 build 時のみ
 ## how to use
 
 ### 1. Dynamixelの接続
-- DynaimixelをディジーチェーンにしてUSBで接続されていること．
+- DynaimixelをディジーチェーンにしてU2D2経由でUSB接続されていること．
 - idに重複がないように事前にDynamixel Wizardなどを用いて設定すること.
 - baudrateが全て統一されていること．
 
@@ -90,6 +92,32 @@ config/config_dynamixel_handler.ymlの該当部分を編集し，保存．
 ```bash
 ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 ```
+出力例
+```bash
+# ... 略 ...
+[dynamixel_handler_node-1] DynamixelHandler(): Initializing DynamixelHandler ..... 
+[dynamixel_handler_node-1] Succeeded to open the port : /dev/ttyUSB0!
+[dynamixel_handler_node-1] Succeeded to change the latency timer : 4!
+[dynamixel_handler_node-1] Succeeded to change the baudrate : 2000000!
+[dynamixel_handler_node-1] DynamixelHandler(): 
+[dynamixel_handler_node-1] Expected number of Dynamixel is not set. Free number of Dynamixel is allowed
+[dynamixel_handler_node-1] DynamixelHandler():  Auto scanning Dynamixel (id range [0] to [30]) ...
+[dynamixel_handler_node-1] ScanDynamixels(): Scanning: 0 
+[dynamixel_handler_node-1] addDynamixel():  * X series servo id [1] is found 
+[dynamixel_handler_node-1] TorqueOn(): ID [1] is enabled torque 
+[dynamixel_handler_node-1] ScanDynamixels(): Scanning: 5 
+[dynamixel_handler_node-1] addDynamixel():  * X series servo id [6] is found 
+[dynamixel_handler_node-1] TorqueOn(): ID [6] is enabled torque 
+[dynamixel_handler_node-1] addDynamixel():  * X series servo id [7] is found 
+[dynamixel_handler_node-1] TorqueOn(): ID [7] is enabled torque 
+[dynamixel_handler_node-1] ScanDynamixels(): Scanning: 30
+[dynamixel_handler_node-1] DynamixelHandler():   ... Finish scanning Dynamixel 
+[dynamixel_handler_node-1] DynamixelHandler(): ..... DynamixelHandler is initialized 
+[dynamixel_handler_node-1] MainLoop(): Loop [0]: write=0.00ms read=11.72ms(p/f=100%/100%) 
+[dynamixel_handler_node-1] MainLoop(): Loop [300]: write=0.01ms read=5.55ms(p/f=100%/100%) 
+[dynamixel_handler_node-1] MainLoop(): Loop [600]: write=0.01ms read=5.47ms(p/f=100%/100%) 
+[dynamixel_handler_node-1] MainLoop(): Loop [900]: write=0.01ms read=5.30ms(p/f=100%/100%)
+```
 
 連結したDynamixelが自動で探索され，見つかったDynamixelの初期設定が行われる．
 > [!TIP]
@@ -102,7 +130,7 @@ ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 
 ### 3. Dynamixelを制御
 
-コマンドラインから指令する用の topic `/dyanmixel/command/x/...` と プログラムから指令する用の topic `/dynamixel/commands/x` が用意されている．
+コマンドラインから指令する用の topic `/dyanmixel/command/...` と プログラムから指令する用の topic `/dynamixel/commands/x` が用意されている．  
 以下ではコマンドラインから指令を送る場合の例を示す．
 プログラムから指令を送る場合は example を参照されたい．(あとでまとめる)
 
@@ -110,7 +138,7 @@ ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 
 #### 例：ID:5のDynamixel Xシリーズ のサーボを位置制御モードで角度を90degにする場合
 
-`/dynamixel/command/x/position` topicにIDと角度を設定してpublish．
+`/dynamixel/command/x/position_control` topicにIDと角度を設定してpublish．
 ```bash
 ros2 topic pub /dynamixel/command/x/position \
  dynamixel_handler/msg/DynamixelControlXPosition \
@@ -208,7 +236,7 @@ position_deg: # 現在の角度と目標角度
 
 サーボへの入力を行うためのtopic.
 
-  - `/dynamixel/commands/x` (`DxlCommandsX` type) : 下記の `/dynamixel/command/x/...` 系トピックすべてをひとまとめにしたtopic. プログラムでの使用を想定
+  - `/dynamixel/commands/x` (`DxlCommandsX` type) : 下記の `/dynamixel/command/...` 系トピックすべてをひとまとめにしたtopic. プログラムでの使用を想定
   - `/dynamixel/command/common` (`DynamixelCommonCmd` type) : dynamixelの起動や停止，エラー解除コマンドなどを送るためのtopic
     ``` cpp
     // DynamixelCommonCmd.msg
@@ -228,12 +256,12 @@ position_deg: # 現在の角度と目標角度
     string REBOOT ="reboot"  // : reboot インストラクションを送る．
     ```
 
-  - `/dynamixel/command/x/pwm_control` (`DynamixelControlXCurrent` type) : Xシリーズを電流制御モードで動かす
-  - `/dynamixel/command/x/current_control` (`DynamixelControlXCurrent` type) : Xシリーズを電流制御モードで動かす
-  - `/dynamixel/command/x/velocity_control` (`DynamixelControlXVelocity` type) : Xシリーズを速度制御モードで動かす
-  - `/dynamixel/command/x/position_control` (`DynamixelControlXPosition` type) : Xシリーズを位置制御モードで動かす
-  - `/dynamixel/command/x/extended_position_control` (`DynamixelControlXExtendedPosition` type) : Xシリーズを拡張位置制御モードで動かす
-  - `/dynamixel/command/x/current_base_position_control ` (`DynamixelControlXCurrentPosition` type) : Xシリーズを電流制限付き位置制御モードで動かす
+  - `/dynamixel/command/x/pwm_control` (`DynamixelControlXCurrent` type) : Xシリーズを電流制御モード用
+  - `/dynamixel/command/x/current_control` (`DynamixelControlXCurrent` type) : Xシリーズを電流制御モード用
+  - `/dynamixel/command/x/velocity_control` (`DynamixelControlXVelocity` type) : Xシリーズを速度制御モード用
+  - `/dynamixel/command/x/position_control` (`DynamixelControlXPosition` type) : Xシリーズを位置制御モード用
+  - `/dynamixel/command/x/extended_position_control` (`DynamixelControlXExtendedPosition` type) : Xシリーズを拡張位置制御モード用
+  - `/dynamixel/command/x/current_base_position_control ` (`DynamixelControlXCurrentPosition` type) : Xシリーズを電流制限付き位置制御モード用
   - `/dynamixel/command/status` (`DynamixelStatus` type) : サーボの状態(トルク・エラー・ping・制御モード)を設定するためのtopic (使わなくても, `/dynamixel/command/common` と `/dyanmixel/command/x/~_control`で設定できる)
   - `/dynamixel/command/goal` (`DynamixelGoal` type) : 各種の目標値を設定するためのtopic
   - `/dynamixel/command/gain` (`DynamixelGain` type) : 制御ゲインを設定するためのtopic
@@ -247,7 +275,7 @@ position_deg: # 現在の角度と目標角度
 サーボの状態を監視するためのtopic.
 
  - `/dynamixel/states` (`DxlStates` type) : 下記の `/dynamixel/state/...` 系トピックすべてをひとまとめにしたtopic.プログラムでの使用を想定
- - `/dynamixel/status/status` (`DynamixelStatus` type) : サーボの状態(トルク・エラー・ping・制御モード)を確認するためのtopic
+ - `/dynamixel/state/status` (`DynamixelStatus` type) : サーボの状態(トルク・エラー・ping・制御モード)を確認するためのtopic
  - `/dynamixel/state/goal` (`DynamixelGoal` type) : サーボの目標値を確認するためのtopic
  - `/dynamixel/state/gain` (`DynamixelGain` type) : サーボの制御ゲインを確認するためのtopic
  - `/dynamixel/state/limit` (`DynamixelLimit` type) : サーボの制限値を確認するためのtopic
@@ -285,7 +313,7 @@ position_deg: # 現在の角度と目標角度
   default/profile_vel: 100.0 # deg/s
 ```
 `init/expected_servo_num` が `0`の時は，1つ以上servoが見つかるまで `init/auto_search_retry_times` の回数分スキャンを繰り返す．  
-`init/expected_servo_num` が `0` でない場合は，その数だけservoが見つかるまで`init/auto_search_retry_times` の回数分スキャンを繰り返す．
+`init/expected_servo_num` が `0` でない場合は，その数だけservoが見つかるまで`init/auto_search_retry_times` の回数分スキャンを繰り返す．  
 `init/auto_search_retry_times`の回数分のスキャンが失敗した場合，初期化失敗でノードは落ちる．
 
 `default/profile_acc`と`default/profile_vel`は位置制御時の最大加速度と最大速度を決める．
@@ -368,8 +396,8 @@ ros2 launch dynamixel_handler dynamixel_unify_baudrate_launch.xml
 ## LatencyTimer
 
 シリアル通信にはパケットの送受信の間にlatency timer分のインターバルが挟まる．
-(デフォルトは16msのようであり，高速な通信の妨げとなることが多い)
-安定した通信のためには，使用するUBSデバイスの latency timer とros paramの `LATENCY_TIMER` を一致させる必要がある．
+(USBデバイスのデフォルトは16msのようであり，高速な通信の妨げとなることが多い)
+安定した通信のためには，使用するUBSデバイスの latency timer とros paramの `laytency_timer` を一致させる必要がある．
 
 ros paramの変更には，config/config_dynamixel_handler.ymlの以下の部分を編集して保存する．
 ```yml
@@ -377,19 +405,19 @@ ros paramの変更には，config/config_dynamixel_handler.ymlの以下の部分
 latency_timer: 4 # 通信のインターバル
 ```
 
-使用するUSBデバイスのlatency timerは次のようにして変更できる．
+使用するUSBデバイスのlatency timerはコマンドラインから次のコマンドを実行することで変更できる．
 基本的に1度だけ実行すればよい．
-ttyUSB0 の部分は自分の環境に合わせて編集すること．
 ```bash
 echo ACTION==\"add\", SUBSYSTEM==\"usb-serial\", DRIVER==\"ftdi_sio\", ATTR{latency_timer}=\"4\" > 99-dynamixelsdk-usb.rules
 sudo cp ./99-dynamixelsdk-usb.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules
 sudo udevadm trigger --action=add
 rm 99-dynamixelsdk-usb.rules
-cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
+cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer # ttyUSB0の部分は環境に合わせて変更すること
 ```
 
 一時的であれば以下のようにしてもよい．
+ttyUSB0 の部分は自分の環境に合わせて編集すること．
 ```bash
 echo 4 | sudo tee /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
 cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
@@ -402,10 +430,10 @@ cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
 以下説明はXシリーズの場合．Pシリーズの場合は適宜読み替えること．
 
 ### 状態 (status)
- - torque_enable          : 接続時に自動でトルクONされる. `/dynamixel/commnad`の`command`=`'torque_on'` or `'enable'`で1,`command`=`'torque_off'` or `'disable'`で0に設定される．  
- - operating_mode         : 対応するtopicのsubで自動で設定される．  
- - (ping)
- - (error) 
+ - torque_enable  : 接続時に自動でトルクONされる. `/dynamixel/commnad/common`の`command`=`'torque_on'` or `'enable'`で1,`command`=`'torque_off'` or `'disable'`で0に設定される．  
+ - operating_mode : 対応するtopicのsubで自動で設定される． 
+ - (ping)         : Control table ではないが，statusとして扱っている．pingが通るかどうか．
+ - (error)        : Control table ではないが，statusとして扱っている．何らかのエラーを持っているかどうか．
 
 ### 目標値 (goal)
  - goal_pwm             : 目標PWM値, PWM制御モードでのみ有効
