@@ -155,8 +155,8 @@ void DynamixelHandler::MainLoop(){
     list_write_goal_.clear();
     SyncWriteGain(list_write_gain_);
     list_write_gain_.clear();
-    // SyncWriteLimit(list_write_limit_);
-    // list_write_limit_.clear();
+    SyncWriteLimit(list_write_limit_);
+    list_write_limit_.clear();
 /* 処理時間時間の計測 */ wtime += duration_cast<microseconds>(system_clock::now()-wstart).count() / 1000.0;
 
     //* present value について read する情報を決定

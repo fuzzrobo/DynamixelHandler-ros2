@@ -104,11 +104,18 @@ template <typename Addr> void DynamixelHandler::SyncWriteGain(set<GainIndex> lis
 
 /**
  * @func SyncWriteLimit
- * @brief 制限値をすべて書き込む
+ * @brief 制限値をすべて書き込む, ROMに書き込むのでトルクをOFFにする
  * @param list_write_limit 書き込む制限値のEnumのset
  */
 template <> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> list_write_limit, set<uint8_t> id_set){
+    vector<uint8_t> torque_off_id_list_x, torque_off_id_list_p;
+    for (auto id : id_set) if ( is_limit_updated_[id] ) {
+        if ( series_[id]==AddrX::series() ) torque_off_id_list_x.push_back(id);
+        if ( series_[id]==AddrP::series() ) torque_off_id_list_p.push_back(id);
+    }
+    dyn_comm_.SyncWrite(AddrX::torque_enable, torque_off_id_list_x, vector<int64_t>(torque_off_id_list_x.size(), TORQUE_DISABLE));
     SyncWriteLimit<AddrX>(list_write_limit, id_set);
+    dyn_comm_.SyncWrite(AddrX::torque_enable, torque_off_id_list_x, vector<int64_t>(torque_off_id_list_p.size(), TORQUE_DISABLE));
     SyncWriteLimit<AddrP>(list_write_limit, id_set);
 }
 template <typename Addr> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> list_write_limit, set<uint8_t> id_set){
