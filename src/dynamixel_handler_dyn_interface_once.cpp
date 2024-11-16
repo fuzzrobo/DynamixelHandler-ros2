@@ -31,6 +31,7 @@ uint8_t DynamixelHandler::ScanDynamixels(uint8_t id_min, uint8_t id_max, uint32_
 }
 
 bool DynamixelHandler::addDynamixel(uint8_t id){
+    if ( is_in(id, id_set_) ) return true;
     if ( !dyn_comm_.tryPing(id) ) return false;
 
     auto dyn_model = dyn_comm_.tryRead(AddrCommon::model_number, id);
@@ -78,17 +79,18 @@ bool DynamixelHandler::addDynamixel(uint8_t id){
     return true;
 }
 
-void DynamixelHandler::RemoveDynamixel(uint8_t id){
-    if ( !is_in(id, id_set_) ) return;
+bool DynamixelHandler::RemoveDynamixel(uint8_t id){
+    if ( !is_in(id, id_set_) ) return true;
     id_set_.erase(id);
     num_[series_[id]]--;
     ROS_INFO("ID [%d] is removed", id);
+    return true;
 }
 
 // 回転数が消えることを考慮して，モータをリブートする．
 bool DynamixelHandler::ClearHardwareError(uint8_t id){
     if ( !is_in(id, id_set_) ) return false;
-    if ( ReadHardwareError(id) == 0b00000000 ) return true; // エラーがない場合は何もしない
+    if ( !has_hardware_error_[id] ) return true; // エラーがない場合は何もしない
 
     const auto now_pos = ReadPresentPosition(id); // 失敗すると0が返って危ないので成功した場合だけリブート処理を行う
     const bool pos_success = !dyn_comm_.timeout_last_read() && !dyn_comm_.comm_error_last_read();
@@ -145,6 +147,7 @@ bool DynamixelHandler::ChangeOperatingMode(uint8_t id, DynamixelOperatingMode mo
 // モータを停止させてからトルクを入れる．
 bool DynamixelHandler::TorqueOn(uint8_t id){
     if ( !is_in(id, id_set_) ) return false;
+    if ( tq_mode_[id] == TORQUE_ENABLE ) return true; // 既にトルクが入っている場合は何もしない
     // dynamixel内のgoal値とこのプログラム内のgoal_w_を一致させる．
     const auto now_pos = ReadPresentPosition(id); // 失敗すると0が返って危ないので確認する
     if ( !( dyn_comm_.timeout_last_read() || dyn_comm_.comm_error_last_read() )){
@@ -176,6 +179,7 @@ bool DynamixelHandler::TorqueOn(uint8_t id){
 // トルクを切る
 bool DynamixelHandler::TorqueOff(uint8_t id){
     if ( !is_in(id, id_set_) ) return false;
+    if ( tq_mode_[id] == TORQUE_DISABLE ) return true; // 既にトルクが切られている場合は何もしない
     // トルクを切る
     WriteTorqueEnable(id, false);
     // 結果を確認
