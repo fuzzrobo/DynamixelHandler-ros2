@@ -216,6 +216,7 @@ class DynamixelHandler : public rclcpp::Node {
         static inline map<uint8_t, bool> is_goal_updated_;       // topicのcallbackによって，goal_w_が更新されたかどうかを示すマップ
         static inline map<uint8_t, bool> is_gain_updated_;       // topicのcallbackによって，limit_w_が更新されたかどうかを示すマップ
         static inline map<uint8_t, bool> is_limit_updated_;       // topicのcallbackによって，limit_w_が更新されたかどうかを示すマップ
+        static inline map<uint8_t, bool> has_hardware_error_;    // ハードウェアエラーを起こしているかどうか
         static inline bool has_any_hardware_error_ = false; // 連結しているDynamixelのうち，どれか一つでもハードウェアエラーを起こしているかどうか
         // 各周期で実行するserial通信の内容を決めるためのset
         static inline set<GoalIndex   > list_write_goal_;
