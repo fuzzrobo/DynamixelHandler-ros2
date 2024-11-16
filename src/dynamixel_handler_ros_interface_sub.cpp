@@ -53,29 +53,53 @@ void DynamixelHandler::CallbackCmdsP(const DxlCommandsP::SharedPtr msg) {
 }
 
 void DynamixelHandler::CallbackCmd_Common(const DynamixelCommonCmd& msg) {
-    vector<uint8_t> id_list;
-    if ( msg.id_list.empty() || msg.id_list[0]==0xFE) for (auto id : id_set_    ) id_list.push_back(id);
-                                                 else for (auto id : msg.id_list) id_list.push_back(id);
-    char header[100]; sprintf(header, "Command [%s] \n (id_list=[] or [254] means all IDs)", msg.command.c_str());
-    if (verbose_callback_ && msg.command!="") ROS_INFO_STREAM(id_list_layout(id_list, string(header)));
-    if (msg.command == msg.CLEAR_ERROR  || msg.command == "CE")
-        for (auto id : id_list) { ClearHardwareError(id); TorqueOn(id);}
-    if (msg.command == msg.TORQUE_OFF   || msg.command == "TON") 
-        for (auto id : id_list) TorqueOn(id);
-    if (msg.command == msg.TORQUE_ON    || msg.command == "TOFF")
-        for (auto id : id_list) TorqueOff(id);
-    if (msg.command == msg.REMOVE_ID    || msg.command == "RMID")
-        for (auto id : id_list) RemoveDynamixel(id);
-    if (msg.command == msg.ADD_ID       || msg.command == "ADID")
-        for (auto id : id_list) addDynamixel(id);
-    if (msg.command == msg.RESET_OFFSET || msg.command == "RO") 
-        for (auto id : id_list) WriteHomingOffset(id, 0);
-    if (msg.command == msg.ENABLE ) 
-        for (auto id : id_list) WriteTorqueEnable(id, TORQUE_ENABLE);
-    if (msg.command == msg.DISABLE)
-        for (auto id : id_list) WriteTorqueEnable(id, TORQUE_DISABLE);
-    if (msg.command == msg.REBOOT ) 
-        for (auto id : id_list) dyn_comm_.Reboot(id);
+    const auto& id_list = (msg.id_list.empty() || msg.id_list[0] == 0xFE) 
+                            ? vector<uint16_t>(id_set_.begin(), id_set_.end()) : msg.id_list;
+    if ( id_list.size()==0 || msg.command=="" ) return;
+
+    if (verbose_callback_ ) ROS_INFO_STREAM("Command [%s] \n (id_list=[] or [254] means all IDs)");
+
+    auto st_cmd = DynamixelStatus().set__id_list(id_list);
+         if (msg.command == msg.CLEAR_ERROR  || msg.command == "CE"  ) st_cmd.set__error(vector<bool>(id_list.size(), false));
+    else if (msg.command == msg.TORQUE_ON    || msg.command == "TON" ) st_cmd.set__torque(vector<bool>(id_list.size(), true));
+    else if (msg.command == msg.TORQUE_OFF   || msg.command == "TOFF") st_cmd.set__torque(vector<bool>(id_list.size(), false));
+    else if (msg.command == msg.ADD_ID       || msg.command == "ADID") st_cmd.set__ping(vector<bool>(id_list.size(), true));
+    else if (msg.command == msg.REMOVE_ID    || msg.command == "RMID") st_cmd.set__ping(vector<bool>(id_list.size(), false));
+    else if (msg.command == msg.RESET_OFFSET ) for (auto id : id_list) {WriteHomingOffset(id, 0);              ROS_INFO("Set offset zero (ID [%d])"   , id);}
+    else if (msg.command == msg.ENABLE       ) for (auto id : id_list) {WriteTorqueEnable(id, TORQUE_ENABLE);  ROS_INFO("Set torque enable (ID [%d])" , id);}
+    else if (msg.command == msg.DISABLE      ) for (auto id : id_list) {WriteTorqueEnable(id, TORQUE_DISABLE); ROS_INFO("Set torque disable (ID [%d])", id);}
+    else if (msg.command == msg.REBOOT       ) for (auto id : id_list) {dyn_comm_.Reboot(id);                  ROS_INFO("Send reboot (ID [%d]) "      , id);}
+    else ROS_WARN("Invalid command [%s]", msg.command.c_str());
+
+    CallbackCmd_Status(st_cmd);
+}
+
+void DynamixelHandler::CallbackCmd_Status(const DynamixelStatus& msg) {
+    const bool has_torque = !msg.id_list.empty() && msg.id_list.size() == msg.torque.size();
+    const bool has_error  = !msg.id_list.empty() && msg.id_list.size() == msg.error.size();
+    const bool has_ping   = !msg.id_list.empty() && msg.id_list.size() == msg.ping.size();
+    const bool has_mode   = !msg.id_list.empty() && msg.id_list.size() == msg.mode.size();
+
+    for ( size_t i=0; i<msg.id_list.size(); i++ ) {
+        const uint8_t id = msg.id_list[i];
+        if ( has_error  ) {ClearHardwareError(id); TorqueOn(id);}
+        if ( has_torque ) msg.torque[i] ? TorqueOn(id)     : TorqueOff(id)      ;
+        if ( has_ping   ) msg.ping[i]   ? addDynamixel(id) : RemoveDynamixel(id);
+        if ( has_mode   ) {
+                 if (msg.mode[i] == msg.CONTROL_PWM                  ) ChangeOperatingMode(id, OPERATING_MODE_PWM                  );
+            else if (msg.mode[i] == msg.CONTROL_CURRENT              ) ChangeOperatingMode(id, OPERATING_MODE_CURRENT              );
+            else if (msg.mode[i] == msg.CONTROL_VELOCITY             ) ChangeOperatingMode(id, OPERATING_MODE_VELOCITY             );
+            else if (msg.mode[i] == msg.CONTROL_POSITION             ) ChangeOperatingMode(id, OPERATING_MODE_POSITION             );
+            else if (msg.mode[i] == msg.CONTROL_EXTENDED_POSITION    ) ChangeOperatingMode(id, OPERATING_MODE_EXTENDED_POSITION    );
+            else if (msg.mode[i] == msg.CONTROL_CURRENT_BASE_POSITION) ChangeOperatingMode(id, OPERATING_MODE_CURRENT_BASE_POSITION);
+            else ROS_WARN("Invalid operating mode [%s], please see CallbackCmd_Status.msg definition.", msg.mode[i].c_str());
+        }
+    }
+    if (verbose_callback_ && has_torque) ROS_INFO_STREAM(update_info(msg.id_list, "torque status"));
+    if (verbose_callback_ && has_error ) ROS_INFO_STREAM(update_info(msg.id_list, "error status"));
+    if (verbose_callback_ && has_ping  ) ROS_INFO_STREAM(update_info(msg.id_list, "ping status"));
+    if (verbose_callback_ && has_mode  ) ROS_INFO_STREAM(update_info(msg.id_list, "mode status"));
+    if ( !msg.id_list.empty() && !has_torque && !has_error && !has_ping && !has_mode ) ROS_WARN("\nElement size is dismatch; skiped callback");
 }
 
 void DynamixelHandler::CallbackCmd_X_Pwm(const DynamixelControlXPwm& msg) {
@@ -268,11 +292,6 @@ void DynamixelHandler::CallbackCmd_P_ExtendedPosition(const DynamixelControlPExt
     if (verbose_callback_ && has_pv ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_velocity (p series)"));
     if (verbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (p series)"));
     if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
-}
-
-void DynamixelHandler::CallbackCmd_Status(const DynamixelStatus& msg) {
-    // あとで実装する
-    // 各ステータスの指令値をもとにCommonCmd型の命令を生成する．
 }
 
 void DynamixelHandler::CallbackCmd_Goal(const DynamixelGoal& msg) {
