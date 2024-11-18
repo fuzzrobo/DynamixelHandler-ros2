@@ -219,7 +219,7 @@ status: # DynamixelStatus型, pub_ratio/status に一回 read される．．
    mode: ['position', 'velocity', 'current', 'velocity']
 present: # DynamixelPresent型, pub_ratio/present.~ に一回 read され，1要素でも読み取ったら埋める
    id_list: [1, 2, 3, 4]
-   pwm_pulse: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.pwm に一回 read される．
+   pwm_percent: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.pwm に一回 read される．
    current_ma: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.current に一回 read される．
    velocity_deg_s: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.velocity に一回 read される．
    position_deg: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.position に一回 read される．
@@ -229,7 +229,7 @@ present: # DynamixelPresent型, pub_ratio/present.~ に一回 read され，1要
    temperature_degc: [] # pub_ratio/present.temperature に一回 read される．
 goal: # DynamixelGoal型, pub_ratio/goalに一回 read され，読み取ったら埋める
    id_list: [1, 2, 3, 4]
-   pwm_pulse: [0.0, 0.0, 0.0, 0.0]
+   pwm_percent: [0.0, 0.0, 0.0, 0.0]
    current_ma: [0.0, 0.0, 0.0, 0.0]
    velocity_deg_s: [0.0, 0.0, 0.0, 0.0]
    profile_acc_deg_ss: [0.0, 0.0, 0.0, 0.0]
@@ -284,7 +284,10 @@ extra: # DynamixelExtra型, 未実装
    homing_offset_deg: []
    return_delay_time_us: []
    bus_watchbdog_ms: []
-   led: []
+   led:
+      red_percent: [] # Xシリーズは `0.0`と`100.0`の二値．切り上げ． 
+      blue_percent: [] # Pシリーズのみ
+      green_percent: [] # Pシリーズのみ
    shadow_id: []
    moving_threshold_deg_s: []
    status_return_level: []
@@ -529,6 +532,8 @@ Xシリーズを電流制限付き位置制御モードで動かすためのtopi
    float64[] max_position_limit_deg
    float64[] min_position_limit_deg
    ```
+
+#### あとで，/state/...トピックを並べる
 
 ---
 ---
