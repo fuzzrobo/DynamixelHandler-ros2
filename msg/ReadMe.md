@@ -13,6 +13,8 @@
    - read: `/dynamixel/state/...` topics, `/dynamixel/debug` topic
    - write: `/dynamixel/command/...` topics
 
+-----
+
 ## Topic list 
 全てのtopicのリストを示す．
 
@@ -59,11 +61,11 @@
    - `/dynamixel/command/p/position_control` : 位置制御モードでの指令を送る
    - `/dynamixel/command/p/extended_position_control` : 拡張位置制御モードでの指令を送る
 
----
+-----
 
 ## How to use
 
-### readする情報
+### 情報をSubscribe(read)する場合
 #### プログラムでの使用
 ```cpp
 #include "dynamixel_handler/msg/dxl_states.hpp"
@@ -137,7 +139,7 @@ temperature_degc: []
 # ... 略
 ```
 
-### write する情報
+### 指令をPublish(write)する場合
 
 #### プログラムでの使用
 ```cpp
@@ -201,9 +203,11 @@ profile_acc_deg_ss: [0.0, 0.0, 0.0, 0.0]" -1
 # ... 略
 ```
 
+-----
+
 ## Topic detail
 
-### `dynamixel_handler::msg::DxlStates` の中身
+### `/dynamixel/states` (`dynamixel_handler::msg::DxlStates` type)
 ```yaml 
 $ ros2 topic echo --flow-style /dynamixel/states #このtopicはコマンドラインから見る想定ではない．
 stamp: 0000
@@ -294,7 +298,7 @@ extra: # DynamixelExtra型, 未実装
    registered_instruction: []
 ```
 
-### `dynamixel_handler::msg::DxlCommandsX` の中身
+### `/dynamixel/commands/x` (`dynamixel_handler::msg::DxlCommandsX` type)
 ```yaml
 $ ros2 topic echo --flow-style /dynamixel/commands/x #このtopicはコマンドラインから送る想定ではない．
 common: #DynamixelCommonCmd型
@@ -397,35 +401,71 @@ extra:
    registered_instruction: []      
 ```
 
+### `/dynamixel/commands/p` (`dynamixel_handler::msg::DxlCommandsP` type)
+略
 
-`/dynamixel/command/x/pwm_control` (`DynamixelControlXPwm` type) : XシリーズをPWM制御モードで動かすためのtopic
+### その他のコマンドライン用トピックとその型定義
+
+#### `/dynamixel/command/common` (`DynamixelCommonCmd` type) 
+トルクのオンオフなどのコマンドを送るtopic
+   ```yml
+   string   command
+   uint16[]  id_list
+   # === high lebel commnads : ユーザの利用を想定 ===
+   string CLEAR_ERROR ="clear_error" # ("CE"): ハードウェアエラー(ex. overload)をrebootによって解除する．
+                                     # homing offsetを用いて現在角がジャンプしないように調整する．
+   string TORQUE_OFF ="torque_off" # ("TOFF"): トルクをdisableにする．
+   string TORQUE_ON  ="torque_on"  # ("TON") : 安全にトルクをenableにする．目標姿勢を現在姿勢へ一致させ，速度を0にする．
+   string REMOVE_ID  ="remove_id"  # ("RMID"): 指定したIDのサーボを認識リストから削除する．
+   string ADD_ID     ="add_id"     # ("ADID"): 指定したIDのサーボを認識リストに追加する．
+   # === low level commands : 開発者向け ===
+   string RESET_OFFSET="reset_offset" # : homing_offset アドレスに 0 を書き込む．
+   string ENABLE ="enable"  # : torque enable アドレスに true を書き込む．
+   string DISABLE="disable" # : torque enable アドレスに false を書き込む．
+   string REBOOT ="reboot"  # : reboot インストラクションを送る．
+   ```
+各コマンドの内容はmsgの定数として定義されており，プログラム内から扱う場合，以下の様に記述できる．
+   ```cpp
+   dynamixel_handler::msg::DxlCommandsX cmd;
+   cmd.common.command = msg.TORQUE_ON; // typoはコンパイラが教えてくれる．
+   // cmd.common.command = "torque_on"; // もちろんこれもOKだが，typoのリスクがある．
+   ```
+また，括弧内はalias．すなわち，`command="clear_error"`とするのと`command="CE"`とするのは同じ．
+
+#### `/dynamixel/command/x/pwm_control` (`DynamixelControlXPwm` type)
+XシリーズをPWM制御モードで動かすためのtopic
    ```yml
    uint16[] id_list
    float64[] pwm_percent
    ```
 
-
-`/dynamixel/command/x/current_control` (`DynamixelControlXCurrent` type) : Xシリーズを電流制御モードで動かすためのtopic
+#### `/dynamixel/command/x/current_control` (`DynamixelControlXCurrent` type)
+Xシリーズを電流制御モードで動かすためのtopic
    ```yml
    uint16[] id_list
    float64[] current_mA
    ```
 
 
-`/dynamixel/command/x/velocity_control` (`DynamixelControlXVelocity` type) : Xシリーズを速度制御モードで動かすためのtopic
+#### `/dynamixel/command/x/velocity_control` (`DynamixelControlXVelocity` type)
+Xシリーズを速度制御モードで動かすためのtopic
    ```yml
    uint16[] id_list
    float64[] velocity_deg_s
    float64[] profile_acc_deg_ss
    ```
-`/dynamixel/command/x/position_control` (`DynamixelControlXPosition` type) : Xシリーズを位置制御モードで動かすためのtopic
+
+#### `/dynamixel/command/x/position_control` (`DynamixelControlXPosition` type)
+Xシリーズを位置制御モードで動かすためのtopic
    ```yml
    uint16[] id_list
    float64[] position_deg
    float64[] profile_vel_deg_s
    float64[] profile_acc_deg_ss
    ```
-`/dynamixel/command/x/extended_position_control` (`DynamixelControlXExtendedPosition` type) : Xシリーズを拡張位置制御モードで動かすためのtopic
+
+#### `/dynamixel/command/x/extended_position_control` (`DynamixelControlXExtendedPosition` type)
+Xシリーズを拡張位置制御モードで動かすためのtopic
    ```yml
    uint16[] id_list
    float64[] position_deg
@@ -433,7 +473,9 @@ extra:
    float64[] profile_vel_deg_s
    float64[] profile_acc_deg_ss
    ```
-`/dynamixel/command/x/current_position _control` (`DynamixelControlXCurrentPosition` type) : Xシリーズを電流制限付き位置制御モードで動かすためのtopic
+
+#### `/dynamixel/command/x/current_position _control` (`DynamixelControlXCurrentPosition` type)
+Xシリーズを電流制限付き位置制御モードで動かすためのtopic
    ```yml
    uint16[] id_list
    float64[] current_ma
@@ -442,7 +484,8 @@ extra:
    float64[] profile_vel_deg_s
    float64[] profile_acc_deg_ss
    ```
-`/dynamixel/command/status` (`DynamixelStatus` type) : 
+
+#### `/dynamixel/command/status` (`DynamixelStatus` type)
    ```yml
    uint16[] id_list
    bool[] torque
@@ -450,7 +493,8 @@ extra:
    bool[] ping
    string[] mode
    ```
-`/dynamixel/command/goal` (`DynamixelGoal` type):
+
+#### `/dynamixel/command/goal` (`DynamixelGoal` type)
    ```yml
    uint16[] id_list
    float64[] pwm_pulse
@@ -460,7 +504,8 @@ extra:
    float64[] profile_vel_deg_s
    float64[] position_deg
    ```
-`/dynamixel/command/gain` (`DynamixelGain` type) : 
+
+#### `/dynamixel/command/gain` (`DynamixelGain` type)
    ```yml
    uint16[] id_list
    float64[] velocity_i_gain_pulse
@@ -471,7 +516,7 @@ extra:
    float64[] feedforward_2nd_gain_pulse
    float64[] feedforward_1st_gain_pulse
    ```
-`/dynamixel/command/limit` (`DynamixelLimit` type) : 
+#### `/dynamixel/command/limit` (`DynamixelLimit` type)
    ```yml
    uint16[] id_list
    float64[] temperature_limit_degc
@@ -484,6 +529,10 @@ extra:
    float64[] max_position_limit_deg
    float64[] min_position_limit_deg
    ```
+
+---
+---
+---
 
 ## external port に関して
 こいつだけ, XH540シリーズだけで使える機能なので，独立させる．
