@@ -205,9 +205,10 @@ profile_acc_deg_ss: [0.0, 0.0, 0.0, 0.0]" -1
 
 -----
 
-## Topic detail
+## Topic type detail
 
-### `/dynamixel/states` (`dynamixel_handler::msg::DxlStates` type)
+### `dynamixel_handler::msg::DxlStates` type : `/dynamixel/states` topic
+具体的な詳細については，[それぞれの型定義](#その他のコマンドライン用トピックの型定義)を参照.
 ```yaml 
 $ ros2 topic echo --flow-style /dynamixel/states #このtopicはコマンドラインから見る想定ではない．
 stamp: 0000
@@ -301,7 +302,8 @@ extra: # DynamixelExtra型, 未実装
    registered_instruction: []
 ```
 
-### `/dynamixel/commands/x` (`dynamixel_handler::msg::DxlCommandsX` type)
+### `dynamixel_handler::msg::DxlCommandsX` type : `/dynamixel/commands/x` topic
+具体的な詳細については，[それぞれの型定義](#その他のコマンドライン用トピックの型定義)を参照.
 ```yaml
 $ ros2 topic echo --flow-style /dynamixel/commands/x #このtopicはコマンドラインから送る想定ではない．
 common: #DynamixelCommonCmd型
@@ -390,7 +392,10 @@ extra:
    homing_offset_deg: []
    return_delay_time_us: []
    bus_watchbdog_ms: []
-   led: []
+   led:
+      red_percent: [] # Xシリーズは `0.0`と`100.0`の二値．切り上げ． 
+      blue_percent: [] # Pシリーズのみ
+      green_percent: [] # Pシリーズのみ
    shadow_id: []
    moving_threshold_deg_s: []
    status_return_level: []
@@ -404,13 +409,13 @@ extra:
    registered_instruction: []      
 ```
 
-### `/dynamixel/commands/p` (`dynamixel_handler::msg::DxlCommandsP` type)
+### `dynamixel_handler::msg::DxlCommandsP` type: `/dynamixel/commands/p` topic
 略
 
-### その他のコマンドライン用トピックとその型定義
+### その他のコマンドライン用トピックの型定義
 
-#### `/dynamixel/command/common` (`DynamixelCommonCmd` type) 
-トルクのオンオフなどのコマンドを送るtopic
+#### `DynamixelCommonCmd` type
+トルクのオンオフなどのコマンドを送るtopic `/dynamixel/command/common` の型．
    ```yml
    string   command
    uint16[]  id_list
@@ -435,31 +440,31 @@ extra:
    ```
 また，括弧内はalias．すなわち，`command="clear_error"`とするのと`command="CE"`とするのは同じ．
 
-#### `/dynamixel/command/x/pwm_control` (`DynamixelControlXPwm` type)
-XシリーズをPWM制御モードで動かすためのtopic
+#### `DynamixelControlXPwm` type
+XシリーズをPWM制御モードで動かすためのtopic `/dynamixel/command/x/pwm_control` の型．
    ```yml
    uint16[] id_list
    float64[] pwm_percent
    ```
 
-#### `/dynamixel/command/x/current_control` (`DynamixelControlXCurrent` type)
-Xシリーズを電流制御モードで動かすためのtopic
+#### `DynamixelControlXCurrent` type
+Xシリーズを電流制御モードで動かすためのtopic `/dynamixel/command/x/current_control` の型
    ```yml
    uint16[] id_list
    float64[] current_mA
    ```
 
 
-#### `/dynamixel/command/x/velocity_control` (`DynamixelControlXVelocity` type)
-Xシリーズを速度制御モードで動かすためのtopic
+#### `DynamixelControlXVelocity` type
+Xシリーズを速度制御モードで動かすためのtopic　`/dynamixel/command/x/velocity_control`　の型
    ```yml
    uint16[] id_list
    float64[] velocity_deg_s
    float64[] profile_acc_deg_ss
    ```
 
-#### `/dynamixel/command/x/position_control` (`DynamixelControlXPosition` type)
-Xシリーズを位置制御モードで動かすためのtopic
+#### `DynamixelControlXPosition` type
+Xシリーズを位置制御モードで動かすためのtopic　`/dynamixel/command/x/position_control`の型
    ```yml
    uint16[] id_list
    float64[] position_deg
@@ -467,8 +472,8 @@ Xシリーズを位置制御モードで動かすためのtopic
    float64[] profile_acc_deg_ss
    ```
 
-#### `/dynamixel/command/x/extended_position_control` (`DynamixelControlXExtendedPosition` type)
-Xシリーズを拡張位置制御モードで動かすためのtopic
+#### `DynamixelControlXExtendedPosition` type
+Xシリーズを拡張位置制御モードで動かすためのtopic　`/dynamixel/command/x/extended_position_control`の型
    ```yml
    uint16[] id_list
    float64[] position_deg
@@ -477,8 +482,8 @@ Xシリーズを拡張位置制御モードで動かすためのtopic
    float64[] profile_acc_deg_ss
    ```
 
-#### `/dynamixel/command/x/current_position _control` (`DynamixelControlXCurrentPosition` type)
-Xシリーズを電流制限付き位置制御モードで動かすためのtopic
+#### `DynamixelControlXCurrentPosition` type　
+Xシリーズを電流制限付き位置制御モードで動かすためのtopic `/dynamixel/command/x/current_position _control`の型
    ```yml
    uint16[] id_list
    float64[] current_ma
@@ -488,7 +493,9 @@ Xシリーズを電流制限付き位置制御モードで動かすためのtopi
    float64[] profile_acc_deg_ss
    ```
 
-#### `/dynamixel/command/status` (`DynamixelStatus` type)
+#### `DynamixelStatus` type
+`/dynamixel/command/status` 
+`/dynamixel/state/status`
    ```yml
    uint16[] id_list
    bool[] torque
@@ -497,7 +504,9 @@ Xシリーズを電流制限付き位置制御モードで動かすためのtopi
    string[] mode
    ```
 
-#### `/dynamixel/command/goal` (`DynamixelGoal` type)
+#### `DynamixelGoal` type
+`/dynamixel/command/goal`
+`/dynamixel/state/goal` 
    ```yml
    uint16[] id_list
    float64[] pwm_pulse
@@ -508,7 +517,9 @@ Xシリーズを電流制限付き位置制御モードで動かすためのtopi
    float64[] position_deg
    ```
 
-#### `/dynamixel/command/gain` (`DynamixelGain` type)
+#### `DynamixelGain` type
+`/dynamixel/command/gain`
+`/dynamixel/state/gain`
    ```yml
    uint16[] id_list
    float64[] velocity_i_gain_pulse
@@ -519,7 +530,9 @@ Xシリーズを電流制限付き位置制御モードで動かすためのtopi
    float64[] feedforward_2nd_gain_pulse
    float64[] feedforward_1st_gain_pulse
    ```
-#### `/dynamixel/command/limit` (`DynamixelLimit` type)
+#### `DynamixelLimit` type
+`/dynamixel/command/limit`
+`/dynamixel/state/limit`
    ```yml
    uint16[] id_list
    float64[] temperature_limit_degc
@@ -533,7 +546,13 @@ Xシリーズを電流制限付き位置制御モードで動かすためのtopi
    float64[] min_position_limit_deg
    ```
 
-#### あとで，/state/...トピックを並べる
+#### `DynamixelError` type
+
+
+#### `DynamixelDebug` type
+
+
+#### `DynamixelDebugElement` type
 
 ---
 ---
