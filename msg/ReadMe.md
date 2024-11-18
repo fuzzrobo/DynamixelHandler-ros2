@@ -150,7 +150,7 @@ temperature_degc: []
 dynamixel_handler::msg::DxlCommandsX cmd;
 
 // id = 1,2,3 のサーボを **torque_on**.
-cmd.common.command = "torque_on";
+cmd.common.command = cmd.common.TORQUE_ON;
 for (int i=1; i<=3; i++) cmd.common.id_list.push_back(i);
 pub_dxl_cmd_->publish( cmd );
 
@@ -427,7 +427,7 @@ extra:
 各コマンドの内容はmsgの定数として定義されており，プログラム内から扱う場合，以下の様に記述できる．
    ```cpp
    dynamixel_handler::msg::DxlCommandsX cmd;
-   cmd.common.command = msg.TORQUE_ON; // typoはコンパイラが教えてくれる．
+   cmd.common.command = cmd.common.TORQUE_ON; // typoはコンパイラが教えてくれる．
    // cmd.common.command = "torque_on"; // もちろんこれもOKだが，typoのリスクがある．
    ```
 また，括弧内はalias．すなわち，`command="clear_error"`とするのと`command="CE"`とするのは同じ．
