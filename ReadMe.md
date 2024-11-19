@@ -232,30 +232,26 @@ position_deg: # 現在の角度と目標角度
 
 さらなる詳細は[メッセージの定義](./msg/ReadMe.md)を参照
 
+### Published from dynamixel_handler 
+
+サーボの状態を監視するためのtopic.Xシリーズ，Pシリーズ共通．
+
+ - `/dynamixel/states` (`DxlStates` type) : 下記の `/dynamixel/state/...` 系トピックすべてをひとまとめにしたtopic.プログラムでの使用を想定
+ - `/dynamixel/state/status` (`DynamixelStatus` type) : サーボの状態(トルク・エラー・ping・制御モード)を確認するためのtopic
+ - `/dynamixel/state/goal` (`DynamixelGoal` type) : サーボの目標値を確認するためのtopic
+ - `/dynamixel/state/gain` (`DynamixelGain` type) : サーボの制御ゲインを確認するためのtopic
+ - `/dynamixel/state/limit` (`DynamixelLimit` type) : サーボの制限値を確認するためのtopic
+ - `/dynamixel/state/error` (`DynamixelError` type) : サーボのハードウェアエラー情報を確認するためのtopic
+ - `/dynamixel/debug` (`DynamixelDebug` type) : コマンドラインからデバックする用のtopic
+
 ### Subscribed by dynamixel_handler 
 
-サーボへの入力を行うためのtopic.
+Xシリーズのサーボへの入力を行うためのtopic.
+> [!NOTE]
+> 同様にPシリーズ用のトピックも用意されている．[メッセージの定義](./msg/ReadMe.md)参照
 
   - `/dynamixel/commands/x` (`DxlCommandsX` type) : 下記の `/dynamixel/command/...` 系トピックすべてをひとまとめにしたtopic. プログラムでの使用を想定
-  - `/dynamixel/command/common` (`DynamixelCommonCmd` type) : dynamixelの起動や停止，エラー解除コマンドなどを送るためのtopic
-    ``` cpp
-    // DynamixelCommonCmd.msg
-    string   command
-    uint16[]  id_list
-    // === high lebel commnads : ユーザの利用を想定 ===
-    string CLEAR_ERROR ="clear_error" // ("CE"): ハードウェアエラー(ex. overload)をrebootによって解除する．
-                                      // 回転数の情報が喪失することによって現在角が不連続に変動する問題を解消するために，homing offset用いて自動で補正する．
-    string TORQUE_OFF  ="torque_off" // ("TOFF"): トルクをdisableにする．
-    string TORQUE_ON   ="torque_on" // ("TON"): 安全にトルクをenableにする．目標姿勢を現在姿勢へ一致させ，速度を0にする．
-    string REMOVE_ID   ="remove_id" // : 指定したIDのサーボを認識リストから削除する．
-    string ADD_ID      ="add_id" // : 指定したIDのサーボを認識リストに追加する．
-    // === low level commands : 開発者向け ===
-    string RESET_OFFSET="reset_offset" // : homing_offset アドレスに 0 を書き込む．
-    string ENABLE ="enable"  // : torque enable アドレスに true を書き込む．
-    string DISABLE="disable" // : torque enable アドレスに false を書き込む．
-    string REBOOT ="reboot"  // : reboot インストラクションを送る．
-    ```
-
+  - `/dynamixel/command/common` (`DynamixelCommonCmd` type) : dynamixelの起動や停止，エラー解除コマンドなどを送るためのtopic, 指定できるコマンドは[Command list](#command-list)参照       
   - `/dynamixel/command/x/pwm_control` (`DynamixelControlXCurrent` type) : Xシリーズを電流制御モード用
   - `/dynamixel/command/x/current_control` (`DynamixelControlXCurrent` type) : Xシリーズを電流制御モード用
   - `/dynamixel/command/x/velocity_control` (`DynamixelControlXVelocity` type) : Xシリーズを速度制御モード用
@@ -267,20 +263,23 @@ position_deg: # 現在の角度と目標角度
   - `/dynamixel/command/gain` (`DynamixelGain` type) : 制御ゲインを設定するためのtopic
   - `/dynamixel/command/limit` (`DynamixelLimit` type) : 各種の制限値をを設定するためのtopic
 
-> [!NOTE]
-> 同様にPシリーズ用のトピックも用意されている．[メッセージの定義](./msg/ReadMe.md)参照
-   
-#### Published from dynamixel_handler 
+#### Command list
 
-サーボの状態を監視するためのtopic.
+`/dynamixel/command/common` topic `command` fieldに指定できる文字列.
+`DynamixelCommonCmd`型の定義内で[定数として定義](./msg#dynamixelcommoncmd-type)されている．
 
- - `/dynamixel/states` (`DxlStates` type) : 下記の `/dynamixel/state/...` 系トピックすべてをひとまとめにしたtopic.プログラムでの使用を想定
- - `/dynamixel/state/status` (`DynamixelStatus` type) : サーボの状態(トルク・エラー・ping・制御モード)を確認するためのtopic
- - `/dynamixel/state/goal` (`DynamixelGoal` type) : サーボの目標値を確認するためのtopic
- - `/dynamixel/state/gain` (`DynamixelGain` type) : サーボの制御ゲインを確認するためのtopic
- - `/dynamixel/state/limit` (`DynamixelLimit` type) : サーボの制限値を確認するためのtopic
- - `/dynamixel/state/error` (`DynamixelError` type) : サーボのハードウェアエラー情報を確認するためのtopic
- - `/dynamixel/debug` (`DynamixelDebug` type) : コマンドラインからデバックする用のtopic
+- 高レベルコマンド：ユーザの利用を想定
+  - `torque_on` / `TON`  : 安全にトルクをenableにする．目標姿勢を現在姿勢へ一致させ，速度を0にする．
+  - `torque_off` / `TOFF`: トルクをdisableにする．
+  - `clear_error` / `CE` : ハードウェアエラー(ex. overload)をrebootによって解除する．回転数の情報が喪失することによって現在角が不連続に変動する問題を解消するために，homing offset用いて自動で補正する．
+  - `remove_id` / `RMID` : 指定したIDのサーボを認識リストから削除する．
+  - `add_id` / `ADID`    : 指定したIDのサーボを認識リストに追加する．
+
+- 低レベルコマンド：開発者向け
+  - `reboot` : reboot インストラクションを送る
+  - `enable` : torque enable アドレスに true を書き込む．
+  - `disable` : torque enable アドレスに false を書き込む．
+
 
 ***************************
 
