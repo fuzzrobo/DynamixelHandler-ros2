@@ -28,6 +28,7 @@ set(msg_files
   "msg/DynamixelExtraShutdown.msg"
   "msg/DynamixelExtraRestureconfig.msg"
   "msg/DynamixelExtraMovingstatus.msg"
+  "msg/DynamixelExtraLed.msg"
 
   "msg/DynamixelDebug.msg"
   "msg/DynamixelDebugElement.msg"

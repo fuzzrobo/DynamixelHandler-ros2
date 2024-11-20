@@ -14,7 +14,7 @@ float64[] return_delay_time_us
 float64[] bus_watchbdog_ms          
 
 #　機能
-uint8[] led                    
+dynamixel_handler/DynamixelExtraLed led                    
 uint8[] shadow_id
 float64[] moving_threshold_deg_s
 uint8[] status_return_level    

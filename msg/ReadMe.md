@@ -279,40 +279,40 @@ error: # DynamxielError型, pub_ratio/errorに一回 read され，読み取り�
    overload: [false, false, false, false]
 extra: # DynamixelExtra型, 未実装
    id_list: []
-   model: []
-   firmware_version: []
-   protocol_version: []
-   drive_mode:
+   model: [] # 未実装
+   firmware_version: [] # 未実装
+   protocol_version: [] # 未実装
+   drive_mode: # 未実装
       torque_on_by_goal_update: []
       profile_configuration: []
       reverse_mode: []
-   shutdown:
+   shutdown: # 未実装
       overload_error: []
       electrical_shock_error: []
       motor_encorder_error: []
       overheating_error: []
       input_voltage_error: []
-   restore_configuration:
+   restore_configuration: # 未実装
       ram_restore: []
       startup_torque_on: []
-   homing_offset_deg: []
-   return_delay_time_us: []
-   bus_watchbdog_ms: []
-   led:
+   homing_offset_deg: [] # 未実装, デフォルトで使用している
+   bus_watchbdog_ms: [] # 未実装, デフォルトで使用している
+   return_delay_time_us: [] # 未実装
+   led: # 未実装
       red_percent: [] # Xシリーズは `0.0`と`100.0`の二値．切り上げ． 
       blue_percent: [] # Pシリーズのみ
       green_percent: [] # Pシリーズのみ
-   shadow_id: []
-   moving_threshold_deg_s: []
-   status_return_level: []
-   moving_status:
+   shadow_id: [] # 未実装
+   moving_threshold_deg_s: [] # 未実装
+   status_return_level: [] # 未実装
+   moving_status: # 未実装
       velocity_profile: []
       following_error: []
       profile_ongoing: []
       in_posision: []
-   realtime_tick_us: []
-   moving: []
-   registered_instruction: []
+   realtime_tick_us: [] # 未実装
+   moving: [] # 未実装
+   registered_instruction: [] # 未実装
 ```
 
 ### `dynamixel_handler::msg::DxlCommandsX` type 
@@ -402,40 +402,40 @@ limit: # DynamixelLimit型
    min_position_limit_deg: []
 extra: # DynamixelExtra型, 未実装
    id_list: []
-   model: []
-   firmware_version: []
-   protocol_version: []
-   drive_mode:
+   model: [] # read only
+   firmware_version: [] # read only
+   protocol_version: [] # read only
+   drive_mode: # 未実装
       torque_on_by_goal_update: []
       profile_configuration: []
       reverse_mode: []
-   shutdown:
+   shutdown: # 未実装
       overload_error: []
       electrical_shock_error: []
       motor_encorder_error: []
       overheating_error: []
       input_voltage_error: []
-   restore_configuration:
+   restore_configuration: # 未実装
       ram_restore: []
       startup_torque_on: []
-   homing_offset_deg: []
-   return_delay_time_us: []
-   bus_watchbdog_ms: []
-   led:
+   homing_offset_deg: [] # 未実装, デフォルトで使用している
+   bus_watchbdog_ms: [] # 未実装, デフォルトで使用している
+   return_delay_time_us: [] # 未実装
+   led: # 未実装
       red_percent: [] # Xシリーズは `0.0`と`100.0`の二値．切り上げ． 
       blue_percent: [] # Pシリーズのみ
       green_percent: [] # Pシリーズのみ
-   shadow_id: []
-   moving_threshold_deg_s: []
-   status_return_level: []
-   moving_status:
+   shadow_id: [] # 未実装
+   moving_threshold_deg_s: [] # 未実装
+   status_return_level: [] # 未実装
+   moving_status: # read only
       velocity_profile: []
       following_error: []
       profile_ongoing: []
       in_posision: []
-   realtime_tick_us: []
-   moving: []
-   registered_instruction: []      
+   realtime_tick_us: [] # 未実装
+   moving: [] # read only
+   registered_instruction: [] # 未実装  
 ```
 
 ### `dynamixel_handler::msg::DxlCommandsP` type
