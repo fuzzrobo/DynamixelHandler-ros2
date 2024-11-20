@@ -276,9 +276,10 @@ Xシリーズのサーボへの入力を行うためのtopic.
   - `add_id` / `ADID`    : 指定したIDのサーボを認識リストに追加する．
 
 - 低レベルコマンド：開発者向け
-  - `reboot` : reboot インストラクションを送る
-  - `enable` : torque enable アドレスに true を書き込む．
+  - `reset_offset` : homing offset アドレスに 0 を書き込む．
+  - `enable`  : torque enable アドレスに true を書き込む．
   - `disable` : torque enable アドレスに false を書き込む．
+  - `reboot`  : reboot インストラクションを送る
 
 
 ***************************
@@ -429,7 +430,7 @@ cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
 以下説明はXシリーズの場合．Pシリーズの場合は適宜読み替えること．
 
 ### 状態 (status)
- - torque_enable  : 接続時に自動でトルクONされる. `/dynamixel/commnad/common`の`command`=`'torque_on'` or `'enable'`で1,`command`=`'torque_off'` or `'disable'`で0に設定される．  
+ - torque_enable  : 接続時に自動でトルクONされる. `/dynamixel/command/common`の`command`=`'torque_on'` or `'enable'`で1,`command`=`'torque_off'` or `'disable'`で0に設定される．  
  - operating_mode : 対応するtopicのsubで自動で設定される． 
  - (ping)         : Control table ではないが，statusとして扱っている．pingが通るかどうか．
  - (error)        : Control table ではないが，statusとして扱っている．何らかのエラーを持っているかどうか．
@@ -472,7 +473,7 @@ cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
 `/dynamixel/command/limit`をsubすると設定され，`loop_rate`の周期で書き込まれる．
 また，`/dynamixel/states` or `/dynamixel/state/limit` として `loop_rate`/`pub_ratio/limit` の周期で読みだされ，publishされる．
 
-### ゲイン　(gain)
+### ゲイン (gain)
  - velocity_i_gain       
  - velocity_p_gain       
  - position_d_gain       
@@ -486,7 +487,7 @@ cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
 
 note: 制御モードによってデフォルト値が異なり，なんとモードを変えると勝手に書き換えられてしまう．制御モードをまたぐ場合の処理については検討中．
 
-### エラー　(error)
+### エラー (error)
  - hardware_error_status  : サーボのハードウェアエラー情報
 
 `/dynamixel/state/error`として`loop_rate`のうち，`pub_ratio/error`に一回の周期でpubされる. 
@@ -497,7 +498,7 @@ note: 制御モードによってデフォルト値が異なり，なんとモ�
 
 X540シリーズのみ搭載の機能．topicから制御可能．未実装だがすぐに対応する．
 
-### その他　(extra)
+### その他 (extra)
  - drive_mode             : not support yet
  - return_delay_time      : not support yet
  - homing_offset          : ユーザーは使用不可，初期化時に0に設定され，reboot時の角度補正に用いられる．
@@ -518,9 +519,12 @@ X540シリーズのみ搭載の機能．topicから制御可能．未実装だ�
 ***************************
 
 ### 未実装機能
- - commnad topic を service にする？1対1通信になってしまって，面倒なのでは？
- - External Portsをうまいことやる
- - command の設定値を callback でストアしてからメインループで write しているので，最大 1/roop_late [sec] の遅延が生じうる．
+ - External Ports関連の実装
+ - マルチスレッド化
+ - extra topic のread/writeの実装
+ - command topic を service にする
+   - 1対1通信になってしまって，利点が少ないのでは？
+ - write するタイミングの変更
    - 現在の方法：sub callback でストアしメインループで write
      - [＋] write回数が抑えられる．
        - 各IDへの command が別の topic に乗ってきても，node 側で 1/roop_late [sec] 分の command をまとめてくれる
@@ -576,43 +580,16 @@ present系の8つのアドレスすべてから読み込んでも，同時読み
 ***************************
 
 
-## develop memo
+## Trouble Shooting
 
-### 確認
-１つ目の確認
-```bash
-ros2 run dynamixel_handler dynamixel_unify_baudrate_node
-```
-※「dynamixel_handlerがない」もしくは，「メッセージがない」といったエラーが出る場合，\
+### 「dynamixel_handlerがない」もしくは，「メッセージがない」といったエラーが出る場合
+
 ターミナルを立ち上げ直すか，以下を実行．
 ```bash
 source ~/.bashrc
 ```
 
-２つ目の確認
-```bash
-ros2 run dynamixel_handler dynamixel_handler_node
-```
-
-``cannot publish data``といったようなエラーが出た場合，\
-後述の「implementation DDSについて」を参照
-
-## Launchファイルと設定（yaml）
-### launch_dynamixel_unify_baudrate.py
-```bash
-ros2 launch dynamixel_handler launch_dynamixel_unify_baudrate.py
-```
-対応する``yaml``は``config/config_dynamixel_handler.yaml``
-
-### launch_dynamixel_handler.py
-```bash
-ros2 launch dynamixel_handler launch_dynamixel_handler.py
-```
-対応する``yaml``は``config/config_dynamixel_unify_baudrate.yaml``
-
-※ 一度ビルドしていれば，yamlファイルの変更に伴うビルドは不要
-
-### implementation DDSについて
+### ``cannot publish data``といったようなエラーが出た場合
 デフォルトのDDSはFast-RTPSであるが，固有のバグを持っているらしく，実行時にエラーが発生する．
 そのため，DDSをEclipse Cyclone DDSに変更しておく．
 
@@ -633,4 +610,19 @@ usbipd: error: WSL 'usbip' client not correctly installed. See https://github.co
 ```bash
 sudo update-alternatives --install /usr/local/bin/usbip usbip `ls /usr/lib/linux-tools/*/usbip | tail -n1` 20
 ```
+
+## Launchファイルと設定（yaml）
+### launch_dynamixel_unify_baudrate.py
+```bash
+ros2 launch dynamixel_handler launch_dynamixel_unify_baudrate.py
+```
+対応する``yaml``は``config/config_dynamixel_handler.yaml``
+
+### launch_dynamixel_handler.py
+```bash
+ros2 launch dynamixel_handler launch_dynamixel_handler.py
+```
+対応する``yaml``は``config/config_dynamixel_unify_baudrate.yaml``
+
+※ 一度ビルドしていれば，yamlファイルの変更に伴うビルドは不要
 

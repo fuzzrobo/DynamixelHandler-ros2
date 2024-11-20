@@ -207,8 +207,21 @@ profile_acc_deg_ss: [0.0, 0.0, 0.0, 0.0]" -1
 
 ## Topic type detail
 
-### `dynamixel_handler::msg::DxlStates` type : `/dynamixel/states` topic
-具体的な詳細については，[それぞれの型定義](#その他のコマンドライン用トピックの型定義)を参照.
+### `dynamixel_handler::msg::DxlStates` type 
+ `/dynamixel/states` topic　の型
+```cpp
+builtin_interfaces/Time stamp
+
+dynamixel_handler/DynamixelStatus status
+dynamixel_handler/DynamixelPresent present
+dynamixel_handler/DynamixelGoal goal
+dynamixel_handler/DynamixelGain gain
+dynamixel_handler/DynamixelLimit limit
+dynamixel_handler/DynamixelError error
+dynamixel_handler/DynamixelExtra extra
+```
+具体的な詳細については，[それぞれの型定義](#その他のコマンドライン用トピックの型定義)を参照.　
+↓ 出力例．
 ```yaml 
 $ ros2 topic echo --flow-style /dynamixel/states #このtopicはコマンドラインから見る想定ではない．
 stamp: 0000
@@ -302,76 +315,92 @@ extra: # DynamixelExtra型, 未実装
    registered_instruction: []
 ```
 
-### `dynamixel_handler::msg::DxlCommandsX` type : `/dynamixel/commands/x` topic
+### `dynamixel_handler::msg::DxlCommandsX` type 
+`/dynamixel/commands/x` topic の型．
+```cpp
+dynamixel_handler/DynamixelCommonCmd common
+dynamixel_handler/DynamixelControlXPwm                 pwm_control
+dynamixel_handler/DynamixelControlXCurrent             current_control
+dynamixel_handler/DynamixelControlXVelocity            velocity_control
+dynamixel_handler/DynamixelControlXPosition            position_control
+dynamixel_handler/DynamixelControlXExtendedPosition    extended_position_control
+dynamixel_handler/DynamixelControlXCurrentBasePosition current_base_position_control
+dynamixel_handler/DynamixelStatus status
+dynamixel_handler/DynamixelGoal   goal
+dynamixel_handler/DynamixelGain   gain
+dynamixel_handler/DynamixelLimit  limit
+dynamixel_handler/DynamixelExtra  extra
+```
 具体的な詳細については，[それぞれの型定義](#その他のコマンドライン用トピックの型定義)を参照.
+↓ 出力例．
 ```yaml
 $ ros2 topic echo --flow-style /dynamixel/commands/x #このtopicはコマンドラインから送る想定ではない．
 common: #DynamixelCommonCmd型
-   command: "torque_on" #要素が1つの時は全idに適用
-   id_list: [1,2,3,4]
+   command: "torque_on" # 複数のcommandを同時に送らねばならない場合は，status fieldの方を利用する．
+   id_list: [1,2,3,4] # 1 ~ 4 のサーボを安全にトルクON.
 pwm_control: # DynamixelControlXPwm型
-   id_list: [1,2,3,4]
-   pwm_percent: [0.0, 0.0, 0.0, 0.0]
+   id_list: [1]        # 1番のサーボをPWM制御モードに変更し，
+   pwm_percent: [40.0] # goal_pwm アドレスに 40% に相当するパルス値を書き込む．
 current_control: # DynamixelControlXCurrent型
-   id_list: [1,2,3,4]
-   current_ma: [0.0, 0.0, 0.0, 0.0]
+   id_list: []
+   current_ma: []
 velocity_control: # DynamixelControlXVelocity型
-   id_list: [1,2,3,4]
-   velocity_deg_s: [0.0, 0.0, 0.0, 0.0]
-   profile_acc_deg_ss: [0.0, 0.0, 0.0, 0.0]
+   id_list: [2,3]                # 2,3番のサーボを速度制御モードに変更し，
+   velocity_deg_s: [10.0, -50.0] # goal_velocity アドレスに 10, -50 deg/s に相当するパルス値を書き込む．
+   profile_acc_deg_ss: []
 position_control: # DynamixelControlXPosition型
-   id_list: [1,2,3,4]
-   position_deg: [0.0, 0.0, 0.0, 0.0]
-   profile_vel_deg_s: [0.0, 0.0, 0.0, 0.0]
-   profile_acc_deg_ss: [0.0, 0.0, 0.0, 0.0]
+   id_list: []
+   position_deg: []
+   profile_vel_deg_s: []
+   profile_acc_deg_ss: []
 extended_position_control: # DynamixelControlXExtendedPosition型
-   id_list: [1,2,3,4]
-   position_deg: [0.0, 0.0, 0.0, 0.0]
-   rotation: [0.0, 0.0, 0.0, 0.0]
-   profile_vel_deg_s: [0.0, 0.0, 0.0, 0.0]
-   profile_acc_deg_ss: [0.0, 0.0, 0.0, 0.0]
+   id_list: []
+   position_deg: []
+   rotation: []
+   profile_vel_deg_s: []
+   profile_acc_deg_ss: []
 current_base_position_control: # DynamixelControlXCurrentPosition型
-   id_list: [1,2,3,4]
-   current_ma: [0.0, 0.0, 0.0, 0.0]
-   position_deg: [0.0, 0.0, 0.0, 0.0]
-   rotation: [0.0, 0.0, 0.0, 0.0]
-   profile_vel_deg_s: [0.0, 0.0, 0.0, 0.0]
-   profile_acc_deg_ss: [0.0, 0.0, 0.0, 0.0]
+   id_list: [4]                 # 4番のサーボを電流制限付き位置制御モードに変更し，    
+   current_ma: [100.0]          # goal_current アドレスに 100mA に相当するパルス値を書き込む．
+   position_deg: []             #
+   rotation: [1.2]              # goal_position アドレスに 1.2*360 deg に相当するパルス値を書き込む．
+   profile_vel_deg_s: [100.0]   # profile_velocity アドレスに 100 deg/s に相当するパルス値を書き込む．
+   profile_acc_deg_ss: [1000.0] # profile_acceleration アドレスに 1000 deg/s^2 に相当するパルス値を書き込む．
 status: # DynamixelStatus型
-   id_list: [1, 2, 3, 4]
-   torque: [true, false, false, false] # torque_onコマンド, torque_offコマンドと同等
-   error: [false, false, false, false] # clear_errorコマンドと同等
-   ping: [true, true, true, true] # add_id コマンド, remove_id コマンドと同等
-   mode: ['position', 'velocity', 'current', 'velocity'] # 各control系のコマンドと同等
+   id_list: []
+   torque: [] # torque_onコマンド, torque_offコマンドと同等
+   error: [] # clear_errorコマンドと同等
+   ping: [] # add_id コマンド, remove_id コマンドと同等
+   mode: [] # 各control系のコマンドと同等
 goal: # DynamixelGoal型
-   id_list: [1,2,3,4]
-   pwm_pulse: [0.0, 0.0, 0.0, 0.0]
-   current_ma: [0.0, 0.0, 0.0, 0.0]
-   velocity_deg_s: [0.0, 0.0, 0.0, 0.0]
-   profile_acc_deg_ss: [0.0, 0.0, 0.0, 0.0]
-   profile_vel_deg_s: [0.0, 0.0, 0.0, 0.0]
-   position_deg: [0.0, 0.0, 0.0, 0.0]
+   id_list: []
+   pwm_pulse: []
+   current_ma: []
+   velocity_deg_s: []
+   profile_acc_deg_ss: []
+   profile_vel_deg_s: []
+   position_deg: []
 gain: # DynamixelGain型
    id_list: [1,2,3,4]
-   velocity_i_gain_pulse: [0, 0, 0, 0]
-   velocity_p_gain_pulse: [0, 0, 0, 0]
-   position_d_gain_pulse: [0, 0, 0, 0]
-   position_i_gain_pulse: [0, 0, 0, 0]
-   position_p_gain_pulse: [0, 0, 0, 0]
-   feedforward_2nd_gain_pulse: [0, 0, 0, 0]
-   feedforward_1st_gain_pulse: [0, 0, 0, 0]
+   velocity_i_gain_pulse: []
+   velocity_p_gain_pulse: []
+   position_d_gain_pulse: []
+   position_i_gain_pulse: [100, 100, 100, 100]
+   position_p_gain_pulse: []
+   feedforward_2nd_gain_pulse: []
+   feedforward_1st_gain_pulse: []
 limit: # DynamixelLimit型
-   id_list: [1,2,3,4]
-   temperature_limit_degc: [0.0, 0.0, 0.0, 0.0]
-   max_voltage_limit_v: [0.0, 0.0, 0.0, 0.0]
-   min_voltage_limit_v: [0.0, 0.0, 0.0, 0.0]
-   pwm_limit_percent: [0.0, 0.0, 0.0, 0.0]
-   current_limit_ma: [0.0, 0.0, 0.0, 0.0]
-   acceleration_limit_deg_ss: [0.0, 0.0, 0.0, 0.0]
-   velocity_limit_deg_s: [0.0, 0.0, 0.0, 0.0]
-   max_position_limit_deg: [0.0, 0.0, 0.0, 0.0]
-   min_position_limit_deg: [0.0, 0.0, 0.0, 0.0]
-extra:
+   id_list: [1,2]
+   temperature_limit_degc: []
+   max_voltage_limit_v: []
+   min_voltage_limit_v: []
+   pwm_limit_percent: []
+   current_limit_ma: [500, 800]
+   acceleration_limit_deg_ss: []
+   velocity_limit_deg_s: []
+   max_position_limit_deg: []
+   min_position_limit_deg: []
+extra: # DynamixelExtra型, 未実装
    id_list: []
    model: []
    firmware_version: []
@@ -409,19 +438,32 @@ extra:
    registered_instruction: []      
 ```
 
-### `dynamixel_handler::msg::DxlCommandsP` type: `/dynamixel/commands/p` topic
-略
+### `dynamixel_handler::msg::DxlCommandsP` type
+ `/dynamixel/commands/p` topic の型．
+```cpp
+dynamixel_handler/DynamixelCommonCmd common
+dynamixel_handler/DynamixelControlPPwm              pwm_control
+dynamixel_handler/DynamixelControlPCurrent          current_control
+dynamixel_handler/DynamixelControlPVelocity         velocity_control
+dynamixel_handler/DynamixelControlPPosition         position_control
+dynamixel_handler/DynamixelControlPExtendedPosition extended_position_control
+dynamixel_handler/DynamixelStatus status
+dynamixel_handler/DynamixelGoal   goal
+dynamixel_handler/DynamixelGain   gain
+dynamixel_handler/DynamixelLimit  limit
+dynamixel_handler/DynamixelExtra  extra
+```
 
 ### その他のコマンドライン用トピックの型定義
 
 #### `DynamixelCommonCmd` type
 トルクのオンオフなどのコマンドを送るtopic `/dynamixel/command/common` の型．
-   ```yml
+   ```cpp
    string   command
    uint16[]  id_list
-   # === high lebel commnads : ユーザの利用を想定 ===
+   # === high level commands : ユーザの利用を想定 ===
    string CLEAR_ERROR ="clear_error" # ("CE"): ハードウェアエラー(ex. overload)をrebootによって解除する．
-                                     # homing offsetを用いて現在角がジャンプしないように調整する．
+                                     #         加えて，homing offsetを用いて現在角がジャンプしないように調整する．
    string TORQUE_OFF ="torque_off" # ("TOFF"): トルクをdisableにする．
    string TORQUE_ON  ="torque_on"  # ("TON") : 安全にトルクをenableにする．目標姿勢を現在姿勢へ一致させ，速度を0にする．
    string REMOVE_ID  ="remove_id"  # ("RMID"): 指定したIDのサーボを認識リストから削除する．
@@ -456,7 +498,7 @@ Xシリーズを電流制御モードで動かすためのtopic `/dynamixel/comm
 
 
 #### `DynamixelControlXVelocity` type
-Xシリーズを速度制御モードで動かすためのtopic　`/dynamixel/command/x/velocity_control`　の型
+Xシリーズを速度制御モードで動かすためのtopic　`/dynamixel/command/x/velocity_control`の型
    ```yml
    uint16[] id_list
    float64[] velocity_deg_s
@@ -496,12 +538,19 @@ Xシリーズを電流制限付き位置制御モードで動かすためのtopi
 #### `DynamixelStatus` type
 `/dynamixel/command/status` 
 `/dynamixel/state/status`
-   ```yml
+   ```cpp
    uint16[] id_list
    bool[] torque
    bool[] error
    bool[] ping
    string[] mode
+   #====== mode field に指定できる文字列 ======
+   string CONTROL_PWM                   = "pwm"
+   string CONTROL_CURRENT               = "current"
+   string CONTROL_VELOCITY              = "velocity"
+   string CONTROL_POSITION              = "position"
+   string CONTROL_EXTENDED_POSITION     = "ex_position"
+   string CONTROL_CURRENT_BASE_POSITION = "cur_position"
    ```
 
 #### `DynamixelGoal` type
