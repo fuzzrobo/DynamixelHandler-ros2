@@ -1,10 +1,13 @@
 # /ns/dyn_handler:
 /**:
     ros__parameters:
+    # 開発用
+        debug: false # true: デバイスとの接続に失敗してもエラーを出力しない/ false: エラーを出力して終了する
+        release: false # true: プログラム用のトピックのみ使用する/ false: コマンドライン用のトピックも出力する
     # 通信機器の設定
         device_name: /dev/ttyUSB0 # 通信するデバイス名
         baudrate: 2000000 # 通信速度
-        latency_timer: 4 # 通信のインターバル
+        latency_timer: 16 # 通信のインターバル
     # 通信の設定
         dyn_comm/retry_num: 5
         dyn_comm/inerval_msec: 4

@@ -11,14 +11,14 @@ def generate_launch_description():
     config1 = os.path.join(
         get_package_share_directory(pkg_name1),
         'config',
-        'dynamixel_handler.yaml'
+        'config_dynamixel_handler.yaml'
     )
 
     node1 = Node(
         package=pkg_name1,
         executable='dynamixel_handler_node',
         name='dxl_handler',
-        namespace='ns2',
+        namespace='',
         output='screen',
         emulate_tty=True,
         parameters=[config1]
