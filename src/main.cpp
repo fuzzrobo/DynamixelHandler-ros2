@@ -12,6 +12,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     ROS_INFO( "Initializing DynamixelHandler .....");
 
     bool is_debug; get_parameter_or("debug", is_debug, false);
+    bool is_release; get_parameter_or("release", is_release, false);
 
     // 通信の開始
     int baudrate      ; this->get_parameter_or("baudrate"     , baudrate     , 57600                 );
@@ -98,37 +99,40 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     rclcpp::SubscriptionOptions sub_options;
     sub_options.callback_group = callback_group_subscriber;
     // Subscriber / Publisherの設定
-    if ( num_[SERIES_X] > 0 ) {
-        sub_dxl_x_cmds_  = create_subscription<DxlCommandsX>("dynamixel/commands/x", 10, bind(&DynamixelHandler::CallbackCmdsX, this, _1));
-        sub_ctrl_x_pwm_  = create_subscription<DynamixelControlXPwm>                 ("dynamixel/command/x/pwm_control",                   4, bind(&DynamixelHandler::CallbackCmd_X_Pwm, this, _1));
-        sub_ctrl_x_cur_  = create_subscription<DynamixelControlXCurrent>             ("dynamixel/command/x/current_control",               4, bind(&DynamixelHandler::CallbackCmd_X_Current, this, _1));
-        sub_ctrl_x_vel_  = create_subscription<DynamixelControlXVelocity>            ("dynamixel/command/x/velocity_control",              4, bind(&DynamixelHandler::CallbackCmd_X_Velocity, this, _1));
-        sub_ctrl_x_pos_  = create_subscription<DynamixelControlXPosition>            ("dynamixel/command/x/position_control",              4, bind(&DynamixelHandler::CallbackCmd_X_Position, this, _1));
-        sub_ctrl_x_epos_ = create_subscription<DynamixelControlXExtendedPosition>    ("dynamixel/command/x/extended_position_control",     4, bind(&DynamixelHandler::CallbackCmd_X_ExtendedPosition, this, _1));
-        sub_ctrl_x_cpos_ = create_subscription<DynamixelControlXCurrentBasePosition> ("dynamixel/command/x/current_base_position_control", 4, bind(&DynamixelHandler::CallbackCmd_X_CurrentBasePosition, this, _1));
-    }
-    if ( num_[SERIES_P] > 0) {
-        sub_dxl_p_cmds_  = create_subscription<DxlCommandsP>("dynamixel/commands/p", 10, bind(&DynamixelHandler::CallbackCmdsP, this, _1));
-        sub_ctrl_p_pwm_  = create_subscription<DynamixelControlPPwm>             ("dynamixel/command/p/pwm_control",               4, bind(&DynamixelHandler::CallbackCmd_P_Pwm, this, _1));
-        sub_ctrl_p_cur_  = create_subscription<DynamixelControlPCurrent>         ("dynamixel/command/p/current_control",           4, bind(&DynamixelHandler::CallbackCmd_P_Current, this, _1));
-        sub_ctrl_p_vel_  = create_subscription<DynamixelControlPVelocity>        ("dynamixel/command/p/velocity_control",          4, bind(&DynamixelHandler::CallbackCmd_P_Velocity, this, _1));
-        sub_ctrl_p_pos_  = create_subscription<DynamixelControlPPosition>        ("dynamixel/command/p/position_control",          4, bind(&DynamixelHandler::CallbackCmd_P_Position, this, _1));
-        sub_ctrl_p_epos_ = create_subscription<DynamixelControlPExtendedPosition>("dynamixel/command/p/extended_position_control", 4, bind(&DynamixelHandler::CallbackCmd_P_ExtendedPosition, this, _1));
-    }
-    sub_common_ = create_subscription<DynamixelCommonCmd>("dynamixel/command/common", 4, bind(&DynamixelHandler::CallbackCmd_Common, this, _1));
-    sub_status_ = create_subscription<DynamixelStatus>   ("dynamixel/command/status", 4, bind(&DynamixelHandler::CallbackCmd_Status, this, _1));
-    sub_goal_   = create_subscription<DynamixelGoal>     ("dynamixel/command/goal",   4, bind(&DynamixelHandler::CallbackCmd_Goal, this, _1));
-    sub_gain_   = create_subscription<DynamixelGain>     ("dynamixel/command/gain",   4, bind(&DynamixelHandler::CallbackCmd_Gain, this, _1));
-    sub_limit_  = create_subscription<DynamixelLimit>    ("dynamixel/command/limit",  4, bind(&DynamixelHandler::CallbackCmd_Limit, this, _1));
-
+    sub_dxl_x_cmds_  = create_subscription<DxlCommandsX>("dynamixel/commands/x", 10, bind(&DynamixelHandler::CallbackCmdsX, this, _1));
+    sub_dxl_p_cmds_  = create_subscription<DxlCommandsP>("dynamixel/commands/p", 10, bind(&DynamixelHandler::CallbackCmdsP, this, _1));
     pub_dxl_states_ = create_publisher<DxlStates>   ("dynamixel/states", 4);
-    pub_status_ = create_publisher<DynamixelStatus> ("dynamixel/state/status"  , 4);
-    pub_present_= create_publisher<DynamixelPresent>("dynamixel/state/present", 4);
-    if ( pub_ratio_["goal"]  ) pub_goal_   = create_publisher<DynamixelGoal>   ("dynamixel/state/goal" , 4);
-    if ( pub_ratio_["gain"]  ) pub_gain_   = create_publisher<DynamixelGain>   ("dynamixel/state/gain" , 4);
-    if ( pub_ratio_["limit"] ) pub_limit_  = create_publisher<DynamixelLimit>  ("dynamixel/state/limit", 4);
-    if ( pub_ratio_["error"] ) pub_error_  = create_publisher<DynamixelError>  ("dynamixel/state/error"  , 4);
-    pub_debug_ = create_publisher<DynamixelDebug>("dynamixel/debug", 4);
+
+    if ( !is_release ){
+        if ( num_[SERIES_X] > 0 ) {
+            sub_ctrl_x_pwm_  = create_subscription<DynamixelControlXPwm>                 ("dynamixel/command/x/pwm_control",                   4, bind(&DynamixelHandler::CallbackCmd_X_Pwm, this, _1));
+            sub_ctrl_x_cur_  = create_subscription<DynamixelControlXCurrent>             ("dynamixel/command/x/current_control",               4, bind(&DynamixelHandler::CallbackCmd_X_Current, this, _1));
+            sub_ctrl_x_vel_  = create_subscription<DynamixelControlXVelocity>            ("dynamixel/command/x/velocity_control",              4, bind(&DynamixelHandler::CallbackCmd_X_Velocity, this, _1));
+            sub_ctrl_x_pos_  = create_subscription<DynamixelControlXPosition>            ("dynamixel/command/x/position_control",              4, bind(&DynamixelHandler::CallbackCmd_X_Position, this, _1));
+            sub_ctrl_x_epos_ = create_subscription<DynamixelControlXExtendedPosition>    ("dynamixel/command/x/extended_position_control",     4, bind(&DynamixelHandler::CallbackCmd_X_ExtendedPosition, this, _1));
+            sub_ctrl_x_cpos_ = create_subscription<DynamixelControlXCurrentBasePosition> ("dynamixel/command/x/current_base_position_control", 4, bind(&DynamixelHandler::CallbackCmd_X_CurrentBasePosition, this, _1));
+        }
+        if ( num_[SERIES_P] > 0) {
+            sub_ctrl_p_pwm_  = create_subscription<DynamixelControlPPwm>             ("dynamixel/command/p/pwm_control",               4, bind(&DynamixelHandler::CallbackCmd_P_Pwm, this, _1));
+            sub_ctrl_p_cur_  = create_subscription<DynamixelControlPCurrent>         ("dynamixel/command/p/current_control",           4, bind(&DynamixelHandler::CallbackCmd_P_Current, this, _1));
+            sub_ctrl_p_vel_  = create_subscription<DynamixelControlPVelocity>        ("dynamixel/command/p/velocity_control",          4, bind(&DynamixelHandler::CallbackCmd_P_Velocity, this, _1));
+            sub_ctrl_p_pos_  = create_subscription<DynamixelControlPPosition>        ("dynamixel/command/p/position_control",          4, bind(&DynamixelHandler::CallbackCmd_P_Position, this, _1));
+            sub_ctrl_p_epos_ = create_subscription<DynamixelControlPExtendedPosition>("dynamixel/command/p/extended_position_control", 4, bind(&DynamixelHandler::CallbackCmd_P_ExtendedPosition, this, _1));
+        }
+        sub_common_ = create_subscription<DynamixelCommonCmd>("dynamixel/command/common", 4, bind(&DynamixelHandler::CallbackCmd_Common, this, _1));
+        sub_status_ = create_subscription<DynamixelStatus>   ("dynamixel/command/status", 4, bind(&DynamixelHandler::CallbackCmd_Status, this, _1));
+        sub_goal_   = create_subscription<DynamixelGoal>     ("dynamixel/command/goal",   4, bind(&DynamixelHandler::CallbackCmd_Goal, this, _1));
+        sub_gain_   = create_subscription<DynamixelGain>     ("dynamixel/command/gain",   4, bind(&DynamixelHandler::CallbackCmd_Gain, this, _1));
+        sub_limit_  = create_subscription<DynamixelLimit>    ("dynamixel/command/limit",  4, bind(&DynamixelHandler::CallbackCmd_Limit, this, _1));
+
+        pub_status_ = create_publisher<DynamixelStatus> ("dynamixel/state/status", 4);
+        pub_present_= create_publisher<DynamixelPresent>("dynamixel/state/present", 4);
+        pub_goal_   = create_publisher<DynamixelGoal>   ("dynamixel/state/goal" , 4);
+        pub_gain_   = create_publisher<DynamixelGain>   ("dynamixel/state/gain" , 4);
+        pub_limit_  = create_publisher<DynamixelLimit>  ("dynamixel/state/limit", 4);
+        pub_error_  = create_publisher<DynamixelError>  ("dynamixel/state/error", 4);
+        pub_debug_ = create_publisher<DynamixelDebug>("dynamixel/debug", 4);
+    }
 
     BroadcastState_Status();
     BroadcastState_Limit();

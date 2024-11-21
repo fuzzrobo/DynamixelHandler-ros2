@@ -22,7 +22,7 @@ DynamixelStatus DynamixelHandler::BroadcastState_Status(){
             default:                                  msg.mode.push_back(""                               ); break;
         }
     }
-    pub_status_->publish(msg);
+    if(pub_status_) pub_status_->publish(msg);
     return msg;
 }
 
@@ -42,7 +42,7 @@ DynamixelPresent DynamixelHandler::BroadcastState_Present(){
             default:                                                                                 break;
         }
     }
-    pub_present_->publish(msg);
+    if(pub_present_) pub_present_->publish(msg);
     return msg;
 }
 
@@ -57,7 +57,7 @@ DynamixelError DynamixelHandler::BroadcastState_Error(){
         msg.electronical_shock.push_back(hardware_err_[id][ELECTRONICAL_SHOCK]);
         msg.overload.push_back          (hardware_err_[id][OVERLOAD          ]);
     }
-    pub_error_->publish(msg);
+    if(pub_error_) pub_error_->publish(msg);
     return msg;
 }
 
@@ -75,7 +75,7 @@ DynamixelLimit DynamixelHandler::BroadcastState_Limit(){
         msg.max_position_limit_deg.push_back   (round4(limit[MAX_POSITION_LIMIT]/DEG));
         msg.min_position_limit_deg.push_back   (round4(limit[MIN_POSITION_LIMIT]/DEG));
     }
-    pub_limit_->publish(msg);
+    if(pub_limit_) pub_limit_->publish(msg);
     return msg;
 }
 
@@ -91,7 +91,7 @@ DynamixelGain DynamixelHandler::BroadcastState_Gain(){
         msg.feedforward_2nd_gain_pulse.push_back(gain[FEEDFORWARD_ACC_GAIN]);
         msg.feedforward_1st_gain_pulse.push_back(gain[FEEDFORWARD_VEL_GAIN]);
     }
-    pub_gain_->publish(msg);
+    if(pub_gain_) pub_gain_->publish(msg);
     return msg;
 }
 
@@ -106,7 +106,7 @@ DynamixelGoal DynamixelHandler::BroadcastState_Goal(){
         msg.profile_acc_deg_ss.push_back(round4(goal[PROFILE_ACC  ]/DEG));
         msg.position_deg.push_back      (round4(goal[GOAL_POSITION]/DEG));
     }
-    pub_goal_->publish(msg);
+    if(pub_goal_) pub_goal_->publish(msg);
     return msg;
 }
 
@@ -133,6 +133,6 @@ DynamixelDebug DynamixelHandler::BroadcastDebug(){
         msg.position_deg.present.push_back  (round4(present_r_[id][PRESENT_POSITION]/DEG));
         msg.position_deg.goal.push_back     (round4(   goal_r_[id][GOAL_POSITION   ]/DEG));
     }
-    pub_debug_->publish(msg);
+    if(pub_debug_) pub_debug_->publish(msg);
     return msg;
 }
