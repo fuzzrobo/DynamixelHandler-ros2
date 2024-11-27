@@ -12,7 +12,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     ROS_INFO( "Initializing DynamixelHandler .....");
 
     bool is_debug; get_parameter_or("debug", is_debug, false);
-    bool is_release; get_parameter_or("release", is_release, false);
+    bool no_use_command_line; get_parameter_or("no_use_command_line", no_use_command_line, false);
 
     // 通信の開始
     int baudrate      ; this->get_parameter_or("baudrate"     , baudrate     , 57600                 );
@@ -103,7 +103,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     sub_dxl_p_cmds_  = create_subscription<DxlCommandsP>("dynamixel/commands/p", 10, bind(&DynamixelHandler::CallbackCmdsP, this, _1));
     pub_dxl_states_ = create_publisher<DxlStates>   ("dynamixel/states", 4);
 
-    if ( !is_release ){
+    if ( !no_use_command_line ){
         if ( num_[SERIES_X] > 0 ) {
             sub_ctrl_x_pwm_  = create_subscription<DynamixelControlXPwm>                 ("dynamixel/command/x/pwm_control",                   4, bind(&DynamixelHandler::CallbackCmd_X_Pwm, this, _1));
             sub_ctrl_x_cur_  = create_subscription<DynamixelControlXCurrent>             ("dynamixel/command/x/current_control",               4, bind(&DynamixelHandler::CallbackCmd_X_Current, this, _1));
@@ -151,9 +151,10 @@ enum state { STATUS, PRESENT, GOAL, GAIN, LIMIT, ERROR, _num_state };
 
 void DynamixelHandler::MainLoop(){
     static int cnt = -1; cnt++;
-    static float rtime=0, wtime=0, num_pre_suc_p=1, num_pre_suc_f=1, num_pre_read=1, num_read=1;
+    static float t_read=0, t_total=0;
+    static double n_present_suc_p=1, n_present_suc_f=1, n_present_read=1, n_any_read=1;
 
-/* 処理時間時間の計測 */ auto wstart = system_clock::now();
+/* 処理時間時間の計測 */ auto s_total = system_clock::now();
     //* topicをSubscribe & Dynamixelへ目標角をWrite
     SyncWriteGoal(list_write_goal_);
     list_write_goal_.clear();
@@ -161,7 +162,6 @@ void DynamixelHandler::MainLoop(){
     list_write_gain_.clear();
     SyncWriteLimit(list_write_limit_);
     list_write_limit_.clear();
-/* 処理時間時間の計測 */ wtime += duration_cast<microseconds>(system_clock::now()-wstart).count() / 1000.0;
 
     //* present value について read する情報を決定
     static const auto& r = pub_ratio_present_; //長いので省略
@@ -175,10 +175,10 @@ void DynamixelHandler::MainLoop(){
     if (r[PRESENT_INPUT_VOLTAGE] && cnt % r[PRESENT_INPUT_VOLTAGE] == 0) list_read_present_.insert(PRESENT_INPUT_VOLTAGE);
     if (r[PRESENT_TEMPERATURE  ] && cnt % r[PRESENT_TEMPERATURE  ] == 0) list_read_present_.insert(PRESENT_TEMPERATURE   );
 
-/* 処理時間時間の計測 */ auto rstart = system_clock::now();
+/* 処理時間時間の計測 */ auto s_read = system_clock::now();
     //* Dynamixelから状態Read & topicをPublish
     auto msg = DxlStates().set__stamp(this->get_clock()->now());
-    std::array<double, _num_state> success_rate{}; // 0初期化する．
+    array<double, _num_state> success_rate{}; // 0初期化する．
     set<uint8_t> target_id_set; for (auto id : id_set_) if ( ping_err_[id]==0 ) target_id_set.insert(id);
     if ( pub_ratio_["status"] && cnt % pub_ratio_["status"] == 0 ) {
         CheckDynamixels(); // Statusに該当するもろもろをチェック
@@ -189,9 +189,9 @@ void DynamixelHandler::MainLoop(){
     }
     if ( !list_read_present_.empty() ){
         success_rate[PRESENT] = SyncReadPresent(list_read_present_, target_id_set);
-        num_pre_read++;
-        num_pre_suc_p += success_rate[PRESENT] > 0.0;
-        num_pre_suc_f += success_rate[PRESENT] > 1.0-1e-6;
+        n_present_read++;
+        n_present_suc_p += success_rate[PRESENT] > 0.0;
+        n_present_suc_f += success_rate[PRESENT] > 1.0-1e-6;
         if ( success_rate[PRESENT]>0.0 ) msg.present = BroadcastState_Present();
     }
     if ( pub_ratio_["goal"] && cnt % pub_ratio_["goal"] == 0 ) {
@@ -212,24 +212,24 @@ void DynamixelHandler::MainLoop(){
     }
     bool is_any_read = std::any_of( success_rate.begin(), success_rate.end(), [](auto& x){ return x > 0.0; });
     if ( is_any_read ) {
-        num_read++;
+        n_any_read++;
         BroadcastDebug();
         pub_dxl_states_->publish(msg);
     }
-/* 処理時間時間の計測 */ rtime += duration_cast<microseconds>(system_clock::now()-rstart).count() / 1000.0;
+/* 処理時間時間の計測 */ t_read += duration_cast<microseconds>(system_clock::now()-s_read).count() / 1000.0;
+/* 処理時間時間の計測 */ t_total += duration_cast<microseconds>(system_clock::now()-s_total).count() / 1000.0;
 
     //* デバック
-    if ( ratio_mainloop_ !=0 )
-    if ( cnt % ratio_mainloop_ == 0) {
-        float partial_suc = 100*num_pre_suc_p/num_pre_read; 
-        float full_suc = 100*num_pre_suc_f/num_pre_read;
-        char msg[100]; sprintf(msg, "Loop [%d]: write=%.2fms read=%.2fms(p/f=%3.0f%%/%3.0f%%)",
-                               cnt, wtime/ratio_mainloop_, rtime/num_read, partial_suc, full_suc);
+    if ( ratio_mainloop_ && cnt % ratio_mainloop_ == 0) {
+        float partial_suc = 100*n_present_suc_p/n_present_read; 
+        float full_suc    = 100*n_present_suc_f/n_present_read;
+        char msg[100]; sprintf(msg, "Loop [%d]: total=%.2fms(read=%.2fms), success=%3.0f%%(full=%3.0f%%)",
+                               cnt, t_total/ratio_mainloop_, t_read/n_any_read, partial_suc, full_suc);
         if (full_suc < 80) ROS_ERROR("%s", msg); else if (partial_suc < 99) ROS_WARN("%s", msg); else ROS_INFO("%s", msg);
-        wtime = 0.0; /* mainloopで行われてる処理の計測時間を初期化 */
+        t_total = 0.0; /* mainloopで行われてる処理の計測時間を初期化 */
     }
     if ( cnt % max({(int)loop_rate_, (int)ratio_mainloop_, 10}) == 0)
-        rtime = num_pre_suc_p = num_pre_suc_f = num_pre_read = num_read = 0.00001; /* present value の read の周期で行われてる処理の初期化 */ 
+        t_read = n_present_suc_p = n_present_suc_f = n_present_read = n_any_read = 0.00001; /* present value の read の周期で行われてる処理の初期化 */ 
 }
 
 DynamixelHandler::~DynamixelHandler(){
