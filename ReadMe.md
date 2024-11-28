@@ -46,9 +46,9 @@ note: ROS2のみ対応
 ```bash
 cd ~/ros2_ws/src
 # sshの場合
-git clone git@github.com:SHINOBI-organization/DynamixelHandler-ros2.git dynamixel_handler
+git clone git@github.com:ROBOTIS-JAPAN-GIT/DynamixelHandler-ros2.git dynamixel_handler
 # httpsの場合
-git clone https://github.com/SHINOBI-organization/DynamixelHandler-ros2.git dynamixel_handler
+git clone https://github.com/ROBOTIS-JAPAN-GIT/DynamixelHandler-ros2.git dynamixel_handler
 ```
 
 ### submoduleによって，別途参照しているパッケージをダウンロード
