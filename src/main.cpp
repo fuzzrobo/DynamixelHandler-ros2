@@ -5,6 +5,7 @@
 
 using std::bind;
 using std::placeholders::_1;
+using namespace std::string_literals;
 
 DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOptions()
                                                                   .allow_undeclared_parameters(true)
@@ -15,9 +16,9 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     bool no_use_command_line; get_parameter_or("no_use_command_line", no_use_command_line, false);
 
     // 通信の開始
-    int baudrate      ; this->get_parameter_or("baudrate"     , baudrate     , 57600                 );
-    int latency_timer ; this->get_parameter_or("latency_timer", latency_timer,    16                 );
-    string device_name; this->get_parameter_or("device_name"  , device_name  , string("/dev/ttyUSB0"));
+    int baudrate      ; this->get_parameter_or("baudrate"     , baudrate     ,           57600);
+    int latency_timer ; this->get_parameter_or("latency_timer", latency_timer,              16);
+    string device_name; this->get_parameter_or("device_name"  , device_name  , "/dev/ttyUSB0"s);
 
     dyn_comm_ = DynamixelCommunicator(device_name.c_str(), baudrate, latency_timer);
     if ( !dyn_comm_.OpenPort() ) { fflush(stdout); // printfのバッファを吐き出す． これがないと printfの表示が遅延する
@@ -43,7 +44,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     this->get_parameter_or("pub_ratio/present.velocity_trajectory" , pub_ratio_present_[VELOCITY_TRAJECTORY  ],  0u);
     this->get_parameter_or("pub_ratio/present.position_trajectory" , pub_ratio_present_[POSITION_TRAJECTORY  ],  0u);
     this->get_parameter_or("pub_ratio/present.input_voltage"       , pub_ratio_present_[PRESENT_INPUT_VOLTAGE], 10u);
-    this->get_parameter_or("pub_ratio/present.temperature"         , pub_ratio_present_[PRESENT_TEMPERATURE   ], 10u);
+    this->get_parameter_or("pub_ratio/present.temperature"         , pub_ratio_present_[PRESENT_TEMPERATURE  ], 10u);
     this->get_parameter_or("pub_ratio/status" , pub_ratio_["status"], 50u);
     this->get_parameter_or("pub_ratio/goal"   , pub_ratio_["goal"] ,   0u);
     this->get_parameter_or("pub_ratio/gain"   , pub_ratio_["gain"] ,   0u);
