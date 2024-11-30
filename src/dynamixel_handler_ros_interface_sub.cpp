@@ -55,10 +55,9 @@ void DynamixelHandler::CallbackCmdsP(const DxlCommandsP::SharedPtr msg) {
 void DynamixelHandler::CallbackCmd_Common(const DynamixelCommonCmd& msg) {
     const auto& id_list = (msg.id_list.empty() || msg.id_list[0] == 0xFE) 
                             ? vector<uint16_t>(id_set_.begin(), id_set_.end()) : msg.id_list;
-    if ( id_list.size()==0 || msg.command=="" ) return;
+    if ( id_list.empty() || msg.command=="" ) return;
 
     if (verbose_callback_ ) ROS_INFO_STREAM("Command [%s] \n (id_list=[] or [254] means all IDs)");
-
     auto st_cmd = DynamixelStatus().set__id_list(id_list);
          if (msg.command == msg.CLEAR_ERROR  || msg.command == "CE"  ) st_cmd.set__error(vector<bool>(id_list.size(), false));
     else if (msg.command == msg.TORQUE_ON    || msg.command == "TON" ) st_cmd.set__torque(vector<bool>(id_list.size(), true));
@@ -75,14 +74,15 @@ void DynamixelHandler::CallbackCmd_Common(const DynamixelCommonCmd& msg) {
 }
 
 void DynamixelHandler::CallbackCmd_Status(const DynamixelStatus& msg) {
-    const bool has_torque = !msg.id_list.empty() && msg.id_list.size() == msg.torque.size();
-    const bool has_error  = !msg.id_list.empty() && msg.id_list.size() == msg.error.size();
-    const bool has_ping   = !msg.id_list.empty() && msg.id_list.size() == msg.ping.size();
-    const bool has_mode   = !msg.id_list.empty() && msg.id_list.size() == msg.mode.size();
+    if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
+    const bool has_torque = msg.id_list.size() == msg.torque.size();
+    const bool has_error  = msg.id_list.size() == msg.error.size() ;
+    const bool has_ping   = msg.id_list.size() == msg.ping.size()  ;
+    const bool has_mode   = msg.id_list.size() == msg.mode.size()  ;
 
     for ( size_t i=0; i<msg.id_list.size(); i++ ) {
         const uint8_t id = msg.id_list[i];
-        if ( has_error  ) {ClearHardwareError(id); TorqueOn(id);}
+        if ( has_error  ) { ClearHardwareError(id); TorqueOn(id); }
         if ( has_torque ) msg.torque[i] ? TorqueOn(id)     : TorqueOff(id)      ;
         if ( has_ping   ) msg.ping[i]   ? addDynamixel(id) : RemoveDynamixel(id);
         if ( has_mode   ) {
@@ -91,14 +91,15 @@ void DynamixelHandler::CallbackCmd_Status(const DynamixelStatus& msg) {
             else if (msg.mode[i] == msg.CONTROL_VELOCITY             ) ChangeOperatingMode(id, OPERATING_MODE_VELOCITY             );
             else if (msg.mode[i] == msg.CONTROL_POSITION             ) ChangeOperatingMode(id, OPERATING_MODE_POSITION             );
             else if (msg.mode[i] == msg.CONTROL_EXTENDED_POSITION    ) ChangeOperatingMode(id, OPERATING_MODE_EXTENDED_POSITION    );
-            else if (msg.mode[i] == msg.CONTROL_CURRENT_BASE_POSITION) ChangeOperatingMode(id, OPERATING_MODE_CURRENT_BASE_POSITION);
+            else if (msg.mode[i] == msg.CONTROL_CURRENT_BASE_POSITION) 
+                                          if (series_[id]==SERIES_X)   ChangeOperatingMode(id, OPERATING_MODE_CURRENT_BASE_POSITION);
+                                     else if (series_[id]==SERIES_P) { ChangeOperatingMode(id, OPERATING_MODE_EXTENDED_POSITION);
+                                                                       ROS_WARN("ID [%d] is not P-series, so alternative mode is selected", id); }
+                                     else ROS_WARN("Series of ID [%d] is Unknown", id);
             else ROS_WARN("Invalid operating mode [%s], please see CallbackCmd_Status.msg definition.", msg.mode[i].c_str());
         }
-    }
-    if (verbose_callback_ && has_torque) ROS_INFO_STREAM(update_info(msg.id_list, "torque status"));
-    if (verbose_callback_ && has_error ) ROS_INFO_STREAM(update_info(msg.id_list, "error status"));
-    if (verbose_callback_ && has_ping  ) ROS_INFO_STREAM(update_info(msg.id_list, "ping status"));
-    if (verbose_callback_ && has_mode  ) ROS_INFO_STREAM(update_info(msg.id_list, "mode status"));
+    } // 各単体関数(ClearHardwareErrorとか)が内部でROS_INFOを出力しているので，ここでは何も出力しない
+
     if ( !msg.id_list.empty() && !has_torque && !has_error && !has_ping && !has_mode ) ROS_WARN("\nElement size is dismatch; skiped callback");
 }
 
