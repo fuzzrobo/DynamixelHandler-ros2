@@ -10,11 +10,11 @@ static constexpr double DEG = M_PI/180.0; // degを単位に持つ数字に掛�
 // 各シリーズのDynamixelを検出する．
 uint8_t DynamixelHandler::ScanDynamixels(uint8_t id_min, uint8_t id_max, uint32_t num_expected, uint32_t times_retry) {
     id_set_.clear();
-    ROS_INFO("Scanning: ");
+    ROS_INFO("  Scanning: ");
     for (int id = id_min; id <= id_max; id++){
         addDynamixel(id);
-        if ( !is_in(id, id_set_) && is_in(id-1, id_set_) ) ROS_INFO("Scanning: ");
-        if ( !is_in(id, id_set_)                         ) ROS_INFO("          %c[1A%d", 0x1b, id);
+        if ( !is_in(id, id_set_) && is_in(id-1, id_set_) ) ROS_INFO("  Scanning: ");
+        if ( !is_in(id, id_set_)                         ) ROS_INFO("            %c[1A%d", 0x1b, id);
         if ( !rclcpp::ok() ) return 0;
     } 
     auto num_found = id_set_.size();
@@ -23,9 +23,9 @@ uint8_t DynamixelHandler::ScanDynamixels(uint8_t id_min, uint8_t id_max, uint32_
     if ( num_found != 0 && num_found >= num_expected ) return num_found;
     // 再帰処理
     if ( num_found < num_expected )  
-        ROS_WARN( "Less expected number of Dynamixel are found,\n > %d times retry left", times_retry );
+        ROS_WARN( "  Less expected number of Dynamixel are found,\n > %d times retry left", times_retry );
     if ( num_expected == 0 )
-        ROS_WARN( "Dynamixels are not found yet,\n > %d times retry left", times_retry );
+        ROS_WARN( "  Dynamixels are not found yet,\n > %d times retry left", times_retry );
     rsleep(100);
     return ScanDynamixels(id_min, id_max, num_expected, times_retry-1);
 }
@@ -36,17 +36,17 @@ bool DynamixelHandler::addDynamixel(uint8_t id){
 
     auto dyn_model = dyn_comm_.tryRead(AddrCommon::model_number, id);
     switch ( dynamixel_series(dyn_model) ) { 
-        case SERIES_X: ROS_INFO(" * X series servo ID [%d] is found", id);
+        case SERIES_X: ROS_INFO("   * X series servo ID [%d] is found", id);
             model_[id] = dyn_model;
             series_[id] = SERIES_X;
             id_set_.insert(id);
             num_[SERIES_X]++; break;
-        case SERIES_P: ROS_INFO(" * P series servo ID [%d] is found", id);
+        case SERIES_P: ROS_INFO("   * P series servo ID [%d] is found", id);
             model_[id] = dyn_model;
             series_[id] = SERIES_P;
             id_set_.insert(id);
             num_[SERIES_P]++; break;
-        default: ROS_WARN(" * Unkwon model [%d] servo ID [%d] is found", (int)dyn_model, id);
+        default: ROS_WARN("   * Unkwon model [%d] servo ID [%d] is found", (int)dyn_model, id);
             return false;
     }
 
@@ -83,7 +83,7 @@ bool DynamixelHandler::RemoveDynamixel(uint8_t id){
     if ( !is_in(id, id_set_) ) return true;
     id_set_.erase(id);
     num_[series_[id]]--;
-    ROS_INFO("ID [%d] is removed", id);
+    ROS_INFO("   ID [%d] is removed", id);
     return true;
 }
 
@@ -106,8 +106,8 @@ bool DynamixelHandler::ClearHardwareError(uint8_t id){
     }
     // 結果を確認
     bool is_clear = (ReadHardwareError(id) == 0b00000000);
-    if (is_clear) ROS_INFO ("ID [%d] is cleared error", id);
-    else          ROS_ERROR("ID [%d] failed to clear error", id);
+    if (is_clear) ROS_INFO ("   ID [%d] is cleared error", id);
+    else          ROS_ERROR("   ID [%d] failed to clear error", id);
     return is_clear;
 }
 
@@ -137,9 +137,9 @@ bool DynamixelHandler::ChangeOperatingMode(uint8_t id, DynamixelOperatingMode mo
     if ( is_changed ) {
         op_mode_[id] = mode;
         when_op_mode_updated_[id] = get_clock()->now().seconds();
-        ROS_INFO("ID [%d] is changed operating mode [%d]", id, mode);
+        ROS_INFO ("   ID [%d] is changed operating mode [%d]", id, mode);
     } else {
-        ROS_ERROR("ID [%d] failed to change operating mode", id); 
+        ROS_ERROR("   ID [%d] failed to change operating mode", id); 
     }
     return is_changed;
 }
@@ -171,8 +171,8 @@ bool DynamixelHandler::TorqueOn(uint8_t id){
     }
     // 結果を確認
     tq_mode_[id] = ReadTorqueEnable(id);
-    if ( tq_mode_[id] != TORQUE_ENABLE ) ROS_ERROR("ID [%d] failed to enable torque", id);
-                                    else ROS_INFO( "ID [%d] is enabled torque"      , id);
+    if ( tq_mode_[id] != TORQUE_ENABLE ) ROS_ERROR("   ID [%d] failed to enable torque", id);
+                                    else ROS_INFO( "   ID [%d] is enabled torque"      , id);
     return tq_mode_[id];
 }
 
@@ -184,8 +184,8 @@ bool DynamixelHandler::TorqueOff(uint8_t id){
     WriteTorqueEnable(id, false);
     // 結果を確認
     tq_mode_[id] = ReadTorqueEnable(id);
-    if ( tq_mode_[id] != TORQUE_DISABLE ) ROS_ERROR("ID [%d] failed to disable torque", id);
-                                     else ROS_INFO( "ID [%d] is disabled torque"      , id); 
+    if ( tq_mode_[id] != TORQUE_DISABLE ) ROS_ERROR("   ID [%d] failed to disable torque", id);
+                                     else ROS_INFO( "   ID [%d] is disabled torque"      , id); 
     return tq_mode_[id];
 }
 
