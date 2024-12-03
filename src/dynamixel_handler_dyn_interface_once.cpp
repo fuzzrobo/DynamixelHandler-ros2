@@ -185,6 +185,7 @@ bool DynamixelHandler::TorqueOff(uint8_t id){
     // 結果を確認
     tq_mode_[id] = ReadTorqueEnable(id);
     if ( tq_mode_[id] != TORQUE_DISABLE ) ROS_ERROR("ID [%d] failed to disable torque", id);
+                                     else ROS_INFO( "ID [%d] is disabled torque"      , id); 
     return tq_mode_[id];
 }
 

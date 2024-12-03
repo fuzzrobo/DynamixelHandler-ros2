@@ -29,10 +29,9 @@ static string control_table_layout(int width, const map<T, vector<U>>& id_data_m
 }
 
 template <typename T>
-static string id_list_layout(const vector<T>& id_list, const string& header=""){
+static string id_list_layout(const vector<T>& id_list, const string& header=" ID"){
     std::stringstream ss;
-    ss << header << "\n";
-    ss << " ID : [ "; 
+    ss << header << ": [ "; 
     for ( auto id : id_list ) {
         ss << (int)id; 
         if ( id != id_list.back()) ss << ", ";

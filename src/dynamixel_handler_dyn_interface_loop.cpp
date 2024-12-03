@@ -1,7 +1,7 @@
 #include "dynamixel_handler.hpp"
 #include "myUtils/formatting_output.hpp"
 #include "myUtils/logging_like_ros1.hpp"
-#include "myUtils/make_iterator_convenient.hpp"
+#include "myUtils/make_iterator_convenient.hpp" // enum のインクリメントと， is_in 関数の実装
 
 //* Main loop 内で使う全モータへの一括読み書き関数たち
 
@@ -209,9 +209,8 @@ template <typename Addr> double DynamixelHandler::SyncReadPresent(set<PresentInd
     if ( verbose_["r_present_err"] ) if ( is_timeout_ || is_comm_err_ ) {
         vector<uint8_t> failed_id_list;
         for ( auto id : target_id_list ) if ( id_st_vec_map.find(id) == id_st_vec_map.end() ) failed_id_list.push_back(id);
-        char header[99]; sprintf(header, "[%d] servo(s) failed to read", N_total - N_suc);
-        auto ss = id_list_layout(failed_id_list, string(header)+( is_timeout_ ? " (time out)" : " (some kind packet error)"));
-        ROS_WARN_STREAM(ss);
+        ROS_WARN("[%d] servo(s) failed to read %s", N_total - N_suc, is_timeout_ ? " (time out)" : " (some kind packet error)");
+        ROS_WARN_STREAM(id_list_layout(failed_id_list));
     }
     //* id_st_vec_mapの中身を確認
     if ( verbose_["r_present"] ) if ( N_suc>0 ) {
@@ -328,9 +327,8 @@ template <typename Addr> double DynamixelHandler::SyncReadGain(set<GainIndex> li
     if ( verbose_["r_gain_err"] ) if ( has_comm_err || is_timeout ) {
         vector<uint8_t> failed_id_list;
         for ( auto id : target_id_list ) if ( id_gain_vec_map.find(id) == id_gain_vec_map.end() ) failed_id_list.push_back(id);
-        char header[100]; sprintf(header, "[%d] servo(s) failed to read", N_total - N_suc);
-        auto ss = id_list_layout(failed_id_list, string(header) + (is_timeout? " (time out)" : " (some kind packet error)"));
-        ROS_WARN_STREAM(ss);
+        ROS_WARN("[%d] servo(s) failed to read %s", N_total - N_suc, is_timeout ? " (time out)" : " (some kind packet error)");
+        ROS_WARN_STREAM(id_list_layout(failed_id_list));
     }
     // id_gain_vec_mapの中身を確認
     if ( verbose_["r_gain"] ) if ( N_suc>0 ) {
@@ -398,9 +396,8 @@ template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> 
     if ( verbose_["r_limit_err"] ) if ( has_comm_err || is_timeout ) {
         vector<uint8_t> failed_id_list;
         for ( auto id : target_id_list ) if ( id_limit_vec_map.find(id) == id_limit_vec_map.end() ) failed_id_list.push_back(id);
-        char header[100]; sprintf(header, "[%d] servo(s) failed to read", N_total - N_suc);
-        auto ss = id_list_layout(failed_id_list, string(header) + (is_timeout? " (time out)" : " (some kind packet error)"));
-        ROS_WARN_STREAM(ss);
+        ROS_WARN("[%d] servo(s) failed to read %s", N_total - N_suc, is_timeout ? " (time out)" : " (some kind packet error)");
+        ROS_WARN_STREAM(id_list_layout(failed_id_list));
     }
     // ACCELERATION_LIMITに関してだけ修正を入れる．0はほぼあり得ないかつ0の時profile_accの設定ができないので，適当に大きな値に変更する．
     vector<uint8_t> fixed_id_list;
@@ -478,9 +475,8 @@ template <typename Addr> double DynamixelHandler::SyncReadGoal(set<GoalIndex> li
     if ( verbose_["r_goal_err"] ) if ( has_comm_err || is_timeout ) {
         vector<uint8_t> failed_id_list;
         for ( auto id : target_id_list ) if ( id_goal_vec_map.find(id) == id_goal_vec_map.end() ) failed_id_list.push_back(id);
-        char header[100]; sprintf(header, "[%d] servo(s) failed to read",N_total - N_suc);
-        auto ss = id_list_layout(failed_id_list, string(header) + (is_timeout? " (time out)" : " (some kind packet error)"));
-        ROS_WARN_STREAM(ss);
+        ROS_WARN("[%d] servo(s) failed to read %s", N_total - N_suc, is_timeout ? " (time out)" : " (some kind packet error)");
+        ROS_WARN_STREAM(id_list_layout(failed_id_list));
     }
     if ( verbose_["r_goal"] ) if ( N_suc>0 ) {
         char header[100]; sprintf(header, "[%d] servo(s) are read", N_suc);

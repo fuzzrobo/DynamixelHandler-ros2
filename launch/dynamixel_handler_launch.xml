@@ -1,6 +1,7 @@
 <launch>
 
-    <set_env name="RCUTILS_CONSOLE_OUTPUT_FORMAT" value="{function_name}(): {message} "/>
+    <!-- <set_env name="RCUTILS_CONSOLE_OUTPUT_FORMAT" value="{function_name}(): {message} "/> -->
+    <set_env name="RCUTILS_CONSOLE_OUTPUT_FORMAT" value="{time}: {message} "/>
     <set_env name="RCUTILS_COLORIZED_OUTPUT" value="1"/>
     
     <!-- 変数 -->
