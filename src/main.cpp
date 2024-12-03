@@ -80,9 +80,9 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     int id_max      ; this->get_parameter_or("init/auto_search_max_id"     , id_max      , 35);
                       this->get_parameter_or("init/hardware_error_auto_clean", do_clean_hwerr_, true);
                       this->get_parameter_or("init/torque_auto_enable"       , do_torque_on_  , true);
-    if ( num_expected>0 ) ROS_INFO("Expected number of Dynamixel is [%d]", num_expected);
-    else                  ROS_WARN("\nExpected number of Dynamixel is not set. Free number of Dynamixel is allowed");
-    ROS_INFO(" Auto scanning Dynamixel (id range [%d] to [%d]) ...", id_min, id_max);
+    if ( num_expected>0 ) ROS_INFO("'%d' servo(s) are expected", num_expected);
+    else                  ROS_WARN("\nExpected servo number is not set. Free number of Dynamixel is allowed");
+    ROS_INFO(" Auto scanning Dynamixel (id range '%d' to '%d') ...", id_min, id_max);
     /* *********************** dynamixelを探索し，初期化する ***********************************/
     /* */auto num_found = ScanDynamixels(id_min, id_max, num_expected, times_retry);
     /* ***********************************************************************************/
@@ -91,7 +91,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
         if ( !is_debug ) throw std::runtime_error("Initialization failed (no dynamixel found)");
     }
     if( num_expected>0 && num_expected!=num_found ) { // 期待数が設定されているときに、見つかった数が期待数と異なる場合は初期化失敗で終了
-        ROS_ERROR("Number of Dynamixel is not matched. Expected [%d], but found [%d]. please check & retry", num_expected, num_found);
+        ROS_ERROR("Number of Dynamixel is not matched. Expected '%d', but found '%d'. please check & retry", num_expected, num_found);
         if ( !is_debug ) throw std::runtime_error("Initialization failed (number of dynamixel is not matched)");
     }
     ROS_INFO("  ... Finish scanning Dynamixel");

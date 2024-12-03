@@ -36,17 +36,17 @@ bool DynamixelHandler::addDynamixel(uint8_t id){
 
     auto dyn_model = dyn_comm_.tryRead(AddrCommon::model_number, id);
     switch ( dynamixel_series(dyn_model) ) { 
-        case SERIES_X: ROS_INFO(" * X series servo id [%d] is found", id);
+        case SERIES_X: ROS_INFO(" * X series servo ID [%d] is found", id);
             model_[id] = dyn_model;
             series_[id] = SERIES_X;
             id_set_.insert(id);
             num_[SERIES_X]++; break;
-        case SERIES_P: ROS_INFO(" * P series servo id [%d] is found", id);
+        case SERIES_P: ROS_INFO(" * P series servo ID [%d] is found", id);
             model_[id] = dyn_model;
             series_[id] = SERIES_P;
             id_set_.insert(id);
             num_[SERIES_P]++; break;
-        default: ROS_WARN(" * Unkwon model [%d] servo id [%d] is found", (int)dyn_model, id);
+        default: ROS_WARN(" * Unkwon model [%d] servo ID [%d] is found", (int)dyn_model, id);
             return false;
     }
 

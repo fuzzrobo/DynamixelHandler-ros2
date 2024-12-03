@@ -41,7 +41,7 @@ template <typename Addr> void DynamixelHandler::SyncWriteGoal(set<GoalIndex> lis
     if ( id_goal_vec_map.empty() ) return; // 書き込むデータがない場合は即時return
     //* id_goal_vec_mapの中身を確認
     if ( verbose_["w_goal"] ) {
-        char header[100]; sprintf(header, "[%d] servo(s) will be written", (int)id_goal_vec_map.size());
+        char header[100]; sprintf(header, "'%zu' servo(s) will be written", id_goal_vec_map.size());
         auto ss = control_table_layout(width_log_, id_goal_vec_map, goal_addr_list, string(header));
         ROS_INFO_STREAM(ss);
     }
@@ -89,7 +89,7 @@ template <typename Addr> void DynamixelHandler::SyncWriteGain(set<GainIndex> lis
     if ( id_gain_vec_map.empty() ) return; // 書き込むデータがない場合は即時return
     //* id_gain_vec_mapの中身を確認
     if ( verbose_["w_gain"] ) {
-        char header[100]; sprintf(header, "[%d] servo(s) will be written", (int)id_gain_vec_map.size());
+        char header[100]; sprintf(header, "'%zu' servo(s) will be written", id_gain_vec_map.size());
         auto ss = control_table_layout(width_log_, id_gain_vec_map, gain_addr_list, string(header));
         ROS_INFO_STREAM(ss);
     }
@@ -148,7 +148,7 @@ template <typename Addr> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> l
     if ( id_limit_vec_map.empty() ) return; // 書き込むデータがない場合は即時return
     //* id_limit_vec_mapの中身を確認
     if ( verbose_["w_limit"] ) {
-        char header[100]; sprintf(header, "[%d] servo(s) will be written", (int)id_limit_vec_map.size());
+        char header[100]; sprintf(header, "'%zu' servo(s) will be written", id_limit_vec_map.size());
         auto ss = control_table_layout(width_log_, id_limit_vec_map, limit_addr_list, string(header));
         ROS_INFO_STREAM(ss);
     }
@@ -209,12 +209,12 @@ template <typename Addr> double DynamixelHandler::SyncReadPresent(set<PresentInd
     if ( verbose_["r_present_err"] ) if ( is_timeout_ || is_comm_err_ ) {
         vector<uint8_t> failed_id_list;
         for ( auto id : target_id_list ) if ( id_st_vec_map.find(id) == id_st_vec_map.end() ) failed_id_list.push_back(id);
-        ROS_WARN("[%d] servo(s) failed to read %s", N_total - N_suc, is_timeout_ ? " (time out)" : " (some kind packet error)");
+        ROS_WARN("'%d' servo(s) failed to read %s", N_total - N_suc, is_timeout_ ? " (time out)" : " (some kind packet error)");
         ROS_WARN_STREAM(id_list_layout(failed_id_list));
     }
     //* id_st_vec_mapの中身を確認
     if ( verbose_["r_present"] ) if ( N_suc>0 ) {
-        char header[99]; sprintf(header, "[%d] servo(s) are read", N_suc);
+        char header[99]; sprintf(header, "'%d' servo(s) are read", N_suc);
         auto ss = control_table_layout(width_log_, id_st_vec_map, state_addr_list, string(header));
         ROS_INFO_STREAM(ss);
     }
@@ -327,12 +327,12 @@ template <typename Addr> double DynamixelHandler::SyncReadGain(set<GainIndex> li
     if ( verbose_["r_gain_err"] ) if ( has_comm_err || is_timeout ) {
         vector<uint8_t> failed_id_list;
         for ( auto id : target_id_list ) if ( id_gain_vec_map.find(id) == id_gain_vec_map.end() ) failed_id_list.push_back(id);
-        ROS_WARN("[%d] servo(s) failed to read %s", N_total - N_suc, is_timeout ? " (time out)" : " (some kind packet error)");
+        ROS_WARN("'%d' servo(s) failed to read %s", N_total - N_suc, is_timeout ? " (time out)" : " (some kind packet error)");
         ROS_WARN_STREAM(id_list_layout(failed_id_list));
     }
     // id_gain_vec_mapの中身を確認
     if ( verbose_["r_gain"] ) if ( N_suc>0 ) {
-        char header[100]; sprintf(header, "[%d] servo(s) are read", N_suc);
+        char header[100]; sprintf(header, "'%d' servo(s) are read", N_suc);
         auto ss = control_table_layout(width_log_, id_gain_vec_map, gain_addr_list, string(header));
         ROS_INFO_STREAM(ss);
     }
@@ -396,7 +396,7 @@ template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> 
     if ( verbose_["r_limit_err"] ) if ( has_comm_err || is_timeout ) {
         vector<uint8_t> failed_id_list;
         for ( auto id : target_id_list ) if ( id_limit_vec_map.find(id) == id_limit_vec_map.end() ) failed_id_list.push_back(id);
-        ROS_WARN("[%d] servo(s) failed to read %s", N_total - N_suc, is_timeout ? " (time out)" : " (some kind packet error)");
+        ROS_WARN("'%d' servo(s) failed to read %s", N_total - N_suc, is_timeout ? " (time out)" : " (some kind packet error)");
         ROS_WARN_STREAM(id_list_layout(failed_id_list));
     }
     // ACCELERATION_LIMITに関してだけ修正を入れる．0はほぼあり得ないかつ0の時profile_accの設定ができないので，適当に大きな値に変更する．
@@ -409,7 +409,7 @@ template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> 
         }
     // id_limit_vec_mapの中身を確認
     if ( verbose_["r_limit"] ) if ( N_suc>0 ) {
-        char header[100]; sprintf(header, "[%d] servo(s) are read", N_suc);
+        char header[100]; sprintf(header, "'%d' servo(s) are read", N_suc);
         auto ss = control_table_layout(width_log_, id_limit_vec_map, limit_addr_list, string(header));
         ROS_INFO_STREAM(ss);
         if ( !fixed_id_list.empty() ) {
@@ -475,11 +475,11 @@ template <typename Addr> double DynamixelHandler::SyncReadGoal(set<GoalIndex> li
     if ( verbose_["r_goal_err"] ) if ( has_comm_err || is_timeout ) {
         vector<uint8_t> failed_id_list;
         for ( auto id : target_id_list ) if ( id_goal_vec_map.find(id) == id_goal_vec_map.end() ) failed_id_list.push_back(id);
-        ROS_WARN("[%d] servo(s) failed to read %s", N_total - N_suc, is_timeout ? " (time out)" : " (some kind packet error)");
+        ROS_WARN("'%d' servo(s) failed to read %s", N_total - N_suc, is_timeout ? " (time out)" : " (some kind packet error)");
         ROS_WARN_STREAM(id_list_layout(failed_id_list));
     }
     if ( verbose_["r_goal"] ) if ( N_suc>0 ) {
-        char header[100]; sprintf(header, "[%d] servo(s) are read", N_suc);
+        char header[100]; sprintf(header, "'%d' servo(s) are read", N_suc);
         auto ss = control_table_layout(width_log_, id_goal_vec_map, goal_addr_list, string(header));
         ROS_INFO_STREAM(ss);
     }
