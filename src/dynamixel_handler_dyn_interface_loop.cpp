@@ -398,25 +398,12 @@ template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> 
         for ( auto id : target_id_list ) if ( id_limit_vec_map.find(id) == id_limit_vec_map.end() ) failed_id_list.push_back(id);
         ROS_WARN("'%d' servo(s) failed to read %s", N_total - N_suc, is_timeout ? " (time out)" : " (some kind packet error)");
         ROS_WARN_STREAM(id_list_layout(failed_id_list));
-    }
-    // ACCELERATION_LIMITに関してだけ修正を入れる．0はほぼあり得ないかつ0の時profile_accの設定ができないので，適当に大きな値に変更する．
-    vector<uint8_t> fixed_id_list;
-    if (*start <= ACCELERATION_LIMIT && ACCELERATION_LIMIT <= *end) 
-        for (auto& [id, limit] : id_limit_vec_map) {
-            if ( limit[ACCELERATION_LIMIT-*start] != 0 ) continue;
-            fixed_id_list.push_back(id);
-            limit[ACCELERATION_LIMIT-*start] = 32767; //  Xシリーズのprofile_accの設定ができる最大値
         }
     // id_limit_vec_mapの中身を確認
     if ( verbose_["r_limit"] ) if ( N_suc>0 ) {
         char header[100]; sprintf(header, "'%d' servo(s) are read", N_suc);
         auto ss = control_table_layout(width_log_, id_limit_vec_map, limit_addr_list, string(header));
         ROS_INFO_STREAM(ss);
-        if ( !fixed_id_list.empty() ) {
-            char header[100]; sprintf(header,"\n[%d] servo(s)' accelerarion_limit is 0, change to 32767", (int)fixed_id_list.size());
-            auto ss = id_list_layout(fixed_id_list, string(header));
-            ROS_WARN_STREAM(ss);
-        }
     }
     // limit_r_に反映
     const unsigned int num_limit_now  = *end-*start+1;
