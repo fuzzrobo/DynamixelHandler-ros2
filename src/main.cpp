@@ -23,7 +23,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     dyn_comm_ = DynamixelCommunicator(device_name.c_str(), baudrate, latency_timer);
     if ( !dyn_comm_.OpenPort() ) { fflush(stdout); // printfのバッファを吐き出す． これがないと printfの表示が遅延する
         ROS_ERROR("Failed to open USB device [%s]", dyn_comm_.port_name().c_str()); 
-        if ( !is_debug ) throw std::runtime_error("Initialization failed (device open)");
+        if ( !is_debug ) ROS_STOP("Initialization failed (device open)");
     } 
     // serial通信のverbose設定
     bool serial_verbose; get_parameter_or("dyn_comm/verbose", serial_verbose, false);
@@ -88,11 +88,11 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     /* ***********************************************************************************/
     if( num_found==0 ) { // 見つからなかった場合は初期化失敗で終了
         ROS_ERROR("Dynamixel is not found in USB device [%s]", dyn_comm_.port_name().c_str());
-        if ( !is_debug ) throw std::runtime_error("Initialization failed (no dynamixel found)");
+        if ( !is_debug ) ROS_STOP("Initialization failed (no dynamixel found)");
     }
     if( num_expected>0 && num_expected!=num_found ) { // 期待数が設定されているときに、見つかった数が期待数と異なる場合は初期化失敗で終了
         ROS_ERROR("Number of Dynamixel is not matched. Expected '%d', but found '%d'. please check & retry", num_expected, num_found);
-        if ( !is_debug ) throw std::runtime_error("Initialization failed (number of dynamixel is not matched)");
+        if ( !is_debug ) ROS_STOP("Initialization failed (number of dynamixel is not matched)");
     }
     ROS_INFO("  ... Finish scanning Dynamixel");
 

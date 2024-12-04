@@ -30,7 +30,7 @@ template <typename Addr> void DynamixelHandler::SyncWriteGoal(set<GoalIndex> lis
             case PROFILE_ACC   : goal_addr_list.push_back(Addr::profile_acceleration); break;
             case PROFILE_VEL   : goal_addr_list.push_back(Addr::profile_velocity    ); break;
             case GOAL_POSITION : goal_addr_list.push_back(Addr::goal_position       ); break;
-            default: /*ここに来たらエラ-*/ exit(1);
+            default: /*ここに来たらエラ-*/ ROS_STOP("Unknown GoalIndex");
         }
         const auto& addr = goal_addr_list.back();
         for (auto id : id_set) if ( series_[id]==Addr::series() ) {
@@ -78,7 +78,7 @@ template <typename Addr> void DynamixelHandler::SyncWriteGain(set<GainIndex> lis
             case POSITION_P_GAIN     : gain_addr_list.push_back(Addr::position_p_gain     ); break;
             case FEEDFORWARD_ACC_GAIN: gain_addr_list.push_back(Addr::feedforward_2nd_gain); break;
             case FEEDFORWARD_VEL_GAIN: gain_addr_list.push_back(Addr::feedforward_1st_gain); break;
-            default: /*ここに来たらエラ-*/ exit(1);
+            default: /*ここに来たらエラ-*/ ROS_STOP("Unknown GainIndex");
         }
         const auto& addr = gain_addr_list.back();
         for (auto id : id_set) if ( series_[id]==Addr::series() ) {
@@ -137,7 +137,7 @@ template <typename Addr> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> l
             case VELOCITY_LIMIT    : limit_addr_list.push_back(Addr::velocity_limit    ); break;
             case MAX_POSITION_LIMIT: limit_addr_list.push_back(Addr::max_position_limit); break;
             case MIN_POSITION_LIMIT: limit_addr_list.push_back(Addr::min_position_limit); break;
-            default: /*ここに来たらエラ-*/ std::runtime_error("Unknown LimitIndex");
+            default: /*ここに来たらエラ-*/ ROS_STOP("Unknown LimitIndex");
         }
         const auto& addr = limit_addr_list.back();
         for (auto id : id_set) if ( series_[id]==Addr::series() ) {
@@ -192,7 +192,7 @@ template <typename Addr> double DynamixelHandler::SyncReadPresent(set<PresentInd
         case POSITION_TRAJECTORY  : state_addr_list.push_back(Addr::position_trajectory  ); break;  
         case PRESENT_INPUT_VOLTAGE: state_addr_list.push_back(Addr::present_input_voltage); break; 
         case PRESENT_TEMPERATURE  : state_addr_list.push_back(Addr::present_temperture   ); break;
-        default: /*ここに来たらエラ-*/ exit(1);
+        default: /*ここに来たらエラ-*/ ROS_STOP("Unknown PresentIndex");
     }
     vector<uint8_t> target_id_list;
     for (auto id : id_set) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
@@ -271,12 +271,12 @@ template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(set<uin
     if ( verbose_["r_hwerr"] ) {
         ROS_WARN( "Hardware error are Checked");
         for (auto id : target_id_list) {
-            if (hardware_err_[id][INPUT_VOLTAGE     ]) ROS_WARN (" * servo id [%d] has INPUT_VOLTAGE error"     ,id);
-            if (hardware_err_[id][MOTOR_HALL_SENSOR ]) ROS_ERROR(" * servo id [%d] has MOTOR_HALL_SENSOR error" ,id);
-            if (hardware_err_[id][OVERHEATING       ]) ROS_ERROR(" * servo id [%d] has OVERHEATING error"       ,id);
-            if (hardware_err_[id][MOTOR_ENCODER     ]) ROS_ERROR(" * servo id [%d] has MOTOR_ENCODER error"     ,id);
-            if (hardware_err_[id][ELECTRONICAL_SHOCK]) ROS_ERROR(" * servo id [%d] has ELECTRONICAL_SHOCK error",id);
-            if (hardware_err_[id][OVERLOAD          ]) ROS_ERROR(" * servo id [%d] has OVERLOAD error"          ,id);
+            if (hardware_err_[id][INPUT_VOLTAGE     ]) ROS_WARN (" * servo ID [%d] has INPUT_VOLTAGE error"     ,id);
+            if (hardware_err_[id][MOTOR_HALL_SENSOR ]) ROS_ERROR(" * servo ID [%d] has MOTOR_HALL_SENSOR error" ,id);
+            if (hardware_err_[id][OVERHEATING       ]) ROS_ERROR(" * servo ID [%d] has OVERHEATING error"       ,id);
+            if (hardware_err_[id][MOTOR_ENCODER     ]) ROS_ERROR(" * servo ID [%d] has MOTOR_ENCODER error"     ,id);
+            if (hardware_err_[id][ELECTRONICAL_SHOCK]) ROS_ERROR(" * servo ID [%d] has ELECTRONICAL_SHOCK error",id);
+            if (hardware_err_[id][OVERLOAD          ]) ROS_ERROR(" * servo ID [%d] has OVERLOAD error"          ,id);
         }
     }
     // 0b00000001 << HARDWARE_ERROR_INPUT_VOLTAGE と error が等しい場合のみ，そのエラーをfalseにする
@@ -309,7 +309,7 @@ template <typename Addr> double DynamixelHandler::SyncReadGain(set<GainIndex> li
         case POSITION_P_GAIN     : gain_addr_list.push_back(Addr::position_p_gain     ); break;
         case FEEDFORWARD_ACC_GAIN: gain_addr_list.push_back(Addr::feedforward_2nd_gain); break;
         case FEEDFORWARD_VEL_GAIN: gain_addr_list.push_back(Addr::feedforward_1st_gain); break;
-        default: /*ここに来たらエラ-*/ exit(1);
+        default: /*ここに来たらエラ-*/ ROS_STOP("Unknown GainIndex");
     }
 
     vector<uint8_t> target_id_list;
@@ -378,7 +378,7 @@ template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> 
         case VELOCITY_LIMIT    : limit_addr_list.push_back(Addr::velocity_limit    ); break;
         case MAX_POSITION_LIMIT: limit_addr_list.push_back(Addr::max_position_limit); break;
         case MIN_POSITION_LIMIT: limit_addr_list.push_back(Addr::min_position_limit); break;
-        default: /*ここに来たらエラ-*/ exit(1);
+        default: /*ここに来たらエラ-*/ ROS_STOP("Unknown LimitIndex");
     }
 
     vector<uint8_t> target_id_list;
@@ -398,7 +398,7 @@ template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> 
         for ( auto id : target_id_list ) if ( id_limit_vec_map.find(id) == id_limit_vec_map.end() ) failed_id_list.push_back(id);
         ROS_WARN("'%d' servo(s) failed to read %s", N_total - N_suc, is_timeout ? " (time out)" : " (some kind packet error)");
         ROS_WARN_STREAM(id_list_layout(failed_id_list));
-        }
+    }
     // id_limit_vec_mapの中身を確認
     if ( verbose_["r_limit"] ) if ( N_suc>0 ) {
         char header[100]; sprintf(header, "'%d' servo(s) are read", N_suc);
@@ -444,7 +444,7 @@ template <typename Addr> double DynamixelHandler::SyncReadGoal(set<GoalIndex> li
         case PROFILE_ACC   : goal_addr_list.push_back(Addr::profile_acceleration); break;
         case PROFILE_VEL   : goal_addr_list.push_back(Addr::profile_velocity    ); break;
         case GOAL_POSITION : goal_addr_list.push_back(Addr::goal_position       ); break;
-        default: /*ここに来たらエラ-*/ exit(1);
+        default: /*ここに来たらエラ-*/ ROS_STOP("Unknown GoalIndex");
     }
 
     vector<uint8_t> target_id_list;
@@ -538,7 +538,7 @@ template <typename Addr> void DynamixelHandler::CheckDynamixels(set<uint8_t> id_
         if ( alive_id_list.empty() )    { ping_err_[id] = 1; continue; }
         if ( is_in(id, alive_id_list) ) { ping_err_[id] = 0; continue; }
         /*  !is_in(id, alive_id_list)  */ ping_err_[id]++;
-        ROS_WARN("Servo id [%d] is dead (%d count / %s)", id, (int)ping_err_[id],
+        ROS_WARN("Servo ID [%d] is dead (%d count / %s)", id, (int)ping_err_[id],
             auto_remove_count_ ? (std::to_string(auto_remove_count_)+"count").c_str() : "inf");
     }
 }
