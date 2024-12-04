@@ -1,30 +1,11 @@
 #include "dynamixel_handler.hpp"
 #include "myUtils/formatting_output.hpp"
 #include "myUtils/logging_like_ros1.hpp"
-#include "myUtils/make_iterator_convenient.hpp"
+#include "myUtils/make_iterator_convenient.hpp"  // enum のインクリメントと， is_in 関数の実装
 
 // 角度変換
 static constexpr double DEG = M_PI/180.0; // degを単位に持つ数字に掛けるとradになる
 static double deg2rad(double deg){ return deg*DEG; }
-
-template <typename T> string update_info(const vector<T>& id_list, const string& what_updated) {
-    char header[99]; 
-    sprintf(header, "[%d] servo(s) %s are updated", (int)id_list.size(), what_updated.c_str());
-    return id_list_layout(id_list, string(header));
-}
-
-void store_goal(
-    uint16_t id, double value, DynamixelHandler::GoalIndex goal_index, 
-    pair<DynamixelHandler::LimitIndex, DynamixelHandler::LimitIndex> lim_index
-) {
-    const auto& limit = DynamixelHandler::limit_r_[id];
-    auto val_max = ( DynamixelHandler::NONE == lim_index.second ) ?  256*2*M_PI : limit[lim_index.second]; //このあたり一般性のない書き方していてキモい
-    auto val_min = ( DynamixelHandler::NONE == lim_index.first  ) ? -256*2*M_PI :
-                   (        lim_index.first == lim_index.second ) ?   - val_max : limit[lim_index.first];
-    DynamixelHandler::goal_w_[id][goal_index] = clamp( value, val_min, val_max );
-    DynamixelHandler::is_goal_updated_[id] = true;
-    DynamixelHandler::list_write_goal_.insert(goal_index);
-}
 
 void DynamixelHandler::CallbackCmdsX(const DxlCommandsX::SharedPtr msg) {
     if ( verbose_callback_ ) ROS_INFO("=====================================");
@@ -69,9 +50,9 @@ void DynamixelHandler::CallbackCmd_Common(const DynamixelCommonCmd& msg) {
     else if (msg.command == msg.TORQUE_OFF   || msg.command == "TOFF") CallbackCmd_Status(st_cmd.set__torque(vector<bool>(id_list.size(), false)));
     else if (msg.command == msg.ADD_ID       || msg.command == "ADID") CallbackCmd_Status(st_cmd.set__ping  (vector<bool>(id_list.size(),  true)));
     else if (msg.command == msg.REMOVE_ID    || msg.command == "RMID") CallbackCmd_Status(st_cmd.set__ping  (vector<bool>(id_list.size(), false)));
-    else if (msg.command == msg.RESET_OFFSET ) for (auto id : id_list) {WriteHomingOffset(id, 0);              ROS_INFO("  - set: offset zero, ID [%d]"   , id);}
-    else if (msg.command == msg.ENABLE       ) for (auto id : id_list) {WriteTorqueEnable(id, TORQUE_ENABLE);  ROS_INFO("  - set: torque enable, ID [%d]" , id);}
-    else if (msg.command == msg.DISABLE      ) for (auto id : id_list) {WriteTorqueEnable(id, TORQUE_DISABLE); ROS_INFO("  - set: torque disable, ID [%d]", id);}
+    else if (msg.command == msg.RESET_OFFSET ) for (auto id : id_list) {WriteHomingOffset(id, 0);              ROS_INFO("  - set: offset zero, ID [%d]"   , id);} // 開発者用でほぼ使われないので if(verbose_)は付けない
+    else if (msg.command == msg.ENABLE       ) for (auto id : id_list) {WriteTorqueEnable(id, TORQUE_ENABLE);  ROS_INFO("  - set: torque enable, ID [%d]" , id);} // 開発者用でほぼ使われないので if(verbose_)は付けない
+    else if (msg.command == msg.DISABLE      ) for (auto id : id_list) {WriteTorqueEnable(id, TORQUE_DISABLE); ROS_INFO("  - set: torque disable, ID [%d]", id);} // 開発者用でほぼ使われないので if(verbose_)は付けない
     else if (msg.command == msg.REBOOT       ) for (auto id : id_list) {dyn_comm_.Reboot(id);                  ROS_INFO("  - reboot: ID [%d] ", id);}
     else ROS_WARN("  Invalid command [%s]", msg.command.c_str());
 }
@@ -114,291 +95,311 @@ void DynamixelHandler::CallbackCmd_Status(const DynamixelStatus& msg) {
 }
 
 void DynamixelHandler::CallbackCmd_X_Pwm(const DynamixelControlXPwm& msg) {
-    const bool has_pwm = !msg.id_list.empty() && msg.id_list.size() == msg.pwm_percent.size();
-    vector<uint8_t> changed_id_list;
-    for ( size_t i=0; i<msg.id_list.size(); i++ ) if ( series_[msg.id_list[i]] == SERIES_X ) {
-        const bool is_change_mode = ChangeOperatingMode(msg.id_list[i], OPERATING_MODE_PWM);
-        if (has_pwm) store_goal( msg.id_list[i], msg.pwm_percent[i], GOAL_PWM, {PWM_LIMIT, PWM_LIMIT} );
-        if ( is_change_mode || has_pwm ) changed_id_list.push_back(msg.id_list[i]);
-    }
-    if (verbose_callback_ && has_pwm) ROS_INFO_STREAM(update_info(changed_id_list, "goal_pwm (x series)"));
-    if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
+    if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
+    if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "PWM ctrl(X), ID"));
+    vector<uint16_t> id_list(msg.id_list);
+    for ( size_t i=0; i<id_list.size(); i++ ) 
+        if ( auto& ID=id_list[i]; series_[ID] == SERIES_X ) ChangeOperatingMode(ID, OPERATING_MODE_PWM);
+        else { if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID); ID = 255;} // 不適なseriesの場合はid=255にして，以降，無視されるようにする
+    CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
+        .set__pwm_percent(msg.pwm_percent)
+    );
 }
 
 void DynamixelHandler::CallbackCmd_X_Position(const DynamixelControlXPosition& msg) {
-    const bool has_pos = !msg.id_list.empty() && msg.id_list.size() == msg.position_deg.size();
-    const bool has_pv  = !msg.id_list.empty() && msg.id_list.size() == msg.profile_vel_deg_s.size();
-    const bool has_pa  = !msg.id_list.empty() && msg.id_list.size() == msg.profile_acc_deg_ss.size();
-    vector<uint8_t> changed_id_list;
-    for ( size_t i=0; i<msg.id_list.size(); i++ ) if ( series_[msg.id_list[i]] == SERIES_X ) {
-        const bool is_change_mode = ChangeOperatingMode(msg.id_list[i], OPERATING_MODE_POSITION);
-        if (has_pos) store_goal( msg.id_list[i], msg.position_deg[i]      *DEG, GOAL_POSITION, {MIN_POSITION_LIMIT, MAX_POSITION_LIMIT} );
-        if (has_pv ) store_goal( msg.id_list[i], msg.profile_vel_deg_s[i] *DEG, PROFILE_VEL,   {VELOCITY_LIMIT    , VELOCITY_LIMIT    } );
-        if (has_pa ) store_goal( msg.id_list[i], msg.profile_acc_deg_ss[i]*DEG, PROFILE_ACC,   {ACCELERATION_LIMIT, ACCELERATION_LIMIT} );
-        if ( is_change_mode || (has_pos || has_pv || has_pa) ) changed_id_list.push_back(msg.id_list[i]);
-    }
-    if (verbose_callback_ && has_pos) ROS_INFO_STREAM(update_info(changed_id_list, "goal_position (x series)"));
-    if (verbose_callback_ && has_pv ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_velocity (x series)"));
-    if (verbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (x series)"));
-    if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
+    if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
+    if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Position ctrl(X), ID"));
+    vector<uint16_t> id_list(msg.id_list);
+    for ( size_t i=0; i<id_list.size(); i++ ) 
+        if ( auto& ID=id_list[i]; series_[ID] == SERIES_X ) ChangeOperatingMode(ID, OPERATING_MODE_POSITION);
+        else { if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID); ID = 255;} // 不適なseriesの場合はid=255にして，以降，無視されるようにする
+    CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
+        .set__position_deg(msg.position_deg)
+        .set__profile_vel_deg_s(msg.profile_vel_deg_s)
+        .set__profile_acc_deg_ss(msg.profile_acc_deg_ss)
+    );
 }
 
 void DynamixelHandler::CallbackCmd_X_Velocity(const DynamixelControlXVelocity& msg) {
-    const bool has_vel = !msg.id_list.empty() && msg.id_list.size() == msg.velocity_deg_s.size();
-    const bool has_pa  = !msg.id_list.empty() && msg.id_list.size() == msg.profile_acc_deg_ss.size();
-    vector<uint8_t> changed_id_list;
-    for ( size_t i=0; i<msg.id_list.size(); i++ ) if ( series_[msg.id_list[i]] == SERIES_X ) {
-        const bool is_change_mode = ChangeOperatingMode(msg.id_list[i], OPERATING_MODE_VELOCITY);
-        if (has_vel) store_goal( msg.id_list[i], msg.velocity_deg_s[i]    *DEG, GOAL_VELOCITY, {VELOCITY_LIMIT, VELOCITY_LIMIT} );
-        if (has_pa ) store_goal( msg.id_list[i], msg.profile_acc_deg_ss[i]*DEG, PROFILE_ACC  , {ACCELERATION_LIMIT, ACCELERATION_LIMIT} );
-        if ( is_change_mode || (has_vel || has_pa) ) changed_id_list.push_back(msg.id_list[i]);
-    }
-    if (verbose_callback_ && has_vel) ROS_INFO_STREAM(update_info(changed_id_list, "goal_velocity (x series)"));
-    if (verbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (x series)"));
-    if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
+    if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
+    if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Velocity ctrl(X), ID"));
+    vector<uint16_t> id_list(msg.id_list);
+    for ( size_t i=0; i<id_list.size(); i++ ) 
+        if ( auto& ID=id_list[i]; series_[ID] == SERIES_X ) ChangeOperatingMode(ID, OPERATING_MODE_VELOCITY);
+        else { if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID); ID = 255;} // 不適なseriesの場合はid=255にして，以降，無視されるようにする
+    CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
+        .set__velocity_deg_s(msg.velocity_deg_s)
+        .set__profile_acc_deg_ss(msg.profile_acc_deg_ss)
+    );
 }
 
 void DynamixelHandler::CallbackCmd_X_Current(const DynamixelControlXCurrent& msg) {
-    const bool has_cur = !msg.id_list.empty() && msg.id_list.size() == msg.current_ma.size();
-    vector<uint8_t> changed_id_list;
-    for ( size_t i=0; i<msg.id_list.size(); i++ ) if ( series_[msg.id_list[i]] == SERIES_X ) {
-        const bool is_change_mode = ChangeOperatingMode(msg.id_list[i], OPERATING_MODE_CURRENT);
-        if (has_cur) store_goal( msg.id_list[i], msg.current_ma[i], GOAL_CURRENT, {CURRENT_LIMIT, CURRENT_LIMIT} );
-        if ( is_change_mode || has_cur ) changed_id_list.push_back(msg.id_list[i]);
-    }
-    if (verbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current (x series)"));
-    if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
+    if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
+    if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Current ctrl(X), ID"));
+    vector<uint16_t> id_list(msg.id_list);
+    for ( size_t i=0; i<id_list.size(); i++ ) 
+        if ( auto& ID=id_list[i]; series_[ID] == SERIES_X ) ChangeOperatingMode(ID, OPERATING_MODE_CURRENT);
+        else { if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID); ID = 255;} // 不適なseriesの場合はid=255にして，以降，無視されるようにする
+    CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
+        .set__current_ma(msg.current_ma)
+    );
 }
 
 void DynamixelHandler::CallbackCmd_X_CurrentBasePosition(const DynamixelControlXCurrentBasePosition& msg) {
-    const bool has_pos = !msg.id_list.empty() && msg.id_list.size() == msg.position_deg.size();
-    const bool has_rot = !msg.id_list.empty() && msg.id_list.size() == msg.rotation.size();
-    const bool has_cur = !msg.id_list.empty() && msg.id_list.size() == msg.current_ma.size();
-    const bool has_pv  = !msg.id_list.empty() && msg.id_list.size() == msg.profile_vel_deg_s.size();
-    const bool has_pa  = !msg.id_list.empty() && msg.id_list.size() == msg.profile_acc_deg_ss.size();
-    vector<uint8_t> changed_id_list;
-    for ( size_t i=0; i<msg.id_list.size(); i++ ) if ( series_[msg.id_list[i]] == SERIES_X ) {
-        const bool is_change_mode = ChangeOperatingMode(msg.id_list[i], OPERATING_MODE_CURRENT_BASE_POSITION);
-        const double position_deg = (has_pos ? msg.position_deg[i] : 0.0) + (has_rot ? msg.rotation[i]*360 : 0.0);
-        if (has_pos || has_rot) store_goal( msg.id_list[i], position_deg             *DEG, GOAL_POSITION, {NONE              , NONE              } );
-        if (has_cur           ) store_goal( msg.id_list[i], msg.current_ma[i]            , GOAL_CURRENT,  {CURRENT_LIMIT     , CURRENT_LIMIT     } );
-        if (has_pv            ) store_goal( msg.id_list[i], msg.profile_vel_deg_s[i] *DEG, PROFILE_VEL,   {VELOCITY_LIMIT    , VELOCITY_LIMIT    } );
-        if (has_pa            ) store_goal( msg.id_list[i], msg.profile_acc_deg_ss[i]*DEG, PROFILE_ACC,   {ACCELERATION_LIMIT, ACCELERATION_LIMIT} );
-        if ( is_change_mode || (has_pos || has_cur || has_pv || has_pa) ) changed_id_list.push_back(msg.id_list[i]);
-    }
-    if (verbose_callback_ && has_pos) ROS_INFO_STREAM(update_info(changed_id_list, "goal_position (x series)"));
-    if (verbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current (x series)"));
-    if (verbose_callback_ && has_pv ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_velocity (x series)"));
-    if (verbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (x series)"));
-    if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
+    if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
+    if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Current-base Position ctrl(X), ID"));
+    vector<uint16_t> id_list(msg.id_list);
+    for ( size_t i=0; i<id_list.size(); i++ )
+        if ( auto& ID=id_list[i]; series_[ID] == SERIES_X ) ChangeOperatingMode(ID, OPERATING_MODE_CURRENT_BASE_POSITION);
+        else { if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID); ID = 255;} // 不適なseriesの場合はid=255にして，以降，無視されるようにする
+    vector<double> position_deg(msg.position_deg);
+    if ( size_t N_rot=msg.rotation.size(); N_rot==id_list.size() ) {
+        if (position_deg.size() < N_rot) position_deg.resize(N_rot); // 0埋め拡張
+        for ( size_t i=0; i<N_rot; i++ ) position_deg[i] += msg.rotation[i]*360;
+    } else { if (verbose_callback_) ROS_WARN("  Field [rotation] is size mismatch");}
+    CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
+        .set__current_ma(msg.current_ma)
+        .set__position_deg(position_deg)
+        .set__profile_vel_deg_s(msg.profile_vel_deg_s)
+        .set__profile_acc_deg_ss(msg.profile_acc_deg_ss)
+    );
 }
 
 void DynamixelHandler::CallbackCmd_X_ExtendedPosition(const DynamixelControlXExtendedPosition& msg) {
-    const bool has_pos = !msg.id_list.empty() && msg.id_list.size() == msg.position_deg.size();
-    const bool has_rot = !msg.id_list.empty() && msg.id_list.size() == msg.rotation.size();
-    const bool has_pv  = !msg.id_list.empty() && msg.id_list.size() == msg.profile_vel_deg_s.size();
-    const bool has_pa  = !msg.id_list.empty() && msg.id_list.size() == msg.profile_acc_deg_ss.size();
-    vector<uint8_t> changed_id_list;
-    for ( size_t i=0; i<msg.id_list.size(); i++ ) if ( series_[msg.id_list[i]] == SERIES_X ) {
-        const bool is_change_mode = ChangeOperatingMode(msg.id_list[i], OPERATING_MODE_EXTENDED_POSITION);
-        const double position_deg = (has_pos ? msg.position_deg[i] : 0.0) + (has_rot ? msg.rotation[i]*360 : 0.0);
-        if (has_pos || has_rot) store_goal( msg.id_list[i], position_deg             *DEG, GOAL_POSITION, {NONE              , NONE              } );
-        if (has_pv            ) store_goal( msg.id_list[i], msg.profile_vel_deg_s[i] *DEG, PROFILE_VEL,   {VELOCITY_LIMIT    , VELOCITY_LIMIT    } );
-        if (has_pa            ) store_goal( msg.id_list[i], msg.profile_acc_deg_ss[i]*DEG, PROFILE_ACC,   {ACCELERATION_LIMIT, ACCELERATION_LIMIT} );
-        if ( is_change_mode || (has_pos || has_pv || has_pa) ) changed_id_list.push_back(msg.id_list[i]);
-    }
-    if (verbose_callback_ && has_pos) ROS_INFO_STREAM(update_info(changed_id_list, "goal_position (x series)"));
-    if (verbose_callback_ && has_pv ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_velocity (x series)"));
-    if (verbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (x series)"));
-    if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
+    if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
+    if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Extended Position ctrl(X), ID"));
+    vector<uint16_t> id_list(msg.id_list);
+    for ( size_t i=0; i<id_list.size(); i++ )
+        if ( auto& ID=id_list[i]; series_[ID] == SERIES_X ) ChangeOperatingMode(ID, OPERATING_MODE_EXTENDED_POSITION);
+        else { if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID); ID = 255;} // 不適なseriesの場合はid=255にして，以降，無視されるようにする
+    vector<double> position_deg(msg.position_deg);
+    if ( size_t N_rot=msg.rotation.size(); N_rot==id_list.size() ) {
+        if (position_deg.size() < N_rot) position_deg.resize(N_rot); // 0埋め拡張
+        for ( size_t i=0; i<N_rot; i++ ) position_deg[i] += msg.rotation[i]*360;
+    } else { if (verbose_callback_) ROS_WARN("  Field [rotation] is size mismatch");}
+    CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
+        .set__position_deg(position_deg)
+        .set__profile_vel_deg_s(msg.profile_vel_deg_s)
+        .set__profile_acc_deg_ss(msg.profile_acc_deg_ss)
+    );
 }
 
 void DynamixelHandler::CallbackCmd_P_Pwm(const DynamixelControlPPwm& msg) {
-    const bool has_pwm = !msg.id_list.empty() && msg.id_list.size() == msg.pwm_percent.size();
-    vector<uint8_t> changed_id_list;
-    for ( size_t i=0; i<msg.id_list.size(); i++ ) if ( series_[msg.id_list[i]] == SERIES_P ) {
-        const bool is_change_mode = ChangeOperatingMode(msg.id_list[i], OPERATING_MODE_PWM);
-        if (has_pwm) store_goal( msg.id_list[i], msg.pwm_percent[i], GOAL_PWM, {PWM_LIMIT, PWM_LIMIT} );
-        if ( is_change_mode || has_pwm ) changed_id_list.push_back(msg.id_list[i]);
-    }
-    if (verbose_callback_ && has_pwm) ROS_INFO_STREAM(update_info(changed_id_list, "goal_pwm (p series)"));
-    if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
+    if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
+    if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "PWM ctrl(P), ID"));
+    vector<uint16_t> id_list(msg.id_list);
+    for ( size_t i=0; i<id_list.size(); i++ ) 
+        if ( auto& ID=id_list[i]; series_[ID] == SERIES_P ) ChangeOperatingMode(ID, OPERATING_MODE_PWM);
+        else { if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID); ID = 255;} // 不適なseries の場合はid=255にして，以降，無視されるようにする
+    CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
+        .set__pwm_percent(msg.pwm_percent)
+    );
 }
 
 void DynamixelHandler::CallbackCmd_P_Current(const DynamixelControlPCurrent& msg) {
-    const bool has_cur = !msg.id_list.empty() && msg.id_list.size() == msg.current_ma.size();
-    vector<uint8_t> changed_id_list;
-    for ( size_t i=0; i<msg.id_list.size(); i++ ) if ( series_[msg.id_list[i]] == SERIES_P ) {
-        const bool is_change_mode = ChangeOperatingMode(msg.id_list[i], OPERATING_MODE_CURRENT);
-        if (has_cur) store_goal( msg.id_list[i], msg.current_ma[i], GOAL_CURRENT, {CURRENT_LIMIT, CURRENT_LIMIT} );
-        if ( is_change_mode || has_cur ) changed_id_list.push_back(msg.id_list[i]);
-    }
-    if (verbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current (p series)"));
-    if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
+    if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
+    if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Current ctrl(P), ID"));
+    vector<uint16_t> id_list(msg.id_list);
+    for ( size_t i=0; i<id_list.size(); i++ ) 
+        if ( auto& ID=id_list[i]; series_[ID] == SERIES_P ) ChangeOperatingMode(ID, OPERATING_MODE_CURRENT);
+        else { if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID); ID = 255;} // 不適なseries の場合はid=255にして，以降，無視されるようにする
+    CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
+        .set__current_ma(msg.current_ma)
+    );
 }
 
 void DynamixelHandler::CallbackCmd_P_Velocity(const DynamixelControlPVelocity& msg) {
-    const bool has_cur = !msg.id_list.empty() && msg.id_list.size() == msg.current_ma.size();
-    const bool has_vel = !msg.id_list.empty() && msg.id_list.size() == msg.velocity_deg_s.size();
-    const bool has_pa  = !msg.id_list.empty() && msg.id_list.size() == msg.profile_acc_deg_ss.size();
-    vector<uint8_t> changed_id_list;
-    for ( size_t i=0; i<msg.id_list.size(); i++ ) if ( series_[msg.id_list[i]] == SERIES_P ) {
-        const bool is_change_mode = ChangeOperatingMode(msg.id_list[i], OPERATING_MODE_VELOCITY);
-        if (has_cur) store_goal( msg.id_list[i], msg.current_ma[i]            , GOAL_CURRENT , {CURRENT_LIMIT     , CURRENT_LIMIT     });
-        if (has_vel) store_goal( msg.id_list[i], msg.velocity_deg_s[i]    *DEG, GOAL_VELOCITY, {VELOCITY_LIMIT    , VELOCITY_LIMIT    });
-        if (has_pa ) store_goal( msg.id_list[i], msg.profile_acc_deg_ss[i]*DEG, PROFILE_ACC  , {ACCELERATION_LIMIT, ACCELERATION_LIMIT});
-        if ( is_change_mode || (has_cur || has_vel || has_pa) ) changed_id_list.push_back(msg.id_list[i]);
-    }
-    if (verbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current (p series)"));
-    if (verbose_callback_ && has_vel) ROS_INFO_STREAM(update_info(changed_id_list, "goal_velocity (p series)"));
-    if (verbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (p series)"));
-    if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
+    if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
+    if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Velocity ctrl(P), ID"));
+    vector<uint16_t> id_list(msg.id_list);
+    for ( size_t i=0; i<id_list.size(); i++ ) 
+        if ( auto& ID=id_list[i]; series_[ID] == SERIES_P ) ChangeOperatingMode(ID, OPERATING_MODE_VELOCITY);
+        else { if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID); ID = 255;} // 不適なseries の場合はid=255にして，以降，無視されるようにする
+    CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
+        .set__current_ma(msg.current_ma)
+        .set__velocity_deg_s(msg.velocity_deg_s)
+        .set__profile_acc_deg_ss(msg.profile_acc_deg_ss)
+    );
 }
 
 void DynamixelHandler::CallbackCmd_P_Position(const DynamixelControlPPosition& msg) {
-    const bool has_pos = !msg.id_list.empty() && msg.id_list.size() == msg.position_deg.size();
-    const bool has_cur = !msg.id_list.empty() && msg.id_list.size() == msg.current_ma.size();
-    const bool has_vel = !msg.id_list.empty() && msg.id_list.size() == msg.velocity_deg_s.size();
-    const bool has_pv  = !msg.id_list.empty() && msg.id_list.size() == msg.profile_vel_deg_s.size();
-    const bool has_pa  = !msg.id_list.empty() && msg.id_list.size() == msg.profile_acc_deg_ss.size();
-    vector<uint8_t> changed_id_list;
-    for ( size_t i=0; i<msg.id_list.size(); i++ ) if ( series_[msg.id_list[i]] == SERIES_P ) {
-        const bool is_change_mode = ChangeOperatingMode(msg.id_list[i], OPERATING_MODE_POSITION);
-        if (has_cur) store_goal( msg.id_list[i], msg.current_ma[i]            , GOAL_CURRENT , {CURRENT_LIMIT     , CURRENT_LIMIT     });
-        if (has_pos) store_goal( msg.id_list[i], msg.position_deg[i]      *DEG, GOAL_POSITION, {MIN_POSITION_LIMIT, MAX_POSITION_LIMIT});
-        if (has_vel) store_goal( msg.id_list[i], msg.velocity_deg_s[i]    *DEG, GOAL_VELOCITY, {VELOCITY_LIMIT    , VELOCITY_LIMIT    });
-        if (has_pv ) store_goal( msg.id_list[i], msg.profile_vel_deg_s[i] *DEG, PROFILE_VEL  , {VELOCITY_LIMIT    , VELOCITY_LIMIT    });
-        if (has_pa ) store_goal( msg.id_list[i], msg.profile_acc_deg_ss[i]*DEG, PROFILE_ACC  , {ACCELERATION_LIMIT, ACCELERATION_LIMIT});
-        if ( is_change_mode || (has_cur || has_pos || has_vel || has_pv || has_pa) ) changed_id_list.push_back(msg.id_list[i]);
-    }
-    if (verbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current (p series)"));
-    if (verbose_callback_ && has_pos) ROS_INFO_STREAM(update_info(changed_id_list, "goal_position (p series)"));
-    if (verbose_callback_ && has_vel) ROS_INFO_STREAM(update_info(changed_id_list, "goal_velocity (p series)"));
-    if (verbose_callback_ && has_pv ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_velocity (p series)"));
-    if (verbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (p series)"));
-    if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
+    if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
+    if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Position ctrl(P), ID"));
+    vector<uint16_t> id_list(msg.id_list);
+    for ( size_t i=0; i<id_list.size(); i++ ) 
+        if ( auto& ID=id_list[i]; series_[ID] == SERIES_P ) ChangeOperatingMode(ID, OPERATING_MODE_POSITION);
+        else { if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID); ID = 255;} // 不適なseries の場合はid=255にして，以降，無視されるようにする
+    CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
+        .set__current_ma(msg.current_ma)
+        .set__position_deg(msg.position_deg)
+        .set__velocity_deg_s(msg.velocity_deg_s)
+        .set__profile_acc_deg_ss(msg.profile_acc_deg_ss)
+    );
 }
 
 void DynamixelHandler::CallbackCmd_P_ExtendedPosition(const DynamixelControlPExtendedPosition& msg) {
-    const bool has_pos = !msg.id_list.empty() && msg.id_list.size() == msg.position_deg.size();
-    const bool has_rot = !msg.id_list.empty() && msg.id_list.size() == msg.rotation.size();
-    const bool has_cur = !msg.id_list.empty() && msg.id_list.size() == msg.current_ma.size();
-    const bool has_vel = !msg.id_list.empty() && msg.id_list.size() == msg.velocity_deg_s.size();
-    const bool has_pv  = !msg.id_list.empty() && msg.id_list.size() == msg.profile_vel_deg_s.size();
-    const bool has_pa  = !msg.id_list.empty() && msg.id_list.size() == msg.profile_acc_deg_ss.size();
-    vector<uint8_t> changed_id_list;
-    for ( size_t i=0; i<msg.id_list.size(); i++ ) if ( series_[msg.id_list[i]] == SERIES_P ) {
-        const bool is_change_mode = ChangeOperatingMode(msg.id_list[i], OPERATING_MODE_EXTENDED_POSITION);
-        const double position_deg = (has_pos ? msg.position_deg[i] : 0.0) + (has_rot ? msg.rotation[i]*360 : 0.0);
-        if (has_cur           ) store_goal( msg.id_list[i], msg.current_ma[i]            , GOAL_CURRENT , {CURRENT_LIMIT     , CURRENT_LIMIT} );
-        if (has_pos || has_rot) store_goal( msg.id_list[i], position_deg             *DEG, GOAL_POSITION, {NONE              , NONE              } );
-        if (has_vel           ) store_goal( msg.id_list[i], msg.velocity_deg_s[i]    *DEG, GOAL_VELOCITY, {VELOCITY_LIMIT    , VELOCITY_LIMIT    } );
-        if (has_pv            ) store_goal( msg.id_list[i], msg.profile_vel_deg_s[i] *DEG, PROFILE_VEL  , {VELOCITY_LIMIT    , VELOCITY_LIMIT    } );
-        if (has_pa            ) store_goal( msg.id_list[i], msg.profile_acc_deg_ss[i]*DEG, PROFILE_ACC  , {ACCELERATION_LIMIT, ACCELERATION_LIMIT} );
-        if ( is_change_mode && (has_cur || has_pos || has_rot || has_vel || has_pv || has_pa) ) changed_id_list.push_back(msg.id_list[i]);
+    if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
+    if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Extended Position ctrl(P), ID"));
+    vector<uint16_t> id_list(msg.id_list);
+    for ( size_t i=0; i<id_list.size(); i++ )
+        if ( auto& ID=id_list[i]; series_[ID] == SERIES_P ) ChangeOperatingMode(ID, OPERATING_MODE_EXTENDED_POSITION);
+        else { if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID); ID = 255;} // 不適なseries の場合はid=255にして，以降，無視されるようにする
+    vector<double> position_deg(msg.position_deg);
+    if ( size_t N_rot=msg.rotation.size(); N_rot==id_list.size() ) {
+        if (position_deg.size() < N_rot) position_deg.resize(N_rot); // 0埋め拡張
+        for ( size_t i=0; i<N_rot; i++ ) position_deg[i] += msg.rotation[i]*360;
+    } else { if (verbose_callback_) ROS_WARN("  Field [rotation] is size mismatch");}
+    CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
+        .set__current_ma(msg.current_ma)
+        .set__position_deg(position_deg)
+        .set__velocity_deg_s(msg.velocity_deg_s)
+        .set__profile_vel_deg_s(msg.profile_vel_deg_s)
+        .set__profile_acc_deg_ss(msg.profile_acc_deg_ss)
+    );
+}
+
+void DynamixelHandler::CallbackCmd_Goal(const DynamixelGoal& msg) { // mutex_goal_を追加し， 排他制御を行う． log出力を排他制御に入れないように注意する．
+    // msg.id_list内のIDの妥当性を確認
+    vector<uint8_t> valid_id_list;
+    for (auto id : msg.id_list) if ( is_in(id, id_set_) ) valid_id_list.push_back(id);
+    if ( valid_id_list.empty() ) return; // 妥当なIDがない場合は何もしない, 以降は必ず妥当なIDが存在する
+    // 各要素の個数をもとに, それぞれの要素が妥当かどうか確認
+    size_t N = msg.id_list.size();
+    size_t n_pwm = msg.pwm_percent   .size(), n_pos = msg.position_deg      .size();
+    size_t n_cur = msg.current_ma    .size(), n_pv  = msg.profile_vel_deg_s .size();
+    size_t n_vel = msg.velocity_deg_s.size(), n_pa  = msg.profile_acc_deg_ss.size();
+    if ( verbose_callback_ ) {
+        ROS_INFO("Goal cmd '%zu' servo(s) are tried to update", valid_id_list.size());
+        ROS_INFO_STREAM(id_list_layout(valid_id_list, "  ID"));
+        if (N==n_pwm) ROS_INFO("  - updated: goal pwm     "); else if ( n_pwm>0 ) ROS_WARN("  - skieped: goal pwm      (size mismatch)");
+        if (N==n_cur) ROS_INFO("  - updated: goal current "); else if ( n_cur>0 ) ROS_WARN("  - skieped: goal current  (size mismatch)");
+        if (N==n_vel) ROS_INFO("  - updated: goal velocity"); else if ( n_vel>0 ) ROS_WARN("  - skieped: goal velocity (size mismatch)");
+        if (N==n_pos) ROS_INFO("  - updated: goal position"); else if ( n_pos>0 ) ROS_WARN("  - skieped: goal position (size mismatch)");
+        if (N==n_pv ) ROS_INFO("  - updated: profile vel. "); else if ( n_pv >0 ) ROS_WARN("  - skieped: profile vel.  (size mismatch)");
+        if (N==n_pa ) ROS_INFO("  - updated: profile acc. "); else if ( n_pa >0 ) ROS_WARN("  - skieped: profile acc.  (size mismatch)");
+    } 
+    if ( N!=n_pwm && N!=n_cur && N!=n_vel && N!=n_pos && N!=n_pv && N!=n_pa ) return; // 何も更新されない場合は何もしない
+    // list_write_goal_　の更新
+    if ( N==n_pwm ) list_write_goal_.insert(GOAL_PWM     ); 
+    if ( N==n_cur ) list_write_goal_.insert(GOAL_CURRENT ); 
+    if ( N==n_vel ) list_write_goal_.insert(GOAL_VELOCITY);
+    if ( N==n_pos ) list_write_goal_.insert(GOAL_POSITION);
+    if ( N==n_pv  ) list_write_goal_.insert(PROFILE_VEL  );
+    if ( N==n_pa  ) list_write_goal_.insert(PROFILE_ACC  ); 
+    // goal_w_ と is_goal_updated_ の更新
+    for (size_t i=0; i<msg.id_list.size(); i++) if ( auto ID = msg.id_list[i]; is_in(ID, valid_id_list) ) { // 順番がずれるのでわざとこの書き方をしている．
+        is_goal_updated_[ID] = true;
+        const bool is_x_series = series_[ID] == SERIES_X;
+        const bool is_mode_pos = op_mode_[ID] == OPERATING_MODE_POSITION;
+        //                                           シンプルに絶対値を制限内に収める
+        if ( N==n_pwm ) goal_w_[ID][GOAL_PWM     ] = clamp( msg.pwm_percent[i]       , -limit_r_[ID][PWM_LIMIT     ], limit_r_[ID][PWM_LIMIT     ]);
+        if ( N==n_cur ) goal_w_[ID][GOAL_CURRENT ] = clamp( msg.current_ma[i]        , -limit_r_[ID][CURRENT_LIMIT ], limit_r_[ID][CURRENT_LIMIT ]);
+        if ( N==n_vel ) goal_w_[ID][GOAL_VELOCITY] = clamp( msg.velocity_deg_s[i]*DEG, -limit_r_[ID][VELOCITY_LIMIT], limit_r_[ID][VELOCITY_LIMIT]);
+        //                                           モードによって制限値が変わるので注意して，制限内に収める
+        if ( N==n_pos ) goal_w_[ID][GOAL_POSITION] = clamp( msg.position_deg[i]*DEG, is_mode_pos ? limit_r_[ID][MIN_POSITION_LIMIT] : -256*2*M_PI,
+                                                                                     is_mode_pos ? limit_r_[ID][MAX_POSITION_LIMIT] : +256*2*M_PI );
+        //                                           シリーズによって最大値が変わるので注意して，制限内に収める
+        if ( N==n_pv )  goal_w_[ID][PROFILE_VEL  ] = clamp( msg.profile_vel_deg_s[i] *DEG, 0.0, !is_x_series ? limit_r_[ID][VELOCITY_LIMIT   ] 
+                                                                                                : AddrX::profile_velocity.pulse2val(32767, model_[ID])); 
+        if ( N==n_pa )  goal_w_[ID][PROFILE_ACC  ] = clamp( msg.profile_acc_deg_ss[i]*DEG, 0.0, !is_x_series ? limit_r_[ID][ACCELERATION_LIMIT] 
+                                                                                                : AddrX::profile_acceleration.pulse2val(32767, model_[ID])); 
     }
-    if (verbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current (p series)"));
-    if (verbose_callback_ && has_pos) ROS_INFO_STREAM(update_info(changed_id_list, "goal_position (p series)"));
-    if (verbose_callback_ && has_vel) ROS_INFO_STREAM(update_info(changed_id_list, "goal_velocity (p series)"));
-    if (verbose_callback_ && has_pv ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_velocity (p series)"));
-    if (verbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration (p series)"));
-    if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
+    if (verbose_callback_) ROS_INFO("============+===========+============");
 }
 
-void DynamixelHandler::CallbackCmd_Goal(const DynamixelGoal& msg) {
-    const bool has_pwm = !msg.id_list.empty() && msg.id_list.size() == msg.pwm_percent.size();
-    const bool has_cur = !msg.id_list.empty() && msg.id_list.size() == msg.current_ma.size();
-    const bool has_vel = !msg.id_list.empty() && msg.id_list.size() == msg.velocity_deg_s.size();
-    const bool has_pos = !msg.id_list.empty() && msg.id_list.size() == msg.position_deg.size();
-    const bool has_pv  = !msg.id_list.empty() && msg.id_list.size() == msg.profile_vel_deg_s.size();
-    const bool has_pa  = !msg.id_list.empty() && msg.id_list.size() == msg.profile_acc_deg_ss.size();
-    vector<uint8_t> changed_id_list;
-    for ( size_t i=0; i<msg.id_list.size(); i++ ) if ( series_[msg.id_list[i]] == SERIES_P ) {
-        if (has_pwm) store_goal( msg.id_list[i], msg.pwm_percent[i]           , GOAL_PWM     , {PWM_LIMIT         , PWM_LIMIT         });
-        if (has_cur) store_goal( msg.id_list[i], msg.current_ma[i]            , GOAL_CURRENT , {CURRENT_LIMIT     , CURRENT_LIMIT     });
-        if (has_vel) store_goal( msg.id_list[i], msg.velocity_deg_s[i]    *DEG, GOAL_VELOCITY, {VELOCITY_LIMIT    , VELOCITY_LIMIT    });
-        if (has_pos) store_goal( msg.id_list[i], msg.position_deg[i]      *DEG, GOAL_POSITION, {NONE              , NONE              });
-        if (has_pv ) store_goal( msg.id_list[i], msg.profile_vel_deg_s[i] *DEG, PROFILE_VEL  , {VELOCITY_LIMIT    , VELOCITY_LIMIT    });
-        if (has_pa ) store_goal( msg.id_list[i], msg.profile_acc_deg_ss[i]*DEG, PROFILE_ACC  , {ACCELERATION_LIMIT, ACCELERATION_LIMIT});
-        if ( has_pwm || has_cur || has_vel || has_pos || has_pv || has_pa ) changed_id_list.push_back(msg.id_list[i]);
+void DynamixelHandler::CallbackCmd_Gain(const DynamixelGain& msg) { // mutex_gain_を追加し， 排他制御を行う． log出力を排他制御に入れないように注意する．
+    // msg.id_list内のIDの妥当性を確認
+    vector<uint8_t> valid_id_list;
+    for (auto id : msg.id_list) if ( is_in(id, id_set_) ) valid_id_list.push_back(id);
+    if ( valid_id_list.empty() ) return; // 妥当なIDがない場合は何もしない, 以降は必ず妥当なIDが存在する
+    // 各要素の個数をもとに, それぞれの要素が妥当かどうか確認
+    size_t N = msg.id_list.size();
+    size_t n_vi = msg.velocity_i_gain_pulse.size(), n_vp = msg.velocity_p_gain_pulse.size();
+    size_t n_pd = msg.position_d_gain_pulse.size(), n_pi = msg.position_i_gain_pulse.size(), n_pp = msg.position_p_gain_pulse.size();
+    size_t n_fa = msg.feedforward_2nd_gain_pulse.size(), n_fv = msg.feedforward_1st_gain_pulse.size();
+    if ( verbose_callback_ ) {
+        ROS_INFO("Gain cmd, '%zu' servo(s) are tried to update", valid_id_list.size());
+        ROS_INFO_STREAM(id_list_layout(valid_id_list, "  ID"));
+        if (N==n_vi) ROS_INFO("  - updated: velocity i gain "); else if ( n_vi>0 ) ROS_WARN("  - skieped: velocity i gain (size mismatch)");
+        if (N==n_vp) ROS_INFO("  - updated: velocity p gain "); else if ( n_vp>0 ) ROS_WARN("  - skieped: velocity p gain (size mismatch)");
+        if (N==n_pd) ROS_INFO("  - updated: position d gain "); else if ( n_pd>0 ) ROS_WARN("  - skieped: position d gain (size mismatch)");
+        if (N==n_pi) ROS_INFO("  - updated: position i gain "); else if ( n_pi>0 ) ROS_WARN("  - skieped: position i gain (size mismatch)");
+        if (N==n_pp) ROS_INFO("  - updated: position p gain "); else if ( n_pp>0 ) ROS_WARN("  - skieped: position p gain (size mismatch)");
+        if (N==n_fa) ROS_INFO("  - updated: feedforward 2nd gain "); else if ( n_fa>0 ) ROS_WARN("  - skieped: feedforward 2nd gain (size mismatch)");
+        if (N==n_fv) ROS_INFO("  - updated: feedforward 1st gain "); else if ( n_fv>0 ) ROS_WARN("  - skieped: feedforward 1st gain (size mismatch)");
     }
-    if (verbose_callback_ && has_pwm) ROS_INFO_STREAM(update_info(changed_id_list, "goal_pwm"));
-    if (verbose_callback_ && has_cur) ROS_INFO_STREAM(update_info(changed_id_list, "goal_current"));
-    if (verbose_callback_ && has_pos) ROS_INFO_STREAM(update_info(changed_id_list, "goal_position"));
-    if (verbose_callback_ && has_vel) ROS_INFO_STREAM(update_info(changed_id_list, "goal_velocity"));
-    if (verbose_callback_ && has_pv ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_velocity"));
-    if (verbose_callback_ && has_pa ) ROS_INFO_STREAM(update_info(changed_id_list, "profile_acceleration"));
-    if ( !msg.id_list.empty() && changed_id_list.empty() ) ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
+    if ( N!=n_vi && N!=n_vp && N!=n_pd && N!=n_pi && N!=n_pp && N!=n_fa && N!=n_fv ) return; // 何も更新されない場合は何もしない
+    // list_write_gain_　の更新
+    if ( N==n_vi ) list_write_gain_.insert(VELOCITY_I_GAIN);
+    if ( N==n_vp ) list_write_gain_.insert(VELOCITY_P_GAIN);
+    if ( N==n_pd ) list_write_gain_.insert(POSITION_D_GAIN);
+    if ( N==n_pi ) list_write_gain_.insert(POSITION_I_GAIN);
+    if ( N==n_pp ) list_write_gain_.insert(POSITION_P_GAIN);
+    if ( N==n_fa ) list_write_gain_.insert(FEEDFORWARD_ACC_GAIN);
+    if ( N==n_fv ) list_write_gain_.insert(FEEDFORWARD_VEL_GAIN);
+    // gain_w_ と is_gain_updated_ の更新
+    for (size_t i=0; i<msg.id_list.size(); i++) if ( is_in(msg.id_list[i], valid_id_list) ) { // 順番がずれるのでわざとこの書き方をしている．
+        is_gain_updated_[msg.id_list[i]] = true;
+        if ( N==n_vi ) gain_w_[msg.id_list[i]][VELOCITY_I_GAIN] = msg.velocity_i_gain_pulse[i];
+        if ( N==n_vp ) gain_w_[msg.id_list[i]][VELOCITY_P_GAIN] = msg.velocity_p_gain_pulse[i];
+        if ( N==n_pd ) gain_w_[msg.id_list[i]][POSITION_D_GAIN] = msg.position_d_gain_pulse[i];
+        if ( N==n_pi ) gain_w_[msg.id_list[i]][POSITION_I_GAIN] = msg.position_i_gain_pulse[i];
+        if ( N==n_pp ) gain_w_[msg.id_list[i]][POSITION_P_GAIN] = msg.position_p_gain_pulse[i];
+        if ( N==n_fa ) gain_w_[msg.id_list[i]][FEEDFORWARD_ACC_GAIN] = msg.feedforward_2nd_gain_pulse[i];
+        if ( N==n_fv ) gain_w_[msg.id_list[i]][FEEDFORWARD_VEL_GAIN] = msg.feedforward_1st_gain_pulse[i];
+    } // 値の範囲がまちまちすぎるので，チェックしない．
+    if (verbose_callback_) ROS_INFO("========+=========+=========+========");
+    
 }
 
-void DynamixelHandler::CallbackCmd_Gain(const DynamixelGain& msg) {
-    static const auto store_gain = [&](const vector<uint16_t>& id_list, const vector<uint16_t>& value_list, GainIndex index) {
-        if ( id_list.size() != value_list.size() ) return vector<uint8_t>();
-        vector<uint8_t> store_id_list;
-        for (size_t i=0; i<id_list.size(); i++) {
-            uint8_t id = id_list[i];
-            gain_w_[id][index] = value_list[i];
-            is_gain_updated_[id] = true;
-            list_write_gain_.insert(index);
-            store_id_list.push_back(id);
-        }
-        return store_id_list;
-    };
- 
-    auto store_vi = store_gain(msg.id_list, msg.velocity_i_gain_pulse, VELOCITY_I_GAIN);
-    if (verbose_callback_ && !store_vi.empty()) ROS_INFO_STREAM(update_info(store_vi, "velocity i gain"));
-    auto store_vp = store_gain(msg.id_list, msg.velocity_p_gain_pulse, VELOCITY_P_GAIN);
-    if (verbose_callback_ && !store_vp.empty()) ROS_INFO_STREAM(update_info(store_vp, "velocity p gain"));
-    auto store_pd = store_gain(msg.id_list, msg.position_d_gain_pulse, POSITION_D_GAIN);
-    if (verbose_callback_ && !store_pd.empty()) ROS_INFO_STREAM(update_info(store_pd, "position d gain"));
-    auto store_pi = store_gain(msg.id_list, msg.position_i_gain_pulse, POSITION_I_GAIN);
-    if (verbose_callback_ && !store_pi.empty()) ROS_INFO_STREAM(update_info(store_pi, "position i gain"));
-    auto store_pp = store_gain(msg.id_list, msg.position_p_gain_pulse, POSITION_P_GAIN);
-    if (verbose_callback_ && !store_pp.empty()) ROS_INFO_STREAM(update_info(store_pp, "position p gain"));
-    auto store_fa = store_gain(msg.id_list, msg.feedforward_2nd_gain_pulse, FEEDFORWARD_ACC_GAIN);
-    if (verbose_callback_ && !store_fa.empty()) ROS_INFO_STREAM(update_info(store_fa, "feedforward 2nd gain"));
-    auto store_fv = store_gain(msg.id_list, msg.feedforward_1st_gain_pulse, FEEDFORWARD_VEL_GAIN);
-    if (verbose_callback_ && !store_fv.empty()) ROS_INFO_STREAM(update_info(store_fv, "feedforward 1st gain"));
-
-    if ( store_vi.empty() && store_vp.empty() && 
-         store_pd.empty() && store_pi.empty() && store_pp.empty() && 
-         store_fa.empty() && store_fv.empty() )
-        ROS_ERROR("Element size all dismatch; skiped callback");
-}
-
-void DynamixelHandler::CallbackCmd_Limit(const DynamixelLimit& msg) {
-    static const auto store_limit = [&](const vector<uint16_t>& id_list, const vector<double>& value_list, LimitIndex index, bool is_angle=false) {
-        if ( id_list.size() != value_list.size() ) return vector<uint8_t>();
-        vector<uint8_t> store_id_list;
-        for (size_t i=0; i<id_list.size(); i++) {
-            uint8_t id = id_list[i];
-            limit_w_[id][index] = is_angle ? deg2rad(value_list[i]) : value_list[i];
-            is_limit_updated_[id] = true;
-            list_write_limit_.insert(index);
-            store_id_list.push_back(id);
-        }
-        return store_id_list;
-    };
-
-    auto store_temp = store_limit(msg.id_list, msg.temperature_limit_degc, TEMPERATURE_LIMIT);
-    if (verbose_callback_ && !store_temp.empty()) ROS_INFO_STREAM(update_info(store_temp, "temperature limit"));
-    auto store_max_v = store_limit(msg.id_list, msg.max_voltage_limit_v, MAX_VOLTAGE_LIMIT);
-    if (verbose_callback_ && !store_max_v.empty()) ROS_INFO_STREAM(update_info(store_max_v, "max voltage limit"));
-    auto store_min_v = store_limit(msg.id_list, msg.min_voltage_limit_v, MIN_VOLTAGE_LIMIT);
-    if (verbose_callback_ && !store_min_v.empty()) ROS_INFO_STREAM(update_info(store_min_v, "min voltage limit"));
-    auto store_pwm = store_limit(msg.id_list, msg.pwm_limit_percent, PWM_LIMIT);
-    if (verbose_callback_ && !store_pwm.empty()) ROS_INFO_STREAM(update_info(store_pwm, "pwm limit"));
-    auto store_cur = store_limit(msg.id_list, msg.current_limit_ma, CURRENT_LIMIT);
-    if (verbose_callback_ && !store_cur.empty()) ROS_INFO_STREAM(update_info(store_cur, "current limit"));
-    auto store_acc = store_limit(msg.id_list, msg.acceleration_limit_deg_ss, ACCELERATION_LIMIT, true);
-    if (verbose_callback_ && !store_acc.empty()) ROS_INFO_STREAM(update_info(store_acc, "acceleration limit"));
-    auto store_vel = store_limit(msg.id_list, msg.velocity_limit_deg_s, VELOCITY_LIMIT, true);
-    if (verbose_callback_ && !store_vel.empty()) ROS_INFO_STREAM(update_info(store_vel, "velocity limit"));
-    auto store_max_p = store_limit(msg.id_list, msg.max_position_limit_deg, MAX_POSITION_LIMIT, true);
-    if (verbose_callback_ && !store_max_p.empty()) ROS_INFO_STREAM(update_info(store_max_p, "max position limit"));
-    auto store_min_p = store_limit(msg.id_list, msg.min_position_limit_deg, MIN_POSITION_LIMIT, true);
-
-    if ( store_temp.empty() && store_max_v.empty() && store_min_v.empty() && store_pwm.empty() && store_cur.empty() && 
-         store_acc.empty() && store_vel.empty() && store_max_p.empty() && store_min_p.empty() )
-        ROS_WARN("\nElement size or Dyanmxiel Series is dismatch; skiped callback");
+void DynamixelHandler::CallbackCmd_Limit(const DynamixelLimit& msg) { // mutex_limit_を追加し， 排他制御を行う． log出力を排他制御に入れないように注意する．
+    // msg.id_list内のIDの妥当性を確認
+    vector<uint8_t> valid_id_list;
+    for (auto id : msg.id_list) if ( is_in(id, id_set_) ) valid_id_list.push_back(id);
+    if ( valid_id_list.empty() ) return; // 妥当なIDがない場合は何もしない, 以降は必ず妥当なIDが存在する
+    // 各要素の個数をもとに, それぞれの要素が妥当かどうか確認
+    size_t N = msg.id_list.size();
+    size_t n_temp = msg.temperature_limit_degc   .size();
+    size_t n_maxv = msg.max_voltage_limit_v      .size(), n_minv = msg.min_voltage_limit_v      .size();
+    size_t n_pwm  = msg.pwm_limit_percent        .size(), n_cur  = msg.current_limit_ma         .size();
+    size_t n_acc  = msg.acceleration_limit_deg_ss.size(), n_vel  = msg.velocity_limit_deg_s     .size();
+    size_t n_maxp = msg.max_position_limit_deg   .size(), n_minp = msg.min_position_limit_deg   .size();
+    if ( verbose_callback_ ) {
+        ROS_INFO("Limit cmd, '%zu' servo(s) are tried to update", valid_id_list.size());
+        ROS_INFO_STREAM(id_list_layout(valid_id_list, "  ID"));
+        if (N==n_temp) ROS_INFO("  - updated: temperature limit "); else if ( n_temp>0 ) ROS_WARN("  - skieped: temperature limit  (size mismatch)");
+        if (N==n_maxv) ROS_INFO("  - updated: max voltage limit "); else if ( n_maxv>0 ) ROS_WARN("  - skieped: max voltage limit  (size mismatch)");
+        if (N==n_minv) ROS_INFO("  - updated: min voltage limit "); else if ( n_minv>0 ) ROS_WARN("  - skieped: min voltage limit  (size mismatch)");
+        if (N==n_pwm ) ROS_INFO("  - updated: pwm limit         "); else if ( n_pwm >0 ) ROS_WARN("  - skieped: pwm limit          (size mismatch)");
+        if (N==n_cur ) ROS_INFO("  - updated: current limit     "); else if ( n_cur >0 ) ROS_WARN("  - skieped: current limit      (size mismatch)");
+        if (N==n_acc ) ROS_INFO("  - updated: acceleration limit"); else if ( n_acc >0 ) ROS_WARN("  - skieped: acceleration limit (size mismatch)");
+        if (N==n_vel ) ROS_INFO("  - updated: velocity limit    "); else if ( n_vel >0 ) ROS_WARN("  - skieped: velocity limit     (size mismatch)");
+        if (N==n_maxp) ROS_INFO("  - updated: max position limit"); else if ( n_maxp>0 ) ROS_WARN("  - skieped: max position limit (size mismatch)");
+        if (N==n_minp) ROS_INFO("  - updated: min position limit"); else if ( n_minp>0 ) ROS_WARN("  - skieped: min position limit (size mismatch)");
+    }
+    if ( N!=n_temp && N!=n_maxv && N!=n_minv && N!=n_pwm && N!=n_cur && N!=n_acc && N!=n_vel && N!=n_maxp && N!=n_minp ) return; // 何も更新されない場合は何もしない
+    // list_write_limit_　の更新
+    if ( N==n_temp ) list_write_limit_.insert(TEMPERATURE_LIMIT);
+    if ( N==n_maxv ) list_write_limit_.insert(MAX_VOLTAGE_LIMIT);
+    if ( N==n_minv ) list_write_limit_.insert(MIN_VOLTAGE_LIMIT);
+    if ( N==n_pwm  ) list_write_limit_.insert(PWM_LIMIT        );
+    if ( N==n_cur  ) list_write_limit_.insert(CURRENT_LIMIT    );
+    if ( N==n_acc  ) list_write_limit_.insert(ACCELERATION_LIMIT);
+    if ( N==n_vel  ) list_write_limit_.insert(VELOCITY_LIMIT    );
+    if ( N==n_maxp ) list_write_limit_.insert(MAX_POSITION_LIMIT);
+    if ( N==n_minp ) list_write_limit_.insert(MIN_POSITION_LIMIT);
+    // limit_w_ と is_limit_updated_ の更新
+    for (size_t i=0; i<msg.id_list.size(); i++) if ( is_in(msg.id_list[i], valid_id_list) ) { // 順番がずれるのでわざとこの書き方をしている．
+        is_limit_updated_[msg.id_list[i]] = true;
+        if ( N==n_temp ) limit_w_[msg.id_list[i]][TEMPERATURE_LIMIT] = msg.temperature_limit_degc[i];
+        if ( N==n_maxv ) limit_w_[msg.id_list[i]][MAX_VOLTAGE_LIMIT] = msg.max_voltage_limit_v[i];
+        if ( N==n_minv ) limit_w_[msg.id_list[i]][MIN_VOLTAGE_LIMIT] = msg.min_voltage_limit_v[i];
+        if ( N==n_pwm  ) limit_w_[msg.id_list[i]][PWM_LIMIT        ] = msg.pwm_limit_percent[i];
+        if ( N==n_cur  ) limit_w_[msg.id_list[i]][CURRENT_LIMIT    ] = msg.current_limit_ma[i];
+        if ( N==n_acc  ) limit_w_[msg.id_list[i]][ACCELERATION_LIMIT] = deg2rad(msg.acceleration_limit_deg_ss[i]);
+        if ( N==n_vel  ) limit_w_[msg.id_list[i]][VELOCITY_LIMIT    ] = deg2rad(msg.velocity_limit_deg_s[i]     );
+        if ( N==n_maxp ) limit_w_[msg.id_list[i]][MAX_POSITION_LIMIT] = deg2rad(msg.max_position_limit_deg[i]   );
+        if ( N==n_minp ) limit_w_[msg.id_list[i]][MIN_POSITION_LIMIT] = deg2rad(msg.min_position_limit_deg[i]   );
+    } // 値の範囲がまちまちすぎるので，チェックしない．
+    if (verbose_callback_) ROS_INFO("======+=======+=======+=======+======");
 }
