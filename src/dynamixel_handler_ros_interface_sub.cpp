@@ -27,80 +27,90 @@ void store_goal(
 }
 
 void DynamixelHandler::CallbackCmdsX(const DxlCommandsX::SharedPtr msg) {
+    if ( verbose_callback_ ) ROS_INFO("=====================================");
     CallbackCmd_Common(msg->common);
+    CallbackCmd_Status(msg->status);
     CallbackCmd_X_Pwm(msg->pwm_control);
     CallbackCmd_X_Current(msg->current_control);
     CallbackCmd_X_Velocity(msg->velocity_control);
     CallbackCmd_X_Position(msg->position_control);
     CallbackCmd_X_ExtendedPosition(msg->extended_position_control);
     CallbackCmd_X_CurrentBasePosition(msg->current_base_position_control);
-    CallbackCmd_Status(msg->status);
     CallbackCmd_Goal  (msg->goal);
     CallbackCmd_Gain  (msg->gain);
     CallbackCmd_Limit (msg->limit);
 }
 void DynamixelHandler::CallbackCmdsP(const DxlCommandsP::SharedPtr msg) {
+    if ( verbose_callback_ ) ROS_INFO("=====================================");
     CallbackCmd_Common(msg->common);
+    CallbackCmd_Status(msg->status);
     CallbackCmd_P_Pwm(msg->pwm_control);
     CallbackCmd_P_Current(msg->current_control);
     CallbackCmd_P_Velocity(msg->velocity_control);
     CallbackCmd_P_Position(msg->position_control);
     CallbackCmd_P_ExtendedPosition(msg->extended_position_control);
-    CallbackCmd_Status(msg->status);
     CallbackCmd_Goal  (msg->goal);
     CallbackCmd_Gain  (msg->gain);
     CallbackCmd_Limit (msg->limit);
 }
 
 void DynamixelHandler::CallbackCmd_Common(const DynamixelCommonCmd& msg) {
-    const auto& id_list = (msg.id_list.empty() || msg.id_list[0] == 0xFE) 
-                            ? vector<uint16_t>(id_set_.begin(), id_set_.end()) : msg.id_list;
-    if ( id_list.empty() || msg.command=="" ) return;
-
-    if (verbose_callback_ ) ROS_INFO_STREAM("Command [%s] \n (id_list=[] or [254] means all IDs)");
+    if ( msg.command=="" ) return;
+    if (verbose_callback_ ) {
+        ROS_INFO_STREAM(id_list_layout(msg.id_list, "Common cmd, ID"));
+        ROS_INFO(" command [%s] (ID=[] or [254] means all IDs)", msg.command.c_str());
+    }
+    // msg.id_list内をもとに，処理用のIDリストを作成
+    vector<uint16_t> id_list;
+    for (auto id : id_set_) if ( msg.id_list.empty() || msg.id_list==vector<uint16_t>{0xFE} || is_in(id, msg.id_list) ) id_list.push_back(id);
     auto st_cmd = DynamixelStatus().set__id_list(id_list);
-         if (msg.command == msg.CLEAR_ERROR  || msg.command == "CE"  ) st_cmd.set__error(vector<bool>(id_list.size(), false));
-    else if (msg.command == msg.TORQUE_ON    || msg.command == "TON" ) st_cmd.set__torque(vector<bool>(id_list.size(), true));
-    else if (msg.command == msg.TORQUE_OFF   || msg.command == "TOFF") st_cmd.set__torque(vector<bool>(id_list.size(), false));
-    else if (msg.command == msg.ADD_ID       || msg.command == "ADID") st_cmd.set__ping(vector<bool>(id_list.size(), true));
-    else if (msg.command == msg.REMOVE_ID    || msg.command == "RMID") st_cmd.set__ping(vector<bool>(id_list.size(), false));
-    else if (msg.command == msg.RESET_OFFSET ) for (auto id : id_list) {WriteHomingOffset(id, 0);              ROS_INFO("Set offset zero (ID [%d])"   , id);}
-    else if (msg.command == msg.ENABLE       ) for (auto id : id_list) {WriteTorqueEnable(id, TORQUE_ENABLE);  ROS_INFO("Set torque enable (ID [%d])" , id);}
-    else if (msg.command == msg.DISABLE      ) for (auto id : id_list) {WriteTorqueEnable(id, TORQUE_DISABLE); ROS_INFO("Set torque disable (ID [%d])", id);}
-    else if (msg.command == msg.REBOOT       ) for (auto id : id_list) {dyn_comm_.Reboot(id);                  ROS_INFO("Send reboot (ID [%d]) "      , id);}
-    else ROS_WARN("Invalid command [%s]", msg.command.c_str());
-
-    CallbackCmd_Status(st_cmd);
+         if (msg.command == msg.CLEAR_ERROR  || msg.command == "CE"  ) CallbackCmd_Status(st_cmd.set__error (vector<bool>(id_list.size(), false)));
+    else if (msg.command == msg.TORQUE_ON    || msg.command == "TON" ) CallbackCmd_Status(st_cmd.set__torque(vector<bool>(id_list.size(),  true)));
+    else if (msg.command == msg.TORQUE_OFF   || msg.command == "TOFF") CallbackCmd_Status(st_cmd.set__torque(vector<bool>(id_list.size(), false)));
+    else if (msg.command == msg.ADD_ID       || msg.command == "ADID") CallbackCmd_Status(st_cmd.set__ping  (vector<bool>(id_list.size(),  true)));
+    else if (msg.command == msg.REMOVE_ID    || msg.command == "RMID") CallbackCmd_Status(st_cmd.set__ping  (vector<bool>(id_list.size(), false)));
+    else if (msg.command == msg.RESET_OFFSET ) for (auto id : id_list) {WriteHomingOffset(id, 0);              ROS_INFO("  - set: offset zero, ID [%d]"   , id);}
+    else if (msg.command == msg.ENABLE       ) for (auto id : id_list) {WriteTorqueEnable(id, TORQUE_ENABLE);  ROS_INFO("  - set: torque enable, ID [%d]" , id);}
+    else if (msg.command == msg.DISABLE      ) for (auto id : id_list) {WriteTorqueEnable(id, TORQUE_DISABLE); ROS_INFO("  - set: torque disable, ID [%d]", id);}
+    else if (msg.command == msg.REBOOT       ) for (auto id : id_list) {dyn_comm_.Reboot(id);                  ROS_INFO("  - reboot: ID [%d] ", id);}
+    else ROS_WARN("  Invalid command [%s]", msg.command.c_str());
 }
 
 void DynamixelHandler::CallbackCmd_Status(const DynamixelStatus& msg) {
-    if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
+    // msg.id_list内のIDの妥当性を確認
+    vector<uint16_t> valid_id_list;
+    for (auto id : msg.id_list) if ( is_in(id, id_set_) ) valid_id_list.push_back(id);
+    if ( valid_id_list.empty() ) return; // 有効なIDがない場合は何もしない
     const bool has_torque = msg.id_list.size() == msg.torque.size();
     const bool has_error  = msg.id_list.size() == msg.error.size() ;
     const bool has_ping   = msg.id_list.size() == msg.ping.size()  ;
     const bool has_mode   = msg.id_list.size() == msg.mode.size()  ;
-
-    for ( size_t i=0; i<msg.id_list.size(); i++ ) {
-        const uint8_t id = msg.id_list[i];
-        if ( has_error  ) { ClearHardwareError(id); TorqueOn(id); }
-        if ( has_torque ) msg.torque[i] ? TorqueOn(id)     : TorqueOff(id)      ;
-        if ( has_ping   ) msg.ping[i]   ? addDynamixel(id) : RemoveDynamixel(id);
+    if (verbose_callback_ ) {
+        ROS_INFO("Status cmd, '%zu' servo(s) are tryed to updated", valid_id_list.size());
+        ROS_INFO_STREAM(id_list_layout(valid_id_list, "  ID"));
+        if ( has_torque ) ROS_INFO("  - updated: torque"); else if ( !msg.torque.empty() ) ROS_WARN("  - skipped: torque (size mismatch)");
+        if ( has_error  ) ROS_INFO("  - updated: error "); else if ( !msg.error .empty() ) ROS_WARN("  - skipped: error  (size mismatch)");
+        if ( has_ping   ) ROS_INFO("  - updated: ping  "); else if ( !msg.ping  .empty() ) ROS_WARN("  - skipped: ping   (size mismatch)");
+        if ( has_mode   ) ROS_INFO("  - updated: mode  "); else if ( !msg.mode  .empty() ) ROS_WARN("  - skipped: mode   (size mismatch)");
+    }
+    for (size_t i=0; i<msg.id_list.size(); i++) if ( auto ID = msg.id_list[i]; is_in(ID, valid_id_list) ) { // 順番がずれるのでわざとこの書き方をしている．
+        if ( has_error  ) { ClearHardwareError(ID); TorqueOn(ID); }
+        if ( has_torque ) msg.torque[i] ? TorqueOn(ID)     : TorqueOff(ID)      ;
+        if ( has_ping   ) msg.ping[i]   ? addDynamixel(ID) : RemoveDynamixel(ID);
         if ( has_mode   ) {
-                 if (msg.mode[i] == msg.CONTROL_PWM                  ) ChangeOperatingMode(id, OPERATING_MODE_PWM                  );
-            else if (msg.mode[i] == msg.CONTROL_CURRENT              ) ChangeOperatingMode(id, OPERATING_MODE_CURRENT              );
-            else if (msg.mode[i] == msg.CONTROL_VELOCITY             ) ChangeOperatingMode(id, OPERATING_MODE_VELOCITY             );
-            else if (msg.mode[i] == msg.CONTROL_POSITION             ) ChangeOperatingMode(id, OPERATING_MODE_POSITION             );
-            else if (msg.mode[i] == msg.CONTROL_EXTENDED_POSITION    ) ChangeOperatingMode(id, OPERATING_MODE_EXTENDED_POSITION    );
+                 if (msg.mode[i] == msg.CONTROL_PWM                  ) ChangeOperatingMode(ID, OPERATING_MODE_PWM                  );
+            else if (msg.mode[i] == msg.CONTROL_CURRENT              ) ChangeOperatingMode(ID, OPERATING_MODE_CURRENT              );
+            else if (msg.mode[i] == msg.CONTROL_VELOCITY             ) ChangeOperatingMode(ID, OPERATING_MODE_VELOCITY             );
+            else if (msg.mode[i] == msg.CONTROL_POSITION             ) ChangeOperatingMode(ID, OPERATING_MODE_POSITION             );
+            else if (msg.mode[i] == msg.CONTROL_EXTENDED_POSITION    ) ChangeOperatingMode(ID, OPERATING_MODE_EXTENDED_POSITION    );
             else if (msg.mode[i] == msg.CONTROL_CURRENT_BASE_POSITION) 
-                                          if (series_[id]==SERIES_X)   ChangeOperatingMode(id, OPERATING_MODE_CURRENT_BASE_POSITION);
-                                     else if (series_[id]==SERIES_P) { ChangeOperatingMode(id, OPERATING_MODE_EXTENDED_POSITION);
-                                                                       ROS_WARN("ID [%d] is not P-series, so alternative mode is selected", id); }
-                                     else ROS_WARN("Series of ID [%d] is Unknown", id);
-            else ROS_WARN("Invalid operating mode [%s], please see CallbackCmd_Status.msg definition.", msg.mode[i].c_str());
+                                 switch (series_[ID]) { case SERIES_X: ChangeOperatingMode(ID, OPERATING_MODE_CURRENT_BASE_POSITION); break;
+                                                        case SERIES_P: ChangeOperatingMode(ID, OPERATING_MODE_EXTENDED_POSITION    );
+                                                                       ROS_WARN("  ID [%d] is P-series, so alternative mode is selected", ID);}
+            else ROS_WARN("  Invalid operating mode [%s], please see CallbackCmd_Status.msg definition.", msg.mode[i].c_str());
         }
     } // 各単体関数(ClearHardwareErrorとか)が内部でROS_INFOを出力しているので，ここでは何も出力しない
-
-    if ( !msg.id_list.empty() && !has_torque && !has_error && !has_ping && !has_mode ) ROS_WARN("\nElement size is dismatch; skiped callback");
+    if ( verbose_callback_ ) ROS_INFO("==================+==================");
 }
 
 void DynamixelHandler::CallbackCmd_X_Pwm(const DynamixelControlXPwm& msg) {
