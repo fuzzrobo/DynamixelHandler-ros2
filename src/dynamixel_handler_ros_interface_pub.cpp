@@ -30,7 +30,7 @@ DynamixelPresent DynamixelHandler::BroadcastState_Present(){
     DynamixelPresent msg;
     for (const auto& [id, value] : present_r_) if ( is_in(id, id_set_) ) {
         msg.id_list.push_back(id);
-        for (auto state : list_read_present_) switch(state) {
+        for (auto state : present_indice_read_) switch(state) {
             case PRESENT_PWM:          msg.pwm_percent.push_back         (round4(value[state]    )); break;
             case PRESENT_CURRENT:      msg.current_ma.push_back          (round4(value[state]    )); break;
             case PRESENT_VELOCITY:     msg.velocity_deg_s.push_back      (round4(value[state]/DEG)); break;

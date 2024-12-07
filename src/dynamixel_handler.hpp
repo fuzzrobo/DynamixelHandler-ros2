@@ -43,6 +43,8 @@ using std::vector;
 using std::array;
 #include <set>
 using std::set;
+#include <unordered_set>
+using std::unordered_set;
 #include <utility>
 using std::pair;
 #include <algorithm>
@@ -213,19 +215,19 @@ class DynamixelHandler : public rclcpp::Node {
 
         // 上記の変数を適切に使うための補助的なフラグ
         static inline map<uint8_t, double> when_op_mode_updated_; // 各dynamixelの id と op_mode_ が更新された時刻のマップ
-        static inline map<uint8_t, bool> is_goal_updated_;       // topicのcallbackによって，goal_w_が更新されたかどうかを示すマップ
-        static inline map<uint8_t, bool> is_gain_updated_;       // topicのcallbackによって，limit_w_が更新されたかどうかを示すマップ
-        static inline map<uint8_t, bool> is_limit_updated_;       // topicのcallbackによって，limit_w_が更新されたかどうかを示すマップ
+        static inline unordered_set<uint8_t> updated_id_goal_;    // topicのcallbackによって，goal_w_が更新されたidの集合
+        static inline unordered_set<uint8_t> updated_id_gain_;    // topicのcallbackによって，limit_w_が更新されたidの集合
+        static inline unordered_set<uint8_t> updated_id_limit_;   // topicのcallbackによって，limit_w_が更新されたidの集合
         static inline map<uint8_t, bool> has_hardware_error_;    // ハードウェアエラーを起こしているかどうか
         static inline bool has_any_hardware_error_ = false; // 連結しているDynamixelのうち，どれか一つでもハードウェアエラーを起こしているかどうか
         // 各周期で実行するserial通信の内容を決めるためのset
-        static inline set<GoalIndex   > list_write_goal_;
-        static inline set<GainIndex   > list_write_gain_;
-        static inline set<LimitIndex  > list_write_limit_;
-        static inline set<PresentIndex> list_read_present_ = {PRESENT_POSITION, PRESENT_VELOCITY, PRESENT_CURRENT, PRESENT_PWM, VELOCITY_TRAJECTORY, POSITION_TRAJECTORY, PRESENT_INPUT_VOLTAGE, PRESENT_TEMPERATURE};
-        static inline set<GoalIndex   > list_read_goal_    = {GOAL_POSITION, GOAL_VELOCITY, GOAL_CURRENT, GOAL_PWM, PROFILE_ACC, PROFILE_VEL};
-        static inline set<GainIndex   > list_read_gain_    = {VELOCITY_I_GAIN, VELOCITY_P_GAIN, POSITION_D_GAIN, POSITION_I_GAIN, POSITION_P_GAIN, FEEDFORWARD_ACC_GAIN, FEEDFORWARD_VEL_GAIN};
-        static inline set<LimitIndex  > list_read_limit_   = {TEMPERATURE_LIMIT, MAX_VOLTAGE_LIMIT, MIN_VOLTAGE_LIMIT, PWM_LIMIT, CURRENT_LIMIT, ACCELERATION_LIMIT, VELOCITY_LIMIT, MAX_POSITION_LIMIT, MIN_POSITION_LIMIT};
+        static inline set<GoalIndex   > goal_indice_write_;
+        static inline set<GainIndex   > gain_indice_write_;
+        static inline set<LimitIndex  > limit_indice_write_;
+        static inline set<PresentIndex> present_indice_read_ = {PRESENT_POSITION, PRESENT_VELOCITY, PRESENT_CURRENT, PRESENT_PWM, VELOCITY_TRAJECTORY, POSITION_TRAJECTORY, PRESENT_INPUT_VOLTAGE, PRESENT_TEMPERATURE};
+        static inline set<GoalIndex   > goal_indice_read_    = {GOAL_POSITION, GOAL_VELOCITY, GOAL_CURRENT, GOAL_PWM, PROFILE_ACC, PROFILE_VEL};
+        static inline set<GainIndex   > gain_indice_read_    = {VELOCITY_I_GAIN, VELOCITY_P_GAIN, POSITION_D_GAIN, POSITION_I_GAIN, POSITION_P_GAIN, FEEDFORWARD_ACC_GAIN, FEEDFORWARD_VEL_GAIN};
+        static inline set<LimitIndex  > limit_indice_read_   = {TEMPERATURE_LIMIT, MAX_VOLTAGE_LIMIT, MIN_VOLTAGE_LIMIT, PWM_LIMIT, CURRENT_LIMIT, ACCELERATION_LIMIT, VELOCITY_LIMIT, MAX_POSITION_LIMIT, MIN_POSITION_LIMIT};
         // read & publish の周期を決めるためのmap
         static inline map<string, unsigned int>       pub_ratio_; // present value以外の周期
         static inline array<unsigned int, _num_present> pub_ratio_present_;
@@ -267,16 +269,16 @@ class DynamixelHandler : public rclcpp::Node {
         bool WriteBusWatchdog(uint8_t servo_id, double time);
         bool WriteGains(uint8_t servo_id, array<uint16_t, _num_gain> gains);
         //* 連結しているDynamixelに一括で読み書きするloopで使用する機能
-        template <typename Addr=AddrCommon> void SyncWriteGoal(set<GoalIndex> list_write_goal, set<uint8_t> id_set=id_set_);
-        template <typename Addr=AddrCommon> void SyncWriteGain (set<GainIndex> list_write_gain, set<uint8_t> id_set=id_set_);
-        template <typename Addr=AddrCommon> void SyncWriteLimit(set<LimitIndex> list_write_limit, set<uint8_t> id_set=id_set_);
-        template <typename Addr=AddrCommon> double SyncReadPresent(set<PresentIndex> list_read_state, set<uint8_t> id_set=id_set_);
-        template <typename Addr=AddrCommon> double SyncReadGoal(set<GoalIndex> list_read_goal, set<uint8_t> id_set=id_set_);
-        template <typename Addr=AddrCommon> double SyncReadGain(set<GainIndex> list_read_gain, set<uint8_t> id_set=id_set_); 
-        template <typename Addr=AddrCommon> double SyncReadLimit(set<LimitIndex> list_read_limit, set<uint8_t> id_set=id_set_);
-        template <typename Addr=AddrCommon> double SyncReadHardwareErrors(set<uint8_t> id_set=id_set_);
-        template <typename Addr=AddrCommon> void StopDynamixels(set<uint8_t> id_set=id_set_);
-        template <typename Addr=AddrCommon> void CheckDynamixels(set<uint8_t> id_set=id_set_);
+        template <typename Addr=AddrCommon> void SyncWriteGoal (set<GoalIndex>   goal_indice_write, const unordered_set<uint8_t>&  updated_id_goal);
+        template <typename Addr=AddrCommon> void SyncWriteGain (set<GainIndex>   gain_indice_write, const unordered_set<uint8_t>&  updated_id_gain);
+        template <typename Addr=AddrCommon> void SyncWriteLimit(set<LimitIndex> limit_indice_write, const unordered_set<uint8_t>& updated_id_limit);
+        template <typename Addr=AddrCommon> double SyncReadPresent(set<PresentIndex> present_indice_read, const set<uint8_t>& id_set=id_set_);
+        template <typename Addr=AddrCommon> double SyncReadGoal   (set<GoalIndex>       goal_indice_read, const set<uint8_t>& id_set=id_set_);
+        template <typename Addr=AddrCommon> double SyncReadGain   (set<GainIndex>       gain_indice_read, const set<uint8_t>& id_set=id_set_); 
+        template <typename Addr=AddrCommon> double SyncReadLimit  (set<LimitIndex>     limit_indice_read, const set<uint8_t>& id_set=id_set_);
+        template <typename Addr=AddrCommon> double SyncReadHardwareErrors(const set<uint8_t>& id_set=id_set_);
+        template <typename Addr=AddrCommon> void StopDynamixels (const set<uint8_t>& id_set=id_set_);
+        template <typename Addr=AddrCommon> void CheckDynamixels(const set<uint8_t>& id_set=id_set_);
 };
 
 #endif /* DYNAMIXEL_HANDLER_H */

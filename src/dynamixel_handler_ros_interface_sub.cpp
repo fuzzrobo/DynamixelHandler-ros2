@@ -279,16 +279,16 @@ void DynamixelHandler::CallbackCmd_Goal(const DynamixelGoal& msg) { // mutex_goa
         if (N==n_pa ) ROS_INFO("  - updated: profile acc. "); else if ( n_pa >0 ) ROS_WARN("  - skieped: profile acc.  (size mismatch)");
     } 
     if ( N!=n_pwm && N!=n_cur && N!=n_vel && N!=n_pos && N!=n_pv && N!=n_pa ) return; // 何も更新されない場合は何もしない
-    // list_write_goal_　の更新
-    if ( N==n_pwm ) list_write_goal_.insert(GOAL_PWM     ); 
-    if ( N==n_cur ) list_write_goal_.insert(GOAL_CURRENT ); 
-    if ( N==n_vel ) list_write_goal_.insert(GOAL_VELOCITY);
-    if ( N==n_pos ) list_write_goal_.insert(GOAL_POSITION);
-    if ( N==n_pv  ) list_write_goal_.insert(PROFILE_VEL  );
-    if ( N==n_pa  ) list_write_goal_.insert(PROFILE_ACC  ); 
-    // goal_w_ と is_goal_updated_ の更新
+    // goal_indice_write_　の更新
+    if ( N==n_pwm ) goal_indice_write_.insert(GOAL_PWM     ); 
+    if ( N==n_cur ) goal_indice_write_.insert(GOAL_CURRENT ); 
+    if ( N==n_vel ) goal_indice_write_.insert(GOAL_VELOCITY);
+    if ( N==n_pos ) goal_indice_write_.insert(GOAL_POSITION);
+    if ( N==n_pv  ) goal_indice_write_.insert(PROFILE_VEL  );
+    if ( N==n_pa  ) goal_indice_write_.insert(PROFILE_ACC  ); 
+    // goal_w_ と updated_id_goal_ の更新
     for (size_t i=0; i<msg.id_list.size(); i++) if ( auto ID = msg.id_list[i]; is_in(ID, valid_id_list) ) { // 順番がずれるのでわざとこの書き方をしている．
-        is_goal_updated_[ID] = true;
+        updated_id_goal_.insert(ID);
         const bool is_x_series = series_[ID] == SERIES_X;
         const bool is_mode_pos = op_mode_[ID] == OPERATING_MODE_POSITION;
         //                                           シンプルに絶対値を制限内に収める
@@ -329,24 +329,24 @@ void DynamixelHandler::CallbackCmd_Gain(const DynamixelGain& msg) { // mutex_gai
         if (N==n_fv) ROS_INFO("  - updated: feedforward 1st gain "); else if ( n_fv>0 ) ROS_WARN("  - skieped: feedforward 1st gain (size mismatch)");
     }
     if ( N!=n_vi && N!=n_vp && N!=n_pd && N!=n_pi && N!=n_pp && N!=n_fa && N!=n_fv ) return; // 何も更新されない場合は何もしない
-    // list_write_gain_　の更新
-    if ( N==n_vi ) list_write_gain_.insert(VELOCITY_I_GAIN);
-    if ( N==n_vp ) list_write_gain_.insert(VELOCITY_P_GAIN);
-    if ( N==n_pd ) list_write_gain_.insert(POSITION_D_GAIN);
-    if ( N==n_pi ) list_write_gain_.insert(POSITION_I_GAIN);
-    if ( N==n_pp ) list_write_gain_.insert(POSITION_P_GAIN);
-    if ( N==n_fa ) list_write_gain_.insert(FEEDFORWARD_ACC_GAIN);
-    if ( N==n_fv ) list_write_gain_.insert(FEEDFORWARD_VEL_GAIN);
-    // gain_w_ と is_gain_updated_ の更新
-    for (size_t i=0; i<msg.id_list.size(); i++) if ( is_in(msg.id_list[i], valid_id_list) ) { // 順番がずれるのでわざとこの書き方をしている．
-        is_gain_updated_[msg.id_list[i]] = true;
-        if ( N==n_vi ) gain_w_[msg.id_list[i]][VELOCITY_I_GAIN] = msg.velocity_i_gain_pulse[i];
-        if ( N==n_vp ) gain_w_[msg.id_list[i]][VELOCITY_P_GAIN] = msg.velocity_p_gain_pulse[i];
-        if ( N==n_pd ) gain_w_[msg.id_list[i]][POSITION_D_GAIN] = msg.position_d_gain_pulse[i];
-        if ( N==n_pi ) gain_w_[msg.id_list[i]][POSITION_I_GAIN] = msg.position_i_gain_pulse[i];
-        if ( N==n_pp ) gain_w_[msg.id_list[i]][POSITION_P_GAIN] = msg.position_p_gain_pulse[i];
-        if ( N==n_fa ) gain_w_[msg.id_list[i]][FEEDFORWARD_ACC_GAIN] = msg.feedforward_2nd_gain_pulse[i];
-        if ( N==n_fv ) gain_w_[msg.id_list[i]][FEEDFORWARD_VEL_GAIN] = msg.feedforward_1st_gain_pulse[i];
+    // gain_indice_write_　の更新
+    if ( N==n_vi ) gain_indice_write_.insert(VELOCITY_I_GAIN);
+    if ( N==n_vp ) gain_indice_write_.insert(VELOCITY_P_GAIN);
+    if ( N==n_pd ) gain_indice_write_.insert(POSITION_D_GAIN);
+    if ( N==n_pi ) gain_indice_write_.insert(POSITION_I_GAIN);
+    if ( N==n_pp ) gain_indice_write_.insert(POSITION_P_GAIN);
+    if ( N==n_fa ) gain_indice_write_.insert(FEEDFORWARD_ACC_GAIN);
+    if ( N==n_fv ) gain_indice_write_.insert(FEEDFORWARD_VEL_GAIN);
+    // gain_w_ と updated_id_gain_ の更新
+    for (size_t i=0; i<msg.id_list.size(); i++) if ( auto ID = msg.id_list[i]; is_in(msg.id_list[i], valid_id_list) ) { // 順番がずれるのでわざとこの書き方をしている．
+        updated_id_gain_.insert(ID);
+        if ( N==n_vi ) gain_w_[ID][VELOCITY_I_GAIN] = msg.velocity_i_gain_pulse[i];
+        if ( N==n_vp ) gain_w_[ID][VELOCITY_P_GAIN] = msg.velocity_p_gain_pulse[i];
+        if ( N==n_pd ) gain_w_[ID][POSITION_D_GAIN] = msg.position_d_gain_pulse[i];
+        if ( N==n_pi ) gain_w_[ID][POSITION_I_GAIN] = msg.position_i_gain_pulse[i];
+        if ( N==n_pp ) gain_w_[ID][POSITION_P_GAIN] = msg.position_p_gain_pulse[i];
+        if ( N==n_fa ) gain_w_[ID][FEEDFORWARD_ACC_GAIN] = msg.feedforward_2nd_gain_pulse[i];
+        if ( N==n_fv ) gain_w_[ID][FEEDFORWARD_VEL_GAIN] = msg.feedforward_1st_gain_pulse[i];
     } // 値の範囲がまちまちすぎるので，チェックしない．
     if (verbose_callback_) ROS_INFO("========+=========+=========+========");
     
@@ -378,28 +378,28 @@ void DynamixelHandler::CallbackCmd_Limit(const DynamixelLimit& msg) { // mutex_l
         if (N==n_minp) ROS_INFO("  - updated: min position limit"); else if ( n_minp>0 ) ROS_WARN("  - skieped: min position limit (size mismatch)");
     }
     if ( N!=n_temp && N!=n_maxv && N!=n_minv && N!=n_pwm && N!=n_cur && N!=n_acc && N!=n_vel && N!=n_maxp && N!=n_minp ) return; // 何も更新されない場合は何もしない
-    // list_write_limit_　の更新
-    if ( N==n_temp ) list_write_limit_.insert(TEMPERATURE_LIMIT);
-    if ( N==n_maxv ) list_write_limit_.insert(MAX_VOLTAGE_LIMIT);
-    if ( N==n_minv ) list_write_limit_.insert(MIN_VOLTAGE_LIMIT);
-    if ( N==n_pwm  ) list_write_limit_.insert(PWM_LIMIT        );
-    if ( N==n_cur  ) list_write_limit_.insert(CURRENT_LIMIT    );
-    if ( N==n_acc  ) list_write_limit_.insert(ACCELERATION_LIMIT);
-    if ( N==n_vel  ) list_write_limit_.insert(VELOCITY_LIMIT    );
-    if ( N==n_maxp ) list_write_limit_.insert(MAX_POSITION_LIMIT);
-    if ( N==n_minp ) list_write_limit_.insert(MIN_POSITION_LIMIT);
-    // limit_w_ と is_limit_updated_ の更新
-    for (size_t i=0; i<msg.id_list.size(); i++) if ( is_in(msg.id_list[i], valid_id_list) ) { // 順番がずれるのでわざとこの書き方をしている．
-        is_limit_updated_[msg.id_list[i]] = true;
-        if ( N==n_temp ) limit_w_[msg.id_list[i]][TEMPERATURE_LIMIT] = msg.temperature_limit_degc[i];
-        if ( N==n_maxv ) limit_w_[msg.id_list[i]][MAX_VOLTAGE_LIMIT] = msg.max_voltage_limit_v[i];
-        if ( N==n_minv ) limit_w_[msg.id_list[i]][MIN_VOLTAGE_LIMIT] = msg.min_voltage_limit_v[i];
-        if ( N==n_pwm  ) limit_w_[msg.id_list[i]][PWM_LIMIT        ] = msg.pwm_limit_percent[i];
-        if ( N==n_cur  ) limit_w_[msg.id_list[i]][CURRENT_LIMIT    ] = msg.current_limit_ma[i];
-        if ( N==n_acc  ) limit_w_[msg.id_list[i]][ACCELERATION_LIMIT] = deg2rad(msg.acceleration_limit_deg_ss[i]);
-        if ( N==n_vel  ) limit_w_[msg.id_list[i]][VELOCITY_LIMIT    ] = deg2rad(msg.velocity_limit_deg_s[i]     );
-        if ( N==n_maxp ) limit_w_[msg.id_list[i]][MAX_POSITION_LIMIT] = deg2rad(msg.max_position_limit_deg[i]   );
-        if ( N==n_minp ) limit_w_[msg.id_list[i]][MIN_POSITION_LIMIT] = deg2rad(msg.min_position_limit_deg[i]   );
+    // limit_indice_write_　の更新
+    if ( N==n_temp ) limit_indice_write_.insert(TEMPERATURE_LIMIT);
+    if ( N==n_maxv ) limit_indice_write_.insert(MAX_VOLTAGE_LIMIT);
+    if ( N==n_minv ) limit_indice_write_.insert(MIN_VOLTAGE_LIMIT);
+    if ( N==n_pwm  ) limit_indice_write_.insert(PWM_LIMIT        );
+    if ( N==n_cur  ) limit_indice_write_.insert(CURRENT_LIMIT    );
+    if ( N==n_acc  ) limit_indice_write_.insert(ACCELERATION_LIMIT);
+    if ( N==n_vel  ) limit_indice_write_.insert(VELOCITY_LIMIT    );
+    if ( N==n_maxp ) limit_indice_write_.insert(MAX_POSITION_LIMIT);
+    if ( N==n_minp ) limit_indice_write_.insert(MIN_POSITION_LIMIT);
+    // limit_w_ と updated_id_limit_ の更新
+    for (size_t i=0; i<msg.id_list.size(); i++) if ( auto ID = msg.id_list[i]; is_in(msg.id_list[i], valid_id_list) ) { // 順番がずれるのでわざとこの書き方をしている．
+        updated_id_limit_.insert(ID);
+        if ( N==n_temp ) limit_w_[ID][TEMPERATURE_LIMIT] = msg.temperature_limit_degc[i];
+        if ( N==n_maxv ) limit_w_[ID][MAX_VOLTAGE_LIMIT] = msg.max_voltage_limit_v[i];
+        if ( N==n_minv ) limit_w_[ID][MIN_VOLTAGE_LIMIT] = msg.min_voltage_limit_v[i];
+        if ( N==n_pwm  ) limit_w_[ID][PWM_LIMIT        ] = msg.pwm_limit_percent[i];
+        if ( N==n_cur  ) limit_w_[ID][CURRENT_LIMIT    ] = msg.current_limit_ma[i];
+        if ( N==n_acc  ) limit_w_[ID][ACCELERATION_LIMIT] = deg2rad(msg.acceleration_limit_deg_ss[i]);
+        if ( N==n_vel  ) limit_w_[ID][VELOCITY_LIMIT    ] = deg2rad(msg.velocity_limit_deg_s[i]     );
+        if ( N==n_maxp ) limit_w_[ID][MAX_POSITION_LIMIT] = deg2rad(msg.max_position_limit_deg[i]   );
+        if ( N==n_minp ) limit_w_[ID][MIN_POSITION_LIMIT] = deg2rad(msg.min_position_limit_deg[i]   );
     } // 値の範囲がまちまちすぎるので，チェックしない．
     if (verbose_callback_) ROS_INFO("======+=======+=======+=======+======");
 }

@@ -10,11 +10,10 @@ static constexpr double DEG = M_PI/180.0; // degを単位に持つ数字に掛�
 // 各シリーズのDynamixelを検出する．
 uint8_t DynamixelHandler::ScanDynamixels(uint8_t id_min, uint8_t id_max, uint32_t num_expected, uint32_t times_retry) {
     id_set_.clear();
-    ROS_INFO("  Scanning: ");
     for (int id = id_min; id <= id_max; id++){
         addDynamixel(id);
-        if ( !is_in(id, id_set_) && is_in(id-1, id_set_) ) ROS_INFO("  Scanning: ");
-        if ( !is_in(id, id_set_)                         ) ROS_INFO("            %c[1A%d", 0x1b, id);
+        if ( id==id_min || (!is_in(id, id_set_) && is_in(id-1, id_set_)) ) ROS_INFO("[reserved line for scan]");
+        if ( !is_in(id, id_set_) ) ROS_INFO("%c[2K%c[1A%c[0K  Scanning ID: %d", 0x1b, 0x1b, 0x1b, id);
         if ( !rclcpp::ok() ) return 0;
     } 
     auto num_found = id_set_.size();
@@ -56,10 +55,10 @@ bool DynamixelHandler::addDynamixel(uint8_t id){
     WriteProfileVel(id, default_profile_vel_deg_s_*DEG );
 
     set<uint8_t> tmp = {id};
-    while ( rclcpp::ok() && SyncReadPresent( list_read_present_, tmp) < 1.0-1e-6 ) rsleep(50);
-    while ( rclcpp::ok() && SyncReadGoal   ( list_read_goal_ , tmp) < 1.0-1e-6 ) rsleep(50); 
-    while ( rclcpp::ok() && SyncReadGain   ( list_read_gain_ , tmp) < 1.0-1e-6 ) rsleep(50); 
-    while ( rclcpp::ok() && SyncReadLimit  ( list_read_limit_, tmp) < 1.0-1e-6 ) rsleep(50); 
+    while ( rclcpp::ok() && SyncReadPresent( present_indice_read_, tmp) < 1.0-1e-6 ) rsleep(50);
+    while ( rclcpp::ok() && SyncReadGoal   ( goal_indice_read_ , tmp) < 1.0-1e-6 ) rsleep(50); 
+    while ( rclcpp::ok() && SyncReadGain   ( gain_indice_read_ , tmp) < 1.0-1e-6 ) rsleep(50); 
+    while ( rclcpp::ok() && SyncReadLimit  ( limit_indice_read_, tmp) < 1.0-1e-6 ) rsleep(50); 
     while ( rclcpp::ok() && SyncReadHardwareErrors(tmp) < 1.0-1e-6 ) rsleep(50);
 
     tq_mode_[id] = ReadTorqueEnable(id);

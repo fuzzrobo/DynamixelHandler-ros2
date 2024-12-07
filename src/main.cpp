@@ -157,24 +157,28 @@ void DynamixelHandler::MainLoop(){
 
 /* 処理時間時間の計測 */ auto s_total = system_clock::now();
     //* topicをSubscribe & Dynamixelへ目標角をWrite
-    SyncWriteGoal(list_write_goal_);
-    list_write_goal_.clear();
-    SyncWriteGain(list_write_gain_);
-    list_write_gain_.clear();
-    SyncWriteLimit(list_write_limit_);
-    list_write_limit_.clear();
+    SyncWriteGoal(goal_indice_write_, updated_id_goal_);
+    goal_indice_write_.clear();
+    updated_id_goal_.clear();
+    SyncWriteGain(gain_indice_write_, updated_id_gain_);
+    gain_indice_write_.clear();
+    updated_id_gain_.clear();
+    SyncWriteLimit(limit_indice_write_, updated_id_limit_);
+    limit_indice_write_.clear();
+    updated_id_limit_.clear();
+    // shared_lock, lock_guard を使いやすいようにうまいことリファクタしたい．
 
     //* present value について read する情報を決定
     static const auto& r = pub_ratio_present_; //長いので省略
-    list_read_present_.clear();
-    if (r[PRESENT_PWM          ] && cnt % r[PRESENT_PWM          ] == 0) list_read_present_.insert(PRESENT_PWM          );
-    if (r[PRESENT_CURRENT      ] && cnt % r[PRESENT_CURRENT      ] == 0) list_read_present_.insert(PRESENT_CURRENT      );
-    if (r[PRESENT_VELOCITY     ] && cnt % r[PRESENT_VELOCITY     ] == 0) list_read_present_.insert(PRESENT_VELOCITY     );
-    if (r[PRESENT_POSITION     ] && cnt % r[PRESENT_POSITION     ] == 0) list_read_present_.insert(PRESENT_POSITION     );
-    if (r[VELOCITY_TRAJECTORY  ] && cnt % r[VELOCITY_TRAJECTORY  ] == 0) list_read_present_.insert(VELOCITY_TRAJECTORY  );
-    if (r[POSITION_TRAJECTORY  ] && cnt % r[POSITION_TRAJECTORY  ] == 0) list_read_present_.insert(POSITION_TRAJECTORY  );
-    if (r[PRESENT_INPUT_VOLTAGE] && cnt % r[PRESENT_INPUT_VOLTAGE] == 0) list_read_present_.insert(PRESENT_INPUT_VOLTAGE);
-    if (r[PRESENT_TEMPERATURE  ] && cnt % r[PRESENT_TEMPERATURE  ] == 0) list_read_present_.insert(PRESENT_TEMPERATURE   );
+    present_indice_read_.clear();
+    if (r[PRESENT_PWM          ] && cnt % r[PRESENT_PWM          ] == 0) present_indice_read_.insert(PRESENT_PWM          );
+    if (r[PRESENT_CURRENT      ] && cnt % r[PRESENT_CURRENT      ] == 0) present_indice_read_.insert(PRESENT_CURRENT      );
+    if (r[PRESENT_VELOCITY     ] && cnt % r[PRESENT_VELOCITY     ] == 0) present_indice_read_.insert(PRESENT_VELOCITY     );
+    if (r[PRESENT_POSITION     ] && cnt % r[PRESENT_POSITION     ] == 0) present_indice_read_.insert(PRESENT_POSITION     );
+    if (r[VELOCITY_TRAJECTORY  ] && cnt % r[VELOCITY_TRAJECTORY  ] == 0) present_indice_read_.insert(VELOCITY_TRAJECTORY  );
+    if (r[POSITION_TRAJECTORY  ] && cnt % r[POSITION_TRAJECTORY  ] == 0) present_indice_read_.insert(POSITION_TRAJECTORY  );
+    if (r[PRESENT_INPUT_VOLTAGE] && cnt % r[PRESENT_INPUT_VOLTAGE] == 0) present_indice_read_.insert(PRESENT_INPUT_VOLTAGE);
+    if (r[PRESENT_TEMPERATURE  ] && cnt % r[PRESENT_TEMPERATURE  ] == 0) present_indice_read_.insert(PRESENT_TEMPERATURE   );
 
 /* 処理時間時間の計測 */ auto s_read = system_clock::now();
     //* Dynamixelから状態Read & topicをPublish
@@ -188,23 +192,23 @@ void DynamixelHandler::MainLoop(){
             if ( ping_err_[id] > auto_remove_count_) RemoveDynamixel(id);
         if (success_rate[STATUS]) msg.status = BroadcastState_Status();
     }
-    if ( !list_read_present_.empty() ){
-        success_rate[PRESENT] = SyncReadPresent(list_read_present_, target_id_set);
+    if ( !present_indice_read_.empty() ){
+        success_rate[PRESENT] = SyncReadPresent(present_indice_read_, target_id_set);
         n_present_read++;
         n_present_suc_p += success_rate[PRESENT] > 0.0;
         n_present_suc_f += success_rate[PRESENT] > 1.0-1e-6;
         if ( success_rate[PRESENT]>0.0 ) msg.present = BroadcastState_Present();
     }
     if ( pub_ratio_["goal"] && cnt % pub_ratio_["goal"] == 0 ) {
-        success_rate[GOAL] = SyncReadGoal(list_read_goal_, target_id_set);
+        success_rate[GOAL] = SyncReadGoal(goal_indice_read_, target_id_set);
         if ( success_rate[GOAL   ]>0.0 ) msg.goal = BroadcastState_Goal();
     }
     if ( pub_ratio_["gain"] && cnt % pub_ratio_["gain"] == 0 ) {
-        success_rate[GAIN] = SyncReadGain(list_read_gain_, target_id_set);
+        success_rate[GAIN] = SyncReadGain(gain_indice_read_, target_id_set);
         if ( success_rate[GAIN   ]>0.0 ) msg.gain = BroadcastState_Gain();
     }
     if ( pub_ratio_["limit"] && cnt % pub_ratio_["limit"] == 0 ) {
-        success_rate[LIMIT] = SyncReadLimit(list_read_limit_, target_id_set);
+        success_rate[LIMIT] = SyncReadLimit(limit_indice_read_, target_id_set);
         if ( success_rate[LIMIT  ]>0.0 ) msg.limit = BroadcastState_Limit();
     }
     if ( pub_ratio_["error"] && cnt % pub_ratio_["error"] == 0 ) {
