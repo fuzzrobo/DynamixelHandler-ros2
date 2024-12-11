@@ -11,5 +11,5 @@
 #define ROS_WARN_T(...)  RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), __VA_ARGS__)
 #define ROS_ERROR_T(...) RCLCPP_ERROR_THROTTLE(this->get_logger(), *this->get_clock(), __VA_ARGS__)
 #define ROS_STOP(...) \
-    {{ RCLCPP_FATAL(this->get_logger(), __VA_ARGS__); rclcpp::shutdown(); std::exit(EXIT_FAILURE); }}
+    {{ RCLCPP_FATAL(this->get_logger(), __VA_ARGS__); rclcpp::shutdown(); std::exit(EXIT_SUCCESS); }}
 #endif /* LOGGING_LIKE_ROS1_HP */
