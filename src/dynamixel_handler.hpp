@@ -37,6 +37,8 @@ using namespace dynamixel_handler::msg;
 using std::string;
 #include <map>
 using std::map;
+#include <unordered_map>
+using std::unordered_map;
 #include <vector>
 using std::vector;
 #include <array>
@@ -48,8 +50,7 @@ using std::unordered_set;
 #include <utility>
 using std::pair;
 #include <algorithm>
-using std::max_element;
-using std::min_element;
+using std::minmax_element;
 using std::clamp;
 using std::min;
 using std::max;
@@ -195,32 +196,32 @@ class DynamixelHandler : public rclcpp::Node {
             /*Indexの最大値*/_num_gain           
         };
         // 連結したサーボの基本情報
-        static inline set<uint8_t> id_set_; // chained dynamixel id list
-        static inline map<uint8_t, uint16_t> model_; // 各dynamixelの id と model のマップ
-        static inline map<uint8_t, uint16_t> series_; // 各dynamixelの id と series のマップ
-        static inline map<uint8_t, size_t  > num_;  // 各dynamixelの series と　個数のマップ 無くても何とかなるけど, 効率を考えて保存する
-        static inline map<uint8_t, uint64_t> ping_err_; // 各dynamixelの id と 連続でpingに応答しなかった回数のマップ
-        // 連結しているサーボの個々の状態を保持するmap
-        static inline map<uint8_t, bool> tq_mode_;    // 各dynamixelの id と トルクON/OFF のマップ
-        static inline map<uint8_t, uint8_t> op_mode_; // 各dynamixelの id と 制御モード のマップ
-        static inline map<uint8_t, uint8_t> dv_mode_; // 各dynamixelの id と ドライブモード のマップ
-        static inline map<uint8_t, array<bool,   _num_hw_err >> hardware_err_; // 各dynamixelの id と サーボが起こしたハードウェアエラーのマップ, 中身の並びはHWErrIndexに対応する
-        static inline map<uint8_t, array<double, _num_present>> present_r_; // 各dynamixelの id と サーボから読み込んだ状態のマップ
-        static inline map<uint8_t, array<double, _num_goal   >> goal_w_;    // 各dynamixelの id と サーボへ書き込む目標状態のマップ
-        static inline map<uint8_t, array<double ,_num_goal   >> goal_r_;    // 各dynamixelの id と サーボから読み込んだ目標状態のマップ
-        static inline map<uint8_t, array<uint16_t,_num_gain  >> gain_w_;    // 各dynamixelの id と サーボへ書き込むゲインのマップ
-        static inline map<uint8_t, array<uint16_t,_num_gain  >> gain_r_;    // 各dynamixelの id と サーボから読み込んだゲインのマップ
-        static inline map<uint8_t, array<double, _num_limit  >> limit_w_;   // 各dynamixelの id と サーボへ書き込む制限値のマップ
-        static inline map<uint8_t, array<double, _num_limit  >> limit_r_;   // 各dynamixelの id と サーボから読み込んだ制限値のマップ
+        static inline set<uint8_t> id_set_; // chained dynamixel id list // 順序を保持する必要があうのでset
+        static inline unordered_map<uint8_t, uint16_t> model_; // 各dynamixelの id と model のマップ
+        static inline unordered_map<uint8_t, uint16_t> series_; // 各dynamixelの id と series のマップ
+        static inline unordered_map<uint8_t, size_t  > num_;  // 各dynamixelの series と　個数のマップ 無くても何とかなるけど, 効率を考えて保存する
+        static inline unordered_map<uint8_t, uint64_t> ping_err_; // 各dynamixelの id と 連続でpingに応答しなかった回数のマップ
+        // 連結しているサーボの個々の状態を保持するunordered_map
+        static inline unordered_map<uint8_t, bool> tq_mode_;    // 各dynamixelの id と トルクON/OFF のマップ
+        static inline unordered_map<uint8_t, uint8_t> op_mode_; // 各dynamixelの id と 制御モード のマップ
+        static inline unordered_map<uint8_t, uint8_t> dv_mode_; // 各dynamixelの id と ドライブモード のマップ
+        static inline unordered_map<uint8_t, array<bool,   _num_hw_err >> hardware_err_; // 各dynamixelの id と サーボが起こしたハードウェアエラーのマップ, 中身の並びはHWErrIndexに対応する
+        static inline unordered_map<uint8_t, array<double, _num_present>> present_r_; // 各dynamixelの id と サーボから読み込んだ状態のマップ
+        static inline unordered_map<uint8_t, array<double, _num_goal   >> goal_w_;    // 各dynamixelの id と サーボへ書き込む目標状態のマップ
+        static inline unordered_map<uint8_t, array<double ,_num_goal   >> goal_r_;    // 各dynamixelの id と サーボから読み込んだ目標状態のマップ
+        static inline unordered_map<uint8_t, array<uint16_t,_num_gain  >> gain_w_;    // 各dynamixelの id と サーボへ書き込むゲインのマップ
+        static inline unordered_map<uint8_t, array<uint16_t,_num_gain  >> gain_r_;    // 各dynamixelの id と サーボから読み込んだゲインのマップ
+        static inline unordered_map<uint8_t, array<double, _num_limit  >> limit_w_;   // 各dynamixelの id と サーボへ書き込む制限値のマップ
+        static inline unordered_map<uint8_t, array<double, _num_limit  >> limit_r_;   // 各dynamixelの id と サーボから読み込んだ制限値のマップ
 
         // 上記の変数を適切に使うための補助的なフラグ
-        static inline map<uint8_t, double> when_op_mode_updated_; // 各dynamixelの id と op_mode_ が更新された時刻のマップ
+        static inline unordered_map<uint8_t, double> when_op_mode_updated_; // 各dynamixelの id と op_mode_ が更新された時刻のマップ
         static inline unordered_set<uint8_t> updated_id_goal_;    // topicのcallbackによって，goal_w_が更新されたidの集合
         static inline unordered_set<uint8_t> updated_id_gain_;    // topicのcallbackによって，limit_w_が更新されたidの集合
         static inline unordered_set<uint8_t> updated_id_limit_;   // topicのcallbackによって，limit_w_が更新されたidの集合
-        static inline map<uint8_t, bool> has_hardware_error_;    // ハードウェアエラーを起こしているかどうか
+        static inline unordered_map<uint8_t, bool> has_hardware_error_;    // ハードウェアエラーを起こしているかどうか
         static inline bool has_any_hardware_error_ = false; // 連結しているDynamixelのうち，どれか一つでもハードウェアエラーを起こしているかどうか
-        // 各周期で実行するserial通信の内容を決めるためのset
+        // 各周期で実行するserial通信の内容を決めるためのset, 順序が必要なのでset
         static inline set<GoalIndex   > goal_indice_write_;
         static inline set<GainIndex   > gain_indice_write_;
         static inline set<LimitIndex  > limit_indice_write_;
@@ -229,7 +230,7 @@ class DynamixelHandler : public rclcpp::Node {
         static inline set<GainIndex   > gain_indice_read_    = {VELOCITY_I_GAIN, VELOCITY_P_GAIN, POSITION_D_GAIN, POSITION_I_GAIN, POSITION_P_GAIN, FEEDFORWARD_ACC_GAIN, FEEDFORWARD_VEL_GAIN};
         static inline set<LimitIndex  > limit_indice_read_   = {TEMPERATURE_LIMIT, MAX_VOLTAGE_LIMIT, MIN_VOLTAGE_LIMIT, PWM_LIMIT, CURRENT_LIMIT, ACCELERATION_LIMIT, VELOCITY_LIMIT, MAX_POSITION_LIMIT, MIN_POSITION_LIMIT};
         // read & publish の周期を決めるためのmap
-        static inline map<string, unsigned int>       pub_ratio_; // present value以外の周期
+        static inline unordered_map<string, unsigned int>       pub_ratio_; // present value以外の周期
         static inline array<unsigned int, _num_present> pub_ratio_present_;
 
         //* 単体通信を組み合わせた上位機能

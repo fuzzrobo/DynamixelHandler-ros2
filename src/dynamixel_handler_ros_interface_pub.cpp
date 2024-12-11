@@ -28,7 +28,7 @@ DynamixelStatus DynamixelHandler::BroadcastState_Status(){
 
 DynamixelPresent DynamixelHandler::BroadcastState_Present(){
     DynamixelPresent msg;
-    for (const auto& [id, value] : present_r_) if ( is_in(id, id_set_) ) {
+    for (const auto id : id_set_ ) { const auto& value = present_r_[id];
         msg.id_list.push_back(id);
         for (auto state : present_indice_read_) switch(state) {
             case PRESENT_PWM:          msg.pwm_percent.push_back         (round4(value[state]    )); break;
@@ -63,7 +63,7 @@ DynamixelError DynamixelHandler::BroadcastState_Error(){
 
 DynamixelLimit DynamixelHandler::BroadcastState_Limit(){
     DynamixelLimit msg;
-    for (const auto& [id, limit] : limit_r_) if ( is_in(id, id_set_) ) {
+    for (const auto id : id_set_ ) { const auto limit = limit_r_[id];
         msg.id_list.push_back(id);
         msg.temperature_limit_degc.push_back   (round4(limit[TEMPERATURE_LIMIT ]    ));
         msg.max_voltage_limit_v.push_back      (round4(limit[MAX_VOLTAGE_LIMIT ]    ));
@@ -81,7 +81,7 @@ DynamixelLimit DynamixelHandler::BroadcastState_Limit(){
 
 DynamixelGain DynamixelHandler::BroadcastState_Gain(){
     DynamixelGain msg;
-    for ( const auto& [id, gain] : gain_r_ ) if ( is_in(id, id_set_) ) {
+    for ( const auto id : id_set_ ) { const auto gain = gain_r_[id];
         msg.id_list.push_back(id);
         msg.velocity_i_gain_pulse.push_back     (gain[VELOCITY_I_GAIN     ]);
         msg.velocity_p_gain_pulse.push_back     (gain[VELOCITY_P_GAIN     ]);
@@ -97,7 +97,7 @@ DynamixelGain DynamixelHandler::BroadcastState_Gain(){
 
 DynamixelGoal DynamixelHandler::BroadcastState_Goal(){
     DynamixelGoal msg;
-    for ( const auto& [id, goal] : goal_r_ ) if ( is_in(id, id_set_) ) {
+    for ( auto id : id_set_ ) { const auto goal = goal_r_[id];
         msg.id_list.push_back(id);
         msg.pwm_percent.push_back       (round4(goal[GOAL_PWM     ]));
         msg.current_ma.push_back        (round4(goal[GOAL_CURRENT ]));
