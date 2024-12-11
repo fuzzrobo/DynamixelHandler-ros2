@@ -195,8 +195,8 @@ void DynamixelHandler::MainLoop(){
     if ( !present_indice_read_.empty() ){
         success_rate[PRESENT] = SyncReadPresent(present_indice_read_, target_id_set);
         n_present_read++;
-        n_present_suc_p += success_rate[PRESENT] > 0.0;
-        n_present_suc_f += success_rate[PRESENT] > 1.0-1e-6;
+        n_present_suc_p += !target_id_set.empty()  && success_rate[PRESENT] > 0.0;
+        n_present_suc_f +=  target_id_set==id_set_ && success_rate[PRESENT] > 1.0-1e-6;
         if ( success_rate[PRESENT]>0.0 ) msg.present = BroadcastState_Present();
     }
     if ( pub_ratio_["goal"] && cnt % pub_ratio_["goal"] == 0 ) {
