@@ -7,34 +7,51 @@ Dynamixelとやり取りを行うライブラリは[別のリポジトリ](https
 note: ROS2のみ対応
 
 ## features of this package
- - Dynamixelというサーボを動かすことに特化した最小単位のPkg
-   - このPkgの dynamixel_handler node と ロボットの制御を行う別の node を組み合わせて使う
-   - ほかのSDKと異なりコードを直接編集する必要なし
-   - ほかのSDKと異なりコントロールテーブルのaddressや分解能などは意識する必要なし
-   - 動かしたいDynamixelが「Jointとして使われているのか」「Wheelとして使われているのか」などの事前情報は不要
- - ROS topic の pub/sub のみでDynamixelを制御可能
-   - 現在値やハードウェアエラーなどの情報を `dynammixel/states` topic として周期的にpub
-      - present value デフォルト: 電流/速度/位置を50Hz
-      - hardware error デフォルト: 約2Hz
-      - その他 limit, gain, goal value など．
-   - subした `dynamixel/commands/x` topic の内容に合わせて制御モードを自動で変更
-   - sub/pubされる情報はパルス値ではなく物理量
-      - 0 ~ 4095 の整数値ではなく，-180.0 ~ 180.0 の浮動小数値など. 
-   - ユーザは純粋にサーボの目標状態を指令するだけでサーボを制御でき，また，同様にサーボの現在状態を受け取れる
- - 比較的高速なRead/Writeを実現 (12サーボに電流/速度/位置を Read/Write しても150Hzくらいは出せる)
-   - 複数のアドレスを一括で読み書き & 複数のサーボを同時に読み書き(SyncRead/SyncWrite) によって Serial通信の回数を抑える
-   - Fast Sync Read インストラクションを活用して Read を高速化
-   - Raed/Write は ROS node の周期と同期しているので，topicのcallbackに左右されない．
-   - ※ 適切な`LATENCY_TIMER`(2 ~ 4msくらい)と`baudrate`(1000000 ~ 推奨)の設定が必要
- - 開発における面倒を減らす機能
-    - 初期化時に連結したDynamixelを自動で認識
-    - 初期化時にエラーを自動でクリア (Optional)
-    - 初期化時にトルクを自動でON (Optional)
-    - node を kill したタイミングで動作を停止 
-    - node を kill したタイミングでトルクをOFF (Optional)
+ - **Dynamixel制御に特化した最小単位のパッケージ**
+    - **`dynamixel_handler_node`** と **別の制御ノード** を組み合わせて使用  
+    - 他のSDKでは必要となるコードの直接編集が不要  
+    - コントロールテーブルアドレスや分解能（4096カウント/回転など）を意識する必要なし  
+    - サーボが「Joint」なのか「Wheel」なのか、事前の用途区別が不要
+  
+ - **ROSトピックのみで制御できるシンプルなインターフェース**
+    - **Publish**: `/dynamixel/states`  
+      - Dynamixelgが持つ各種情報を周期的に出力
+      - - status: torqueのオンオフ, errorの有無, pingの成功, 制御モード 2Hz (デフォルト)
+        - Present value:current [mA], velocity [deg/s], position [deg]  50Hz (デフォルト)  
+        - Hardware error: 約2Hz (デフォルト)
+        ※ goal value, limit, gain 等も適宜Publish  
+
+    - **Subscribe**: `/dynamixel/commands/x` (他、`/dynamixel/commands/p`など)  
+      - サブスクライブした内容に合わせてサーボの制御モードが自動変更
+
+ - **物理量ベースでやり取り**
+      - 目標値を 0 ~ 4095 などのパルス値(整数値)に変換する必要なし．
+      - current [mA], velocity [deg/s], position [deg] などの物理量を直接指定可能
+       ※ ただし角度については，rad (-π ~ π) ではなく degree (-180.0 ~ 180.0)で扱う．
+
+ - **比較的高速なRead/Write** 
+   - 読み書きをできるだけ一括で行うことで通信回数を削減  
+      - 連続アドレスの一括読み書き
+      - 複数サーボの一括読み書き (SyncRead/SyncWrite)
+    - ROS Node周期に同期したRead/Write  
+      - TopicのCallbackに依存しない安定通信  
+      - 適切な `LATENCY_TIMER` (1~4ms) と `baudrate` (推奨 1,000,000bps 以上) が必要
+    - Fast Sync Read インストラクションでさらにRead高速化可能  
+      - 12サーボ同時Read/Writeでも150Hz程度の通信が可能なことを確認
+
+
+ - **開発の手間を減らす便利機能**
+    - 初期化 
+      - 連結したDynamixelを自動で認識
+      - エラーを自動でクリア (Optional)
+      - トルクを自動でON (Optional)
+    - 終了時
+      - node を kill したタイミングで動作を停止 
+      - node を kill したタイミングでトルクをOFF (Optional)
     - エラークリア時の回転数消失問題を homing offset により自動補正
-    - baudrateを一括で変更可能 (別nodeとして独立) 
- - ros param から各種 log 表示の制御が可能
+    - baudrateを一括で変更可能 (独立ノードとして提供)
+
+ - **ROSパラメータによる各種ログ表示制御**
    - Read/Write にかかる平均時間とSerial通信の成功率
    - Read/Write されるパルス値
    - Readに失敗したID
@@ -51,6 +68,8 @@ cd ~/ros2_ws/src
 git clone --recursive git@github.com:SHINOBI-organization/DynamixelHandler-ros2.git dynamixel_handler
 # httpsの場合
 git clone --recursive https://github.com/SHINOBI-organization/DynamixelHandler-ros2.git dynamixel_handler
+# 旧バージョンを使いたい場合
+git clone --recursive https://github.com/SHINOBI-organization/DynamixelHandler-ros2.git dynamixel_handler -b v0.1.0
 ```
 
 ### ビルド
@@ -95,28 +114,28 @@ ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 出力例
 ```bash
 # ... 略 ...
-[dynamixel_handler_node-1] DynamixelHandler(): Initializing DynamixelHandler ..... 
+[dynamixel_handler_node-1] 00000.00000: Initializing DynamixelHandler ..... 
 [dynamixel_handler_node-1] Succeeded to open the port : /dev/ttyUSB0!
 [dynamixel_handler_node-1] Succeeded to change the latency timer : 4!
 [dynamixel_handler_node-1] Succeeded to change the baudrate : 2000000!
-[dynamixel_handler_node-1] DynamixelHandler(): 
+[dynamixel_handler_node-1] 00000.00000: 
 [dynamixel_handler_node-1] Expected number of Dynamixel is not set. Free number of Dynamixel is allowed
-[dynamixel_handler_node-1] DynamixelHandler():  Auto scanning Dynamixel (id range [0] to [30]) ...
-[dynamixel_handler_node-1] ScanDynamixels(): Scanning: 0 
-[dynamixel_handler_node-1] addDynamixel():  * X series servo id [1] is found 
-[dynamixel_handler_node-1] TorqueOn(): ID [1] is enabled torque 
-[dynamixel_handler_node-1] ScanDynamixels(): Scanning: 5 
-[dynamixel_handler_node-1] addDynamixel():  * X series servo id [6] is found 
-[dynamixel_handler_node-1] TorqueOn(): ID [6] is enabled torque 
-[dynamixel_handler_node-1] addDynamixel():  * X series servo id [7] is found 
-[dynamixel_handler_node-1] TorqueOn(): ID [7] is enabled torque 
-[dynamixel_handler_node-1] ScanDynamixels(): Scanning: 30
-[dynamixel_handler_node-1] DynamixelHandler():   ... Finish scanning Dynamixel 
-[dynamixel_handler_node-1] DynamixelHandler(): ..... DynamixelHandler is initialized 
-[dynamixel_handler_node-1] MainLoop(): Loop [0]: write=0.00ms read=11.72ms(p/f=100%/100%) 
-[dynamixel_handler_node-1] MainLoop(): Loop [300]: write=0.01ms read=5.55ms(p/f=100%/100%) 
-[dynamixel_handler_node-1] MainLoop(): Loop [600]: write=0.01ms read=5.47ms(p/f=100%/100%) 
-[dynamixel_handler_node-1] MainLoop(): Loop [900]: write=0.01ms read=5.30ms(p/f=100%/100%)
+[dynamixel_handler_node-1] 00000.00000:  Auto scanning Dynamixel (id range [0] to [30]) ...
+[dynamixel_handler_node-1] 00000.00000:   Scanning: 0 
+[dynamixel_handler_node-1] 00000.00000:    * X series servo id [1] is found 
+[dynamixel_handler_node-1] 00000.00000:    ID [1] is enabled torque 
+[dynamixel_handler_node-1] 00000.00000:   Scanning: 5 
+[dynamixel_handler_node-1] 00000.00000:    * X series servo id [6] is found 
+[dynamixel_handler_node-1] 00000.00000:    ID [6] is enabled torque 
+[dynamixel_handler_node-1] 00000.00000:    * X series servo id [7] is found 
+[dynamixel_handler_node-1] 00000.00000:    ID [7] is enabled torque 
+[dynamixel_handler_node-1] 00000.00000:   Scanning: 30
+[dynamixel_handler_node-1] 00000.00000:  ... Finish scanning Dynamixel 
+[dynamixel_handler_node-1] 00000.00000: ..... DynamixelHandler is initialized 
+[dynamixel_handler_node-1] 00000.00000: Loop [0]: write=0.00ms read=11.72ms(p/f=100%/100%) 
+[dynamixel_handler_node-1] 00000.00000: Loop [300]: write=0.01ms read=5.55ms(p/f=100%/100%) 
+[dynamixel_handler_node-1] 00000.00000: Loop [600]: write=0.01ms read=5.47ms(p/f=100%/100%) 
+[dynamixel_handler_node-1] 00000.00000: Loop [900]: write=0.01ms read=5.30ms(p/f=100%/100%)
 ```
 
 連結したDynamixelが自動で探索され，見つかったDynamixelの初期設定が行われる．
@@ -147,14 +166,14 @@ ros2 topic pub /dynamixel/command/x/position \
 > [!note]
 > ID:5のDynamixelの制御モードは自動的に位置制御に変換される．
 
-もしトルクが入っていなかった場合，`/dynamixel/command/x/common` topicに "torque_on" コマンドとIDを設定してpublish
+もしトルクが入っていなかった場合，`/dynamixel/shortcut` topicに "torque_on" コマンドとIDを設定してpublish
 ```bash
-ros2 topic pub /dynamixel/command/x/common \
- dynamixel_handler/msg/DynamixelCommonCmd \
+ros2 topic pub /dynamixel/shortcut \
+ dynamixel_handler/msg/DynamixelShortcut \
  "{command: 'torque_on', id_list: [5]}"
 ```
 ただし，デフォルトでは初期化時に自動でトルクONになっているため不要のはず．
-`/dynamixel/command/x/common` topicで使えるコマンドについては，[Topic](#topic) の章を参照．
+`/dynamixel/shortcut` topicで使えるコマンドについては，[Topic](#topic) の章を参照．
 
 ### 4. Dynamixelの情報を取得
 
@@ -232,50 +251,118 @@ position_deg: # 現在の角度と目標角度
 
 さらなる詳細は[メッセージの定義](./msg/ReadMe.md)を参照
 
-### Published from dynamixel_handler 
+## Published Topics (by `dynamixel_handler`)
 
-サーボの状態を監視するためのtopic.Xシリーズ，Pシリーズ共通．
+### プログラム向けの統合的なステータス情報
 
- - `/dynamixel/states` (`DxlStates` type) : 下記の `/dynamixel/state/...` 系トピックすべてをひとまとめにしたtopic.プログラムでの使用を想定
- - `/dynamixel/state/status` (`DynamixelStatus` type) : サーボの状態(トルク・エラー・ping・制御モード)を確認するためのtopic
- - `/dynamixel/state/goal` (`DynamixelGoal` type) : サーボの目標値を確認するためのtopic
- - `/dynamixel/state/gain` (`DynamixelGain` type) : サーボの制御ゲインを確認するためのtopic
- - `/dynamixel/state/limit` (`DynamixelLimit` type) : サーボの制限値を確認するためのtopic
- - `/dynamixel/state/error` (`DynamixelError` type) : サーボのハードウェアエラー情報を確認するためのtopic
- - `/dynamixel/debug` (`DynamixelDebug` type) : コマンドラインからデバックする用のtopic
+- **`/dynamixel/states`** (`DxlStates`型)  
+  Xシリーズ・Pシリーズ共通のサーボ状態をまとめたトピック．以下のフィールドからなる：
+  - `stamp` : メッセージのタイムスタンプ  
+  - `status`: `/dynamixel/state/status` に相当  
+  - `goal`: `/dynamixel/state/goal` に相当  
+  - `gain`: `/dynamixel/state/gain` に相当  
+  - `limit`: `/dynamixel/state/limit` に相当  
+  - `error`: `/dynamixel/state/error` に相当
 
-### Subscribed by dynamixel_handler 
+### コマンドライン確認用ステータス情報
 
-Xシリーズのサーボへの入力を行うためのtopic.
-> [!NOTE]
-> 同様にPシリーズ用のトピックも用意されている．[メッセージの定義](./msg/ReadMe.md)参照
+- **`/dynamixel/state/status`** (`DynamixelStatus`型)  
+  サーボの状態(トルク・エラー・ping・制御モード)を確認
 
-  - `/dynamixel/commands/x` (`DxlCommandsX` type) : 下記の `/dynamixel/command/...` 系トピックすべてをひとまとめにしたtopic. プログラムでの使用を想定
-  - `/dynamixel/command/common` (`DynamixelCommonCmd` type) : dynamixelの起動や停止，エラー解除コマンドなどを送るためのtopic, 指定できるコマンドは[Command list](#command-list)参照       
-  - `/dynamixel/command/x/pwm_control` (`DynamixelControlXCurrent` type) : Xシリーズを電流制御モード用
-  - `/dynamixel/command/x/current_control` (`DynamixelControlXCurrent` type) : Xシリーズを電流制御モード用
-  - `/dynamixel/command/x/velocity_control` (`DynamixelControlXVelocity` type) : Xシリーズを速度制御モード用
-  - `/dynamixel/command/x/position_control` (`DynamixelControlXPosition` type) : Xシリーズを位置制御モード用
-  - `/dynamixel/command/x/extended_position_control` (`DynamixelControlXExtendedPosition` type) : Xシリーズを拡張位置制御モード用
-  - `/dynamixel/command/x/current_base_position_control ` (`DynamixelControlXCurrentPosition` type) : Xシリーズを電流制限付き位置制御モード用
-  - `/dynamixel/command/status` (`DynamixelStatus` type) : サーボの状態(トルク・エラー・ping・制御モード)を設定するためのtopic (使わなくても, `/dynamixel/command/common` と `/dyanmixel/command/x/~_control`で設定できる)
-  - `/dynamixel/command/goal` (`DynamixelGoal` type) : 各種の目標値を設定するためのtopic
-  - `/dynamixel/command/gain` (`DynamixelGain` type) : 制御ゲインを設定するためのtopic
-  - `/dynamixel/command/limit` (`DynamixelLimit` type) : 各種の制限値をを設定するためのtopic
+- **`/dynamixel/state/present`** (`DynamixelPresent`型)  
+  サーボの現在値(位置、速度、電流など)を確認
 
-#### Command list
+- **`/dynamixel/state/goal`** (`DynamixelGoal`型)  
+  サーボの目標値(目標位置、目標速度など)を確認
 
-`/dynamixel/command/common` topic `command` fieldに指定できる文字列.
-`DynamixelCommonCmd`型の定義内で[定数として定義](./msg#dynamixelcommoncmd-type)されている．
+- **`/dynamixel/state/gain`** (`DynamixelGain`型)  
+  サーボの制御ゲイン値を確認
 
-- 高レベルコマンド：ユーザの利用を想定
+- **`/dynamixel/state/limit`** (`DynamixelLimit`型)  
+  サーボの制限値(最大電流、最大速度など)を確認
+
+- **`/dynamixel/state/error`** (`DynamixelError`型)  
+  サーボのハードウェアエラー情報を確認
+
+- **`/dynamixel/debug`** (`DynamixelDebug`型)  
+  デバッグ用トピック(サーボが動作しないときにコマンドラインで状況を確認する目的)
+
+## Subscribed Topics (by `dynamixel_handler`)
+
+### プログラム向け統合コマンド
+
+- **`/dynamixel/commands/x`** (`DxlCommandsX`型) 
+  Xシリーズ用のコマンドを統合したトピック．以下のフィールドからなる：
+  - `pwm_control`: `/dynamixel/command/x/pwm_control` に相当  
+  - `current_control`: `/dynamixel/command/x/current_control` に相当  
+  - `velocity_control`: `/dynamixel/command/x/velocity_control` に相当  
+  - `position_control`: `/dynamixel/command/x/position_control` に相当  
+  - `extended_position_control`: `/dynamixel/command/x/extended_position_control` に相当  
+  - `current_base_position_control`: `/dynamixel/command/x/current_base_position_control` に相当  
+  - `status`: `/dynamixel/command/status` に相当  
+  - `gain`: `/dynamixel/command/gain` に相当  
+  - `limit`: `/dynamixel/command/limit` に相当
+
+- **`/dynamixel/commands/p`** (`DxlCommandsP`型) 
+  Pシリーズ用のコマンドを統合したトピック．以下のフィールドからなる： 
+  - `pwm_control`: `/dynamixel/command/p/pwm_control` に相当  
+  - `current_control`: `/dynamixel/command/p/current_control` に相当  
+  - `velocity_control`: `/dynamixel/command/p/velocity_control` に相当  
+  - `position_control`: `/dynamixel/command/p/position_control` に相当  
+  - `extended_position_control`: `/dynamixel/command/p/extended_position_control` に相当  
+  - `status`: `/dynamixel/command/status` に相当  
+  - `gain`: `/dynamixel/command/gain` に相当  
+  - `limit`: `/dynamixel/command/limit` に相当
+- **`/dynamixel/commands/xp`** (`DxlCommandsXP`型)  
+  X,Pシリーズ共通のコマンドをまとめたトピック. 以下のフィールドからなる：
+  - `status`: `/dynamixel/command/status` に相当  
+  - `goal`: `/dynamixel/command/goal` に相当  
+  - `gain`: `/dynamixel/command/gain` に相当  
+  - `limit`: `/dynamixel/command/limit` に相当
+
+### コマンドライン用個別コマンド
+
+- **Xシリーズ用コマンド**  
+  - `/dynamixel/command/x/pwm_control` (`DynamixelControlXCurrent`型)  
+  - `/dynamixel/command/x/current_control` (`DynamixelControlXCurrent`型)  
+  - `/dynamixel/command/x/velocity_control` (`DynamixelControlXVelocity`型)  
+  - `/dynamixel/command/x/position_control` (`DynamixelControlXPosition`型)  
+  - `/dynamixel/command/x/extended_position_control` (`DynamixelControlXExtendedPosition`型)  
+  - `/dynamixel/command/x/current_base_position_control` (`DynamixelControlXCurrentPosition`型)
+
+- **Pシリーズ用コマンド**  
+  - `/dynamixel/command/p/pwm_control` (`DynamixelControlPCurrent`型)  
+  - `/dynamixel/command/p/current_control` (`DynamixelControlPCurrent`型)  
+  - `/dynamixel/command/p/velocity_control` (`DynamixelControlPVelocity`型)  
+  - `/dynamixel/command/p/position_control` (`DynamixelControlPPosition`型)  
+  - `/dynamixel/command/p/extended_position_control` (`DynamixelControlPExtendedPosition`型)
+
+- **共通コマンド**  
+  - `/dynamixel/command/status` (`DynamixelStatus`型) : サーボの状態(トルク・エラー・通信・制御モード)設定  
+    （制御モードは`~_control`トピックを送ることで自動的に設定）
+  - `/dynamixel/command/goal` (`DynamixelGoal`型) : 目標値(位置・速度・電流など)の設定  
+  - `/dynamixel/command/gain` (`DynamixelGain`型) : 制御ゲイン値の設定  
+  - `/dynamixel/command/limit` (`DynamixelLimit`型) : 制限値(最大速度、最大電流など)の設定
+
+- **Status変更用のショートカットコマンド**
+  - `/dynamixel/shortcut` (`DynamixelShortcut`型) : Dynamixelの起動、停止、エラー解除などのショートカットコマンド  
+    - `command`: コマンド文字列  
+    - `id_list`: 適用するサーボのIDリスト  
+
+#### Shortcut Command list
+
+`/dynamixel/shortcut` topic `command` fieldに指定できる文字列.
+`DynamixelShortcut`型の定義内で[定数として定義](./msg#dynamixelshortcut-type)されている．
+
+- **高レベルコマンド**：ユーザの利用を想定
   - `torque_on` / `TON`  : 安全にトルクをenableにする．目標姿勢を現在姿勢へ一致させ，速度を0にする．
   - `torque_off` / `TOFF`: トルクをdisableにする．
-  - `clear_error` / `CE` : ハードウェアエラー(ex. overload)をrebootによって解除する．回転数の情報が喪失することによって現在角が不連続に変動する問題を解消するために，homing offset用いて自動で補正する．
+  - `clear_error` / `CE` : ハードウェアエラー(ex. overload)をrebootによって解除する．
+    回転数の情報が喪失する問題を解消するために，homing offset用いて自動で補正する．
   - `remove_id` / `RMID` : 指定したIDのサーボを認識リストから削除する．
   - `add_id` / `ADID`    : 指定したIDのサーボを認識リストに追加する．
 
-- 低レベルコマンド：開発者向け
+- **低レベルコマンド**：開発者向け
   - `reset_offset` : homing offset アドレスに 0 を書き込む．
   - `enable`  : torque enable アドレスに true を書き込む．
   - `disable` : torque enable アドレスに false を書き込む．
@@ -430,10 +517,10 @@ cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
 以下説明はXシリーズの場合．Pシリーズの場合は適宜読み替えること．
 
 ### 状態 (status)
- - torque_enable  : 接続時に自動でトルクONされる. `/dynamixel/command/common`の`command`=`'torque_on'` or `'enable'`で1,`command`=`'torque_off'` or `'disable'`で0に設定される．  
- - operating_mode : 対応するtopicのsubで自動で設定される． 
+ - torque_enable  : `/dynamixel/shortcut`の`command`=`'torque_on'` or `'enable'`で1,`command`=`'torque_off'` or `'disable'`で0に設定される．  
  - (ping)         : Control table ではないが，statusとして扱っている．pingが通るかどうか．
  - (error)        : Control table ではないが，statusとして扱っている．何らかのエラーを持っているかどうか．
+ - operating_mode : 対応するtopicのsubで自動で設定される． 
 
 ### 目標値 (goal)
  - goal_pwm             : 目標PWM値, PWM制御モードでのみ有効
