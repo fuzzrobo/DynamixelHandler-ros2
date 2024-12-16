@@ -15,18 +15,19 @@ note: ROS2のみ対応
   
  - **ROSトピックのみで制御できるシンプルなインターフェース**
     - **Publish**: `/dynamixel/states`  
-      - Dynamixelgが持つ各種情報を周期的に出力
-      - - status: torqueのオンオフ, errorの有無, pingの成功, 制御モード 2Hz (デフォルト)
+      - Dynamixelが持つ情報を適切に分類し周期的に読み込み
+        - status: torqueのオンオフ, errorの有無, pingの成功, 制御モード 2Hz (デフォルト)
         - Present value:current [mA], velocity [deg/s], position [deg]  50Hz (デフォルト)  
-        - Hardware error: 約2Hz (デフォルト)
+        - Hardware error: 約2Hz (デフォルト)  
         ※ goal value, limit, gain 等も適宜Publish  
 
-    - **Subscribe**: `/dynamixel/commands/x` (他、`/dynamixel/commands/p`など)  
-      - サブスクライブした内容に合わせてサーボの制御モードが自動変更
+    - **Subscribe**: `/dynamixel/commands/x` (他、`/dynamixel/commands/p`など)
+      - シリーズごとに定義された制御コマンド (現在 X, Pシリーズ のみ対応) 
+      - 制御コマンドの内容に合わせてサーボの制御モードが自動変更
 
  - **物理量ベースでやり取り**
       - 目標値を 0 ~ 4095 などのパルス値(整数値)に変換する必要なし．
-      - current [mA], velocity [deg/s], position [deg] などの物理量を直接指定可能
+      - current [mA], velocity [deg/s], position [deg] などの物理量を直接指定可能  
        ※ ただし角度については，rad (-π ~ π) ではなく degree (-180.0 ~ 180.0)で扱う．
 
  - **比較的高速なRead/Write** 
@@ -140,7 +141,7 @@ ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 
 連結したDynamixelが自動で探索され，見つかったDynamixelの初期設定が行われる．
 > [!TIP]
-> 通信状態によっては連結しているのに見つからない場合もある.
+> 通信状態によっては連結しているのに見つからない場合もある.  
 > baudrateの確認，laytency timer の確認が有効である．  
 > (laytency timer の確認は[LatencyTimer](#latencytimer)を参照．)  
 > また，[Parameters](#parameters) の`dyn_comm/retry_num` を大きくすることでも改善する可能性がある．
@@ -149,9 +150,11 @@ ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 
 ### 3. Dynamixelを制御
 
-コマンドラインから指令する用の topic `/dyanmixel/command/...` と プログラムから指令する用の topic `/dynamixel/commands/x` が用意されている．  
-以下ではコマンドラインから指令を送る場合の例を示す．
-プログラムから指令を送る場合は example を参照されたい．(あとでまとめる)
+コマンドラインから指令する用の topic として `/dyanmixel/command/...` と `/dyanmixel/shortcut` が    
+プログラムから指令する用の topic として `/dynamixel/commands/x` が用意されている．     
+
+以下ではコマンドラインから指令を送る場合の例を示す．   
+プログラムから指令を送る場合は [example]() を参照されたい．
 
 また，topic の詳細については [Topic](#topic) の章を参照．
 
@@ -177,13 +180,13 @@ ros2 topic pub /dynamixel/shortcut \
 
 ### 4. Dynamixelの情報を取得
 
-コマンドラインから確認する用に`/dynamixel/state/...` topic 等と `/dynamixel/debug` topic として一定周期で raed & pub され続けている．
-さらに，それらのすべてのトピックをまとめた topic `/dynamxiel/states` がプログラム用として用意されている．
-以下ではコマンドラインから確認する例を示す．
+コマンドラインから確認する用の topic として `/dynamixel/state/...`  と `/dynamixel/debug` topic が    
+プログラムから利用する用の topic として `/dynamxiel/states` が一定周期で pub され続けている．   
 
-topic の詳細については [Topic](#topic) の章を参照．
+以下ではコマンドラインから確認する例を示す．   
+
+topic の詳細については [Topic](#topic) の章を参照．    
 また，read周期については[Parameters](#parameters)の章の[実行時の動作設定](#実行時の動作設定)を参照．
-
 
 #### 例: ID:5とID:6のモータが接続している場合の現在値の確認
 
@@ -235,15 +238,14 @@ position_deg: # 現在の角度と目標角度
 ```
 
 > [!NOTE]
-> dynamixelからのread方式は Sync Read であり，すべてのIDから一斉にreadするようになっている．
-> ただし，ros param `use/fast_read` が `true` の場合は  Fast Sync Read が用いられる．
+> dynamixelからのread方式は Sync Read または Fast Sync Read であり，すべてのIDから一斉にreadするようになっている．   
+> ros param `use/fast_read` が `false`の場合は Sync Read が，`true` の場合は Fast Sync Read が用いられる．  
+> それぞれの違いは[公式の動画](https://www.youtube.com/watch?v=claLIK8omIQ)を参照されたし．
 > 
-> また，上記の出力例にあるように複数の情報を読み込んでいるが，複数情報を一括でreadするか，分割でreadするかは，
-> ros param `use/split_read` によって変更できる．
-> 
+> 複数のアドレスの情報を一括でreadするか，分割でreadするかは，ros param `use/split_read` によって変更できる．  
 > 分割でreadする場合は，読み込む情報の数分だけreadに時間がかかるので注意．
 > 
-> read方式については後述の[速度に関してメモ](#速度に関してメモ)を参照.
+> その他，read方式については後述の[速度に関してメモ](#速度に関してメモ)を参照.
 
 ***************************
 
@@ -314,15 +316,16 @@ position_deg: # 現在の角度と目標角度
   - `gain`: `/dynamixel/command/gain` に相当  
   - `limit`: `/dynamixel/command/limit` に相当
 - **`/dynamixel/commands/xp`** (`DxlCommandsXP`型)  
-  X,Pシリーズ共通のコマンドをまとめたトピック. 以下のフィールドからなる：
+  X,Pシリーズを共通で扱うためのトピック. 以下のフィールドからなる：
   - `status`: `/dynamixel/command/status` に相当  
   - `goal`: `/dynamixel/command/goal` に相当  
   - `gain`: `/dynamixel/command/gain` に相当  
-  - `limit`: `/dynamixel/command/limit` に相当
+  - `limit`: `/dynamixel/command/limit` に相当  
+    ※ `~_control`系フィールドがないため制御モードの自動変更機能は無し. `status.mode`で個別モードを指定し`goal.~`で各種目標値を与える．
 
 ### コマンドライン用個別コマンド
 
-- **Xシリーズ用コマンド**  
+- **Xシリーズ用コマンド**
   - `/dynamixel/command/x/pwm_control` (`DynamixelControlXCurrent`型)  
   - `/dynamixel/command/x/current_control` (`DynamixelControlXCurrent`型)  
   - `/dynamixel/command/x/velocity_control` (`DynamixelControlXVelocity`型)  
@@ -347,7 +350,7 @@ position_deg: # 現在の角度と目標角度
 - **Status変更用のショートカットコマンド**
   - `/dynamixel/shortcut` (`DynamixelShortcut`型) : Dynamixelの起動、停止、エラー解除などのショートカットコマンド  
     - `command`: コマンド文字列  
-    - `id_list`: 適用するサーボのIDリスト  
+    - `id_list`: 適用するサーボのIDリスト, 省略すると認識されているすべてのIDを選択したのと同等となる．  
 
 #### Shortcut Command list
 
@@ -357,7 +360,7 @@ position_deg: # 現在の角度と目標角度
 - **高レベルコマンド**：ユーザの利用を想定
   - `torque_on` / `TON`  : 安全にトルクをenableにする．目標姿勢を現在姿勢へ一致させ，速度を0にする．
   - `torque_off` / `TOFF`: トルクをdisableにする．
-  - `clear_error` / `CE` : ハードウェアエラー(ex. overload)をrebootによって解除する．
+  - `clear_error` / `CE` : ハードウェアエラー(ex. overload)をrebootによって解除する．   
     回転数の情報が喪失する問題を解消するために，homing offset用いて自動で補正する．
   - `remove_id` / `RMID` : 指定したIDのサーボを認識リストから削除する．
   - `add_id` / `ADID`    : 指定したIDのサーボを認識リストに追加する．
