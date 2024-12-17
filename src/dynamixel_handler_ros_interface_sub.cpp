@@ -9,33 +9,36 @@ static double deg2rad(double deg){ return deg*DEG; }
 
 void DynamixelHandler::CallbackCmdsX(const DxlCommandsX::SharedPtr msg) {
     if ( verbose_callback_ ) ROS_INFO("=====================================");
-    CallbackCmd_Common(msg->common);
-    CallbackCmd_Status(msg->status);
+    CallbackCmd_Status(msg->status); // Pシリーズ縛りを入れる
     CallbackCmd_X_Pwm(msg->pwm_control);
     CallbackCmd_X_Current(msg->current_control);
     CallbackCmd_X_Velocity(msg->velocity_control);
     CallbackCmd_X_Position(msg->position_control);
     CallbackCmd_X_ExtendedPosition(msg->extended_position_control);
     CallbackCmd_X_CurrentBasePosition(msg->current_base_position_control);
-    CallbackCmd_Goal  (msg->goal);
-    CallbackCmd_Gain  (msg->gain);
-    CallbackCmd_Limit (msg->limit);
+    CallbackCmd_Gain  (msg->gain);  // Xシリーズ縛りを入れる
+    CallbackCmd_Limit (msg->limit); // Xシリーズ縛りを入れる
 }
 void DynamixelHandler::CallbackCmdsP(const DxlCommandsP::SharedPtr msg) {
     if ( verbose_callback_ ) ROS_INFO("=====================================");
-    CallbackCmd_Common(msg->common);
-    CallbackCmd_Status(msg->status);
+    CallbackCmd_Status(msg->status);  // Pシリーズ縛りを入れる
     CallbackCmd_P_Pwm(msg->pwm_control);
     CallbackCmd_P_Current(msg->current_control);
     CallbackCmd_P_Velocity(msg->velocity_control);
     CallbackCmd_P_Position(msg->position_control);
     CallbackCmd_P_ExtendedPosition(msg->extended_position_control);
+    CallbackCmd_Gain  (msg->gain);  // Pシリーズ縛りを入れる
+    CallbackCmd_Limit (msg->limit); // Pシリーズ縛りを入れる
+}
+void DynamixelHandler::CallbackCmdsAll(const DxlCommandsAll::SharedPtr msg) {
+    if ( verbose_callback_ ) ROS_INFO("=====================================");
+    CallbackCmd_Status(msg->status);
     CallbackCmd_Goal  (msg->goal);
     CallbackCmd_Gain  (msg->gain);
     CallbackCmd_Limit (msg->limit);
 }
 
-void DynamixelHandler::CallbackCmd_Common(const DynamixelCommonCmd& msg) {
+void DynamixelHandler::CallbackShortcut(const DynamixelShortcut& msg) {
     if ( msg.command=="" ) return;
     if (verbose_callback_ ) {
         ROS_INFO_STREAM(id_list_layout(msg.id_list, "Common cmd, ID"));

@@ -24,3 +24,6 @@ dynamixel_handler/DynamixelExtraMovingstatus moving_status
 float64[] realtime_tick_us          
 uint8[] moving                 
 uint8[] registered_instruction 
+
+# 追加での機能
+bool[] reboot

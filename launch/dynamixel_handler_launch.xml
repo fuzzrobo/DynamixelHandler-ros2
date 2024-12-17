@@ -21,12 +21,12 @@
         <remap from="dynamixel/command/x/position_control"              to="dynamixel/command/x/position_control"/>
         <remap from="dynamixel/command/x/extended_position_control"     to="dynamixel/command/x/extended_position_control"/>
         <remap from="dynamixel/command/x/current_base_position_control" to="dynamixel/command/x/current_base_position_control"/>
-        <remap from="dynamixel/command/common" to="dynamixel/command/common"/>
         <remap from="dynamixel/command/status" to="dynamixel/command/status"/>
         <remap from="dynamixel/command/goal"   to="dynamixel/command/goal"/>
         <remap from="dynamixel/command/gain"   to="dynamixel/command/gain"/>
         <remap from="dynamixel/command/limit"  to="dynamixel/command/limit"/>
         <remap from="dynamixel/command/extra"  to="dynamixel/command/extra"/>
+        <remap from="dynamixel/shortcut" to="dynamixel/shortcut"/>
 
         <!-- 読み込み -->
         <remap from="dynamixel/states" to="dynamixel/states"/>
@@ -37,6 +37,7 @@
         <remap from="dynamixel/state/limit"   to="dynamixel/state/limit"/>
         <remap from="dynamixel/state/error"   to="dynamixel/state/error"/>
         <remap from="dynamixel/state/extra"   to="dynamixel/state/extra"/>
+        <remap from="dynamixel/debug" to="dynamixel/debug"/>
     </node>
 
 </launch>

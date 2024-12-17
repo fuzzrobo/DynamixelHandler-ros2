@@ -23,7 +23,7 @@
    - `/dynamixel/states` : すべての状態をまとめたmsg
    - `/dynamixel/commands/x` : Xシリーズのコマンドをまとめたmsg
    - `/dynamixel/commands/p` : Pシリーズのコマンドをまとめたmsg
-   - `/dynamixel/commands/xp` : X,Pシリーズのコマンドをまとめたmsg
+   - `/dynamixel/commands/all` : X,Pシリーズのコマンドをまとめたmsg
    - `/dynamixel/ex_port/write` : 外部ポートへの書き込み・設定を行うmsg
    - `/dynamixel/ex_port/read` : 外部ポートの読み取りを行うmsg
   
@@ -49,19 +49,19 @@
    - `/dynamixel/command/x/position_control` : 位置制御モードでの指令を送る
    - `/dynamixel/command/x/extended_position_control` :　拡張位置制御モードでの指令を送る
    - `/dynamixel/command/x/current_base_position_control` :　電流制限付き位置制御モードでの指令を送る
-   - `/dynamixel/command/status` : サーボの状態を変更する
-   - `/dynamixel/command/goal` : サーボの目標値を変更する
-   - `/dynamixel/command/gain` : ゲインを変更する
-   - `/dynamixel/command/limit` : 制限値を変更する
-   - `/dynamixel/command/extra` : その他の情報を変更する
 
-##### Pシリーズを併用する場合，以下が追加される．
    - `/dynamixel/command/p/pwm_control` : pwm制御モードでの指令を送る
    - `/dynamixel/command/p/current_control` : 電流制御モードでの指令を送る
    - `/dynamixel/command/p/velocity_control` : 速度制御モードでの指令を送る
    - `/dynamixel/command/p/position_control` : 位置制御モードでの指令を送る
    - `/dynamixel/command/p/extended_position_control` : 拡張位置制御モードでの指令を送る
 
+   - `/dynamixel/command/status` : サーボの状態を変更する
+   - `/dynamixel/command/goal` : サーボの目標値を変更する
+   - `/dynamixel/command/gain` : ゲインを変更する
+   - `/dynamixel/command/limit` : 制限値を変更する
+   - `/dynamixel/command/extra` : その他の情報を変更する
+   - 
 -----
 
 ## How to use
@@ -214,7 +214,7 @@ dynamixel_handler/DynamixelGoal goal
 dynamixel_handler/DynamixelGain gain
 dynamixel_handler/DynamixelLimit limit
 dynamixel_handler/DynamixelError error
-dynamixel_handler/DynamixelExtraRead extra
+dynamixel_handler/DynamixelExtra extra
 ```
 具体的な詳細については，[それぞれの型定義](#その他のコマンドライン用トピックの型定義)を参照.　
 ↓ 出力例．
@@ -273,7 +273,7 @@ error: # DynamxielError型, pub_ratio/errorに一回 read され，読み取り�
    motor_encoder: [false, false, false, false]
    electronical_shock: [false, false, false, false]
    overload: [false, false, false, false]
-extra: # DynamixelExtraRead型, 未実装
+extra: # DynamixelExtra型, 未実装
    id_list: []
    model: [] # 未実装
    firmware_version: [] # 未実装
@@ -309,6 +309,7 @@ extra: # DynamixelExtraRead型, 未実装
    realtime_tick_us: [] # 未実装
    moving: [] # 未実装
    registered_instruction: [] # 未実装
+   reboot: [] # 未実装 
 ```
 
 ### `dynamixel_handler::msg::DxlCommandsX` type 
@@ -323,7 +324,7 @@ dynamixel_handler/DynamixelControlXCurrentBasePosition current_base_position_con
 dynamixel_handler/DynamixelStatus status
 dynamixel_handler/DynamixelGain   gain
 dynamixel_handler/DynamixelLimit  limit
-dynamixel_handler/DynamixelExtraWrite  extra
+dynamixel_handler/DynamixelExtra  extra
 ```
 具体的な詳細については，[それぞれの型定義](#その他のコマンドライン用トピックの型定義)を参照.
 ↓ 出力例．
@@ -383,9 +384,11 @@ limit: # DynamixelLimit型
    velocity_limit_deg_s: []
    max_position_limit_deg: []
    min_position_limit_deg: []
-extra: # DynamixelExtraWrite型, 未実装
+extra: # DynamixelExtra型, 未実装
    id_list: []
-   reboot: [] # 未実装
+   model: [] # 未実装
+   firmware_version: [] # 未実装
+   protocol_version: [] # 未実装
    drive_mode: # 未実装
       torque_on_by_goal_update: []
       profile_configuration: []
@@ -409,7 +412,15 @@ extra: # DynamixelExtraWrite型, 未実装
    shadow_id: [] # 未実装
    moving_threshold_deg_s: [] # 未実装
    status_return_level: [] # 未実装
-   registered_instruction: [] # 未実装  
+   moving_status: # 未実装
+      velocity_profile: []
+      following_error: []
+      profile_ongoing: []
+      in_posision: []
+   realtime_tick_us: [] # 未実装
+   moving: [] # 未実装
+   registered_instruction: [] # 未実装
+   reboot: [] # 未実装 
 ```
 
 ### `dynamixel_handler::msg::DxlCommandsP` type
@@ -423,24 +434,24 @@ dynamixel_handler/DynamixelControlPExtendedPosition extended_position_control
 dynamixel_handler/DynamixelStatus status
 dynamixel_handler/DynamixelGain   gain
 dynamixel_handler/DynamixelLimit  limit
-dynamixel_handler/DynamixelExtraWrite  extra
+dynamixel_handler/DynamixelExtra  extra
 ```
 
-### `dynamixel_handler::msg::DxlCommandsXP` type
+### `dynamixel_handler::msg::DxlCommandsAll` type
  `/dynamixel/commands/p` topic の型．
 ```cpp
 dynamixel_handler/DynamixelStatus status
 dynamixel_handler/DynamixelGain   goal
 dynamixel_handler/DynamixelGain   gain
 dynamixel_handler/DynamixelLimit  limit
-dynamixel_handler/DynamixelExtraWrite  extra
+dynamixel_handler/DynamixelExtra  extra
 ```
 
 ### その他のコマンドライン用トピックの型定義
 
 #### `DynamixelShortcut` type
 トルクのオンオフなどのコマンドを送るtopic `/dynamixel/shortcut` の型．
-   ```cpp
+   ```yml
    string   command
    uint16[]  id_list
    # === high level commands : ユーザの利用を想定 ===
@@ -458,9 +469,9 @@ dynamixel_handler/DynamixelExtraWrite  extra
    ```
 各コマンドの内容はmsgの定数として定義されており，プログラム内から扱う場合，以下の様に記述できる．
    ```cpp
-   dynamixel_handler::msg::DxlCommandsX cmd;
-   cmd.common.command = cmd.common.TORQUE_ON; // typoはコンパイラが教えてくれる．
-   // cmd.common.command = "torque_on"; // もちろんこれもOKだが，typoのリスクがある．
+   dynamixel_handler::msg::DynamixelShortcut msg;
+   msg.command = msg.TORQUE_ON; // typoはコンパイラが教えてくれる．
+   // msg.command = "torque_on"; // もちろんこれもOKだが，typoのリスクがある．
    ```
 また，括弧内はalias．すなわち，`command="clear_error"`とするのと`command="CE"`とするのは同じ．
 
@@ -477,7 +488,6 @@ Xシリーズを電流制御モードで動かすためのtopic `/dynamixel/comm
    uint16[] id_list
    float64[] current_mA
    ```
-
 
 #### `DynamixelControlXVelocity` type
 Xシリーズを速度制御モードで動かすためのtopic　`/dynamixel/command/x/velocity_control`の型
@@ -520,7 +530,7 @@ Xシリーズを電流制限付き位置制御モードで動かすためのtopi
 #### `DynamixelStatus` type
 `/dynamixel/command/status` 
 `/dynamixel/state/status`
-   ```cpp
+   ```yml
    uint16[] id_list
    bool[] torque
    bool[] error

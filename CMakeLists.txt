@@ -16,6 +16,7 @@ set(msg_files
   "msg/DxlStates.msg"
   "msg/DxlCommandsX.msg"
   "msg/DxlCommandsP.msg"
+  "msg/DxlCommandsAll.msg"
 
   "msg/DynamixelStatus.msg"
   "msg/DynamixelPresent.msg"
@@ -32,8 +33,8 @@ set(msg_files
 
   "msg/DynamixelDebug.msg"
   "msg/DynamixelDebugElement.msg"
+  "msg/DynamixelShortcut.msg"
   
-  "msg/DynamixelCommonCmd.msg"
   "msg/DynamixelControlXPwm.msg"
   "msg/DynamixelControlXCurrent.msg"
   "msg/DynamixelControlXVelocity.msg"

@@ -315,7 +315,8 @@ position_deg: # 現在の角度と目標角度
   - `status`: `/dynamixel/command/status` に相当  
   - `gain`: `/dynamixel/command/gain` に相当  
   - `limit`: `/dynamixel/command/limit` に相当
-- **`/dynamixel/commands/xp`** (`DxlCommandsXP`型)  
+
+- **`/dynamixel/commands/all`** (`DxlCommandsAll`型)  
   X,Pシリーズを共通で扱うためのトピック. 以下のフィールドからなる：
   - `status`: `/dynamixel/command/status` に相当  
   - `goal`: `/dynamixel/command/goal` に相当  

@@ -8,6 +8,7 @@
 #include "dynamixel_handler/msg/dxl_states.hpp"
 #include "dynamixel_handler/msg/dxl_commands_x.hpp"
 #include "dynamixel_handler/msg/dxl_commands_p.hpp"
+#include "dynamixel_handler/msg/dxl_commands_all.hpp"
 
 #include "dynamixel_handler/msg/dynamixel_status.hpp"
 #include "dynamixel_handler/msg/dynamixel_present.hpp"
@@ -17,9 +18,6 @@
 #include "dynamixel_handler/msg/dynamixel_limit.hpp"
 #include "dynamixel_handler/msg/dynamixel_extra.hpp"
 
-#include "dynamixel_handler/msg/dynamixel_debug.hpp"
-
-#include "dynamixel_handler/msg/dynamixel_common_cmd.hpp"
 #include "dynamixel_handler/msg/dynamixel_control_x_pwm.hpp"
 #include "dynamixel_handler/msg/dynamixel_control_x_current.hpp"
 #include "dynamixel_handler/msg/dynamixel_control_x_velocity.hpp"
@@ -31,6 +29,10 @@
 #include "dynamixel_handler/msg/dynamixel_control_p_velocity.hpp"
 #include "dynamixel_handler/msg/dynamixel_control_p_current.hpp"
 #include "dynamixel_handler/msg/dynamixel_control_p_extended_position.hpp"
+
+#include "dynamixel_handler/msg/dynamixel_debug.hpp"
+#include "dynamixel_handler/msg/dynamixel_shortcut.hpp"
+
 using namespace dynamixel_handler::msg;
 
 #include <string>
@@ -76,7 +78,7 @@ class DynamixelHandler : public rclcpp::Node {
         DynamixelLimit BroadcastState_Limit();
         DynamixelError BroadcastState_Error();
         // void BroadcastStateExtra();  // todo
-        void CallbackCmd_Common                (const DynamixelCommonCmd& msg);
+        void CallbackShortcut                (const DynamixelShortcut& msg);
         void CallbackCmd_X_Pwm                 (const DynamixelControlXPwm& msg);
         void CallbackCmd_X_Current             (const DynamixelControlXCurrent& msg);
         void CallbackCmd_X_Velocity            (const DynamixelControlXVelocity& msg);
@@ -95,9 +97,9 @@ class DynamixelHandler : public rclcpp::Node {
         // void CallbackExtra (const DynamixelExtra& msg);  // todo
         void CallbackCmdsX               (const DxlCommandsX::SharedPtr msg);
         void CallbackCmdsP               (const DxlCommandsP::SharedPtr msg);
+        void CallbackCmdsAll             (const DxlCommandsAll::SharedPtr msg);
 
         //* ROS publisher subscriber instance
-        rclcpp::Publisher<DynamixelDebug>::SharedPtr   pub_debug_;
         rclcpp::Publisher<DynamixelStatus>::SharedPtr  pub_status_;
         rclcpp::Publisher<DynamixelPresent>::SharedPtr pub_present_;
         rclcpp::Publisher<DynamixelGoal>::SharedPtr    pub_goal_;
@@ -105,7 +107,8 @@ class DynamixelHandler : public rclcpp::Node {
         rclcpp::Publisher<DynamixelLimit>::SharedPtr   pub_limit_;
         rclcpp::Publisher<DynamixelError>::SharedPtr   pub_error_;
         rclcpp::Publisher<DxlStates>::SharedPtr  pub_dxl_states_;
-        rclcpp::Subscription<DynamixelCommonCmd>::SharedPtr sub_common_;
+        rclcpp::Publisher<DynamixelDebug>::SharedPtr   pub_debug_;
+        rclcpp::Subscription<DynamixelShortcut>::SharedPtr sub_shortcut_;
         rclcpp::Subscription<DynamixelControlXPwm>::SharedPtr                 sub_ctrl_x_pwm_;
         rclcpp::Subscription<DynamixelControlXCurrent>::SharedPtr             sub_ctrl_x_cur_;
         rclcpp::Subscription<DynamixelControlXVelocity>::SharedPtr            sub_ctrl_x_vel_;
@@ -123,6 +126,7 @@ class DynamixelHandler : public rclcpp::Node {
         rclcpp::Subscription<DynamixelLimit>::SharedPtr   sub_limit_;
         rclcpp::Subscription<DxlCommandsX>::SharedPtr sub_dxl_x_cmds_;
         rclcpp::Subscription<DxlCommandsP>::SharedPtr sub_dxl_p_cmds_;
+        rclcpp::Subscription<DxlCommandsAll>::SharedPtr sub_dxl_all_cmds_;
   
         //* 各種のフラグとパラメータ
         unsigned int  loop_rate_ = 50;

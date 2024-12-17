@@ -1,4 +1,3 @@
-dynamixel_handler/DynamixelCommonCmd common
 dynamixel_handler/DynamixelControlXPwm pwm_control
 dynamixel_handler/DynamixelControlXCurrent current_control
 dynamixel_handler/DynamixelControlXVelocity velocity_control
@@ -6,7 +5,6 @@ dynamixel_handler/DynamixelControlXPosition position_control
 dynamixel_handler/DynamixelControlXExtendedPosition extended_position_control
 dynamixel_handler/DynamixelControlXCurrentBasePosition current_base_position_control
 dynamixel_handler/DynamixelStatus status
-dynamixel_handler/DynamixelGoal goal
 dynamixel_handler/DynamixelGain gain
 dynamixel_handler/DynamixelLimit limit
 dynamixel_handler/DynamixelExtra extra
