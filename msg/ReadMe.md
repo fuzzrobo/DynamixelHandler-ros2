@@ -153,19 +153,20 @@ dynamixel_handler::msg::DxlCommandsX cmd;
 // id = 1,2,3 のサーボを **torque_on**.
 cmd.satatus.set__id_list( {1,2,3} )
            .set__torque( {true, true, true} );
-pub_dxl_cmd_->publish( cmd );
-
 // id:1 のサーボを電流制御モードで50degに移動
 cmd.current_base_position_control.id_list.push_back(1);
 cmd.current_base_position_control.position_deg.push_back(50);
-pub_dxl_cmd_->publish( cmd );
-
 // id:2 のサーボのdゲインを50に設定
 cmd.gain.id_list.push_back(2); 
 cmd.gain.position_d_gain_pulse.push_back(50.0); 
-pub_dxl_cmd_->publish( cmd );
 
+pub_dxl_cmd_->publish( cmd );
+// =======================================
 // より実践的には以下のように使う
+#include "dynamixel_handler/msg/dxl_commands_x.hpp"
+#include <map>
+#include <tuple>
+dynamixel_handler::msg::DxlCommandsX cmd;
 std::map<uint8_t, std::tuple<float, float>> target_map = {
    {1, {50.0, 0.0}},
    {2, {100.0, 0.0}},
@@ -184,11 +185,11 @@ pub_dxl_cmd_->publish( cmd );
 
 #### コマンドラインでの使用
 ```bash
-ros2 topic pub /dynamixel/shortcut dynamixel_handler/msg/DynamixelShortcut \
+$ ros2 topic pub /dynamixel/shortcut dynamixel_handler/msg/DynamixelShortcut \
 "command: 'torque_on'
 id_list: [1,2,3,4]" -1
 
-ros2 topic pub /dynamixel/command/current_base_position_control dynamixel_handler/msg/DynamixelControlXCurrentPosition \
+$ ros2 topic pub /dynamixel/command/current_base_position_control dynamixel_handler/msg/DynamixelControlXCurrentPosition \
 "id_list: [1,2,3,4]
 current_ma: [0.0, 0.0, 0.0, 0.0]
 position_deg: [0.0, 0.0, 0.0, 0.0]
@@ -629,6 +630,7 @@ for ( size_t i = 0; i < msg.id_list.size(); i++ ) {
 }
 printf("magnet sensor is %d\n", val_magnet);
 ```
+
 `dynamixel_handler::msg::ExternalPort` の中身
 ```yaml
 $ ros2 topic echo --flow-style /dynamixel/ex_port/write # ex_port型
