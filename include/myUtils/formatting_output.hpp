@@ -32,9 +32,9 @@ template <typename T>
 static string id_list_layout(const vector<T>& id_list, const string& header=" ID"){
     std::stringstream ss;
     ss << header << ": [ "; 
-    for ( auto id : id_list ) {
-        ss << (int)id; 
-        if ( id != id_list.back()) ss << ", ";
+    for ( size_t i = 0; i < id_list.size(); i++ ) {
+        if ( i != 0 ) ss << ", ";
+        ss << (int)id_list[i]; 
     }
     ss << " ]";
     return ss.str();

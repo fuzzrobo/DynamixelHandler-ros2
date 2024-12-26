@@ -41,7 +41,7 @@ void DynamixelHandler::CallbackCmdsAll(const DxlCommandsAll::SharedPtr msg) {
 void DynamixelHandler::CallbackShortcut(const DynamixelShortcut& msg) {
     if ( msg.command=="" ) return;
     if (verbose_callback_ ) {
-        ROS_INFO_STREAM(id_list_layout(msg.id_list, "Common cmd, ID"));
+        ROS_INFO_STREAM(id_list_layout(msg.id_list, "Shortcut, ID"));
         ROS_INFO(" command [%s] (ID=[] or [254] means all IDs)", msg.command.c_str());
     }
     // msg.id_list内をもとに，処理用のIDリストを作成
@@ -71,7 +71,7 @@ void DynamixelHandler::CallbackCmd_Status(const DynamixelStatus& msg) {
     const bool has_mode   = msg.id_list.size() == msg.mode.size()  ;
     if (verbose_callback_ ) {
         ROS_INFO("Status cmd, '%zu' servo(s) are tryed to updated", valid_id_list.size());
-        ROS_INFO_STREAM(id_list_layout(valid_id_list, "  ID"));
+        ROS_INFO_STREAM(id_list_layout(valid_id_list, "  ID")); // valid_id_list はここで必要なので，わざわざ独立したvectorとして用意している
         if ( has_torque ) ROS_INFO("  - updated: torque"); else if ( !msg.torque.empty() ) ROS_WARN("  - skipped: torque (size mismatch)");
         if ( has_error  ) ROS_INFO("  - updated: error "); else if ( !msg.error .empty() ) ROS_WARN("  - skipped: error  (size mismatch)");
         if ( has_ping   ) ROS_INFO("  - updated: ping  "); else if ( !msg.ping  .empty() ) ROS_WARN("  - skipped: ping   (size mismatch)");
@@ -156,10 +156,10 @@ void DynamixelHandler::CallbackCmd_X_CurrentBasePosition(const DynamixelControlX
         if ( auto& ID=id_list[i]; series_[ID] == SERIES_X ) ChangeOperatingMode(ID, OPERATING_MODE_CURRENT_BASE_POSITION);
         else { if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID); ID = 255;} // 不適なseriesの場合はid=255にして，以降，無視されるようにする
     vector<double> position_deg(msg.position_deg);
-    if ( size_t N_rot=msg.rotation.size(); N_rot==id_list.size() ) {
+    if ( size_t N_rot=msg.rotation.size(); N_rot==0 || N_rot==id_list.size() ) {
         if (position_deg.size() < N_rot) position_deg.resize(N_rot); // 0埋め拡張
         for ( size_t i=0; i<N_rot; i++ ) position_deg[i] += msg.rotation[i]*360;
-    } else { if (verbose_callback_) ROS_WARN("  Field [rotation] is size mismatch");}
+    } else { if (verbose_callback_) ROS_WARN("   Field [rotation] is size mismatch");}
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__current_ma(msg.current_ma)
         .set__position_deg(position_deg)
@@ -176,10 +176,10 @@ void DynamixelHandler::CallbackCmd_X_ExtendedPosition(const DynamixelControlXExt
         if ( auto& ID=id_list[i]; series_[ID] == SERIES_X ) ChangeOperatingMode(ID, OPERATING_MODE_EXTENDED_POSITION);
         else { if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID); ID = 255;} // 不適なseriesの場合はid=255にして，以降，無視されるようにする
     vector<double> position_deg(msg.position_deg);
-    if ( size_t N_rot=msg.rotation.size(); N_rot==id_list.size() ) {
+    if ( size_t N_rot=msg.rotation.size(); N_rot==0 || N_rot==id_list.size() ) {
         if (position_deg.size() < N_rot) position_deg.resize(N_rot); // 0埋め拡張
         for ( size_t i=0; i<N_rot; i++ ) position_deg[i] += msg.rotation[i]*360;
-    } else { if (verbose_callback_) ROS_WARN("  Field [rotation] is size mismatch");}
+    } else { if (verbose_callback_) ROS_WARN("   Field [rotation] is size mismatch");}
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__position_deg(position_deg)
         .set__profile_vel_deg_s(msg.profile_vel_deg_s)
@@ -248,10 +248,10 @@ void DynamixelHandler::CallbackCmd_P_ExtendedPosition(const DynamixelControlPExt
         if ( auto& ID=id_list[i]; series_[ID] == SERIES_P ) ChangeOperatingMode(ID, OPERATING_MODE_EXTENDED_POSITION);
         else { if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID); ID = 255;} // 不適なseries の場合はid=255にして，以降，無視されるようにする
     vector<double> position_deg(msg.position_deg);
-    if ( size_t N_rot=msg.rotation.size(); N_rot==id_list.size() ) {
+    if ( size_t N_rot=msg.rotation.size(); N_rot==0 || N_rot==id_list.size() ) {
         if (position_deg.size() < N_rot) position_deg.resize(N_rot); // 0埋め拡張
         for ( size_t i=0; i<N_rot; i++ ) position_deg[i] += msg.rotation[i]*360;
-    } else { if (verbose_callback_) ROS_WARN("  Field [rotation] is size mismatch");}
+    } else { if (verbose_callback_) ROS_WARN("   Field [rotation] is size mismatch");}
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__current_ma(msg.current_ma)
         .set__position_deg(position_deg)
@@ -273,7 +273,7 @@ void DynamixelHandler::CallbackCmd_Goal(const DynamixelGoal& msg) { // mutex_goa
     size_t n_vel = msg.velocity_deg_s.size(), n_pa  = msg.profile_acc_deg_ss.size();
     if ( verbose_callback_ ) {
         ROS_INFO("Goal cmd '%zu' servo(s) are tried to update", valid_id_list.size());
-        ROS_INFO_STREAM(id_list_layout(valid_id_list, "  ID"));
+        ROS_INFO_STREAM(id_list_layout(valid_id_list, "  ID")); // valid_id_list はここで必要なので，わざわざ独立したvectorとして用意している
         if (N==n_pwm) ROS_INFO("  - updated: goal pwm     "); else if ( n_pwm>0 ) ROS_WARN("  - skieped: goal pwm      (size mismatch)");
         if (N==n_cur) ROS_INFO("  - updated: goal current "); else if ( n_cur>0 ) ROS_WARN("  - skieped: goal current  (size mismatch)");
         if (N==n_vel) ROS_INFO("  - updated: goal velocity"); else if ( n_vel>0 ) ROS_WARN("  - skieped: goal velocity (size mismatch)");
@@ -322,7 +322,7 @@ void DynamixelHandler::CallbackCmd_Gain(const DynamixelGain& msg) { // mutex_gai
     size_t n_fa = msg.feedforward_2nd_gain_pulse.size(), n_fv = msg.feedforward_1st_gain_pulse.size();
     if ( verbose_callback_ ) {
         ROS_INFO("Gain cmd, '%zu' servo(s) are tried to update", valid_id_list.size());
-        ROS_INFO_STREAM(id_list_layout(valid_id_list, "  ID"));
+        ROS_INFO_STREAM(id_list_layout(valid_id_list, "  ID")); // valid_id_list はここで必要なので，わざわざ独立したvectorとして用意している
         if (N==n_vi) ROS_INFO("  - updated: velocity i gain "); else if ( n_vi>0 ) ROS_WARN("  - skieped: velocity i gain (size mismatch)");
         if (N==n_vp) ROS_INFO("  - updated: velocity p gain "); else if ( n_vp>0 ) ROS_WARN("  - skieped: velocity p gain (size mismatch)");
         if (N==n_pd) ROS_INFO("  - updated: position d gain "); else if ( n_pd>0 ) ROS_WARN("  - skieped: position d gain (size mismatch)");
@@ -369,7 +369,7 @@ void DynamixelHandler::CallbackCmd_Limit(const DynamixelLimit& msg) { // mutex_l
     size_t n_maxp = msg.max_position_limit_deg   .size(), n_minp = msg.min_position_limit_deg   .size();
     if ( verbose_callback_ ) {
         ROS_INFO("Limit cmd, '%zu' servo(s) are tried to update", valid_id_list.size());
-        ROS_INFO_STREAM(id_list_layout(valid_id_list, "  ID"));
+        ROS_INFO_STREAM(id_list_layout(valid_id_list, "  ID")); // valid_id_list はここで必要なので，わざわざ独立したvectorとして用意している
         if (N==n_temp) ROS_INFO("  - updated: temperature limit "); else if ( n_temp>0 ) ROS_WARN("  - skieped: temperature limit  (size mismatch)");
         if (N==n_maxv) ROS_INFO("  - updated: max voltage limit "); else if ( n_maxv>0 ) ROS_WARN("  - skieped: max voltage limit  (size mismatch)");
         if (N==n_minv) ROS_INFO("  - updated: min voltage limit "); else if ( n_minv>0 ) ROS_WARN("  - skieped: min voltage limit  (size mismatch)");

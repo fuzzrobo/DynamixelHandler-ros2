@@ -33,7 +33,7 @@ template <typename Addr> void DynamixelHandler::SyncWriteGoal(set<GoalIndex> goa
             default: /*ここに来たらエラ-*/ ROS_STOP("Unknown GoalIndex");
         }
         const auto& addr = goal_addr_list.back();
-        for (auto id : updated_id_goal_) if ( series_[id]==Addr::series() )
+        for (auto id : updated_id_goal) if ( series_[id]==Addr::series() )
             id_goal_vec_map[id].push_back( addr.val2pulse( goal_w_[id][goal], model_[id] ) );
     }
     if ( id_goal_vec_map.empty() ) return; // 書き込むデータがない場合は即時return
@@ -159,12 +159,12 @@ using std::chrono::microseconds;
  * @param present_indice_read 読み込む状態値のEnumのリスト
  * @return 読み取りの成功率, なんで再帰で頑張って実装してるんだろう．．．
 */
-template <>double DynamixelHandler::SyncReadPresent(set<PresentIndex> present_indice_read, const set<uint8_t>& id_set ){
+template <>double DynamixelHandler::SyncReadPresent(set<PresentIndex> present_indice_read, const set<id_t>& id_set ){
     double suc_rate_X = SyncReadPresent<AddrX>(present_indice_read, id_set);
     double suc_rate_P = SyncReadPresent<AddrP>(present_indice_read, id_set);
     return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / (num_[SERIES_X]+num_[SERIES_P]);
 }
-template <typename Addr> double DynamixelHandler::SyncReadPresent(set<PresentIndex> present_indice_read, const set<uint8_t>& id_set ){
+template <typename Addr> double DynamixelHandler::SyncReadPresent(set<PresentIndex> present_indice_read, const set<id_t>& id_set ){
     if ( present_indice_read.empty() ) return 1.0; // 空なら即時return
     //* 読み込む範囲のstate_addr_listのインデックスを取得
     auto [start, end] = minmax_element(present_indice_read.begin(), present_indice_read.end());
@@ -226,12 +226,12 @@ template <typename Addr> double DynamixelHandler::SyncReadPresent(set<PresentInd
  * @brief ハードウェアエラーを読み込む
  * @return 読み取りの成功率
 */
-template <> double DynamixelHandler::SyncReadHardwareErrors(const set<uint8_t>& id_set){
+template <> double DynamixelHandler::SyncReadHardwareErrors(const set<id_t>& id_set){
     double suc_rate_X = SyncReadHardwareErrors<AddrX>(id_set);
     double suc_rate_P = SyncReadHardwareErrors<AddrP>(id_set);
     return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / (num_[SERIES_X]+num_[SERIES_P]);
 }
-template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(const set<uint8_t>& id_set){
+template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(const set<id_t>& id_set){
     if ( !has_any_hardware_error_ ) { hardware_err_.clear(); return 1.0; } // 事前にエラーが検出できていない場合は省略
 
     vector<uint8_t> target_id_list;
@@ -277,12 +277,12 @@ template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(const s
  * @brief ゲインをすべて読み込む
  * @return 読み取りの成功率
 */
-template <> double DynamixelHandler::SyncReadGain(set<GainIndex> gain_indice_read, const set<uint8_t>& id_set){
+template <> double DynamixelHandler::SyncReadGain(set<GainIndex> gain_indice_read, const set<id_t>& id_set){
     double suc_rate_X = SyncReadGain<AddrX>(gain_indice_read, id_set);
     double suc_rate_P = SyncReadGain<AddrP>(gain_indice_read, id_set);
     return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / (num_[SERIES_X]+num_[SERIES_P]);
 }
-template <typename Addr> double DynamixelHandler::SyncReadGain(set<GainIndex> gain_indice_read, const set<uint8_t>& id_set){
+template <typename Addr> double DynamixelHandler::SyncReadGain(set<GainIndex> gain_indice_read, const set<id_t>& id_set){
     if ( gain_indice_read.empty() ) return 1.0; // 空なら即時return
     //* 読み込む範囲のgain_addr_listのインデックスを取得
     auto [start, end] = minmax_element(gain_indice_read.begin(), gain_indice_read.end());
@@ -344,12 +344,12 @@ template <typename Addr> double DynamixelHandler::SyncReadGain(set<GainIndex> ga
  * @brief 制限値をすべて読み込む
  * @return 読み取りの成功率
 */
-template <> double DynamixelHandler::SyncReadLimit(set<LimitIndex> limit_indice_read, const set<uint8_t>& id_set){
+template <> double DynamixelHandler::SyncReadLimit(set<LimitIndex> limit_indice_read, const set<id_t>& id_set){
     double suc_rate_X = SyncReadLimit<AddrX>(limit_indice_read, id_set);
     double suc_rate_P = SyncReadLimit<AddrP>(limit_indice_read, id_set);
     return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / (num_[SERIES_X]+num_[SERIES_P]);
 }
-template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> limit_indice_read, const set<uint8_t>& id_set){
+template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> limit_indice_read, const set<id_t>& id_set){
     if ( limit_indice_read.empty() ) return 1.0; // 空なら即時return
     //* 読み込む範囲のlimit_addr_listのインデックスを取得
     auto [start, end] = minmax_element(limit_indice_read.begin(), limit_indice_read.end());
@@ -413,12 +413,12 @@ template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> 
  * @brief 目標値をすべて読み込む
  * @return 読み取りの成功率
 */
-template <> double DynamixelHandler::SyncReadGoal(set<GoalIndex> goal_indice_read, const set<uint8_t>& id_set){
+template <> double DynamixelHandler::SyncReadGoal(set<GoalIndex> goal_indice_read, const set<id_t>& id_set){
     double suc_rate_X = SyncReadGoal<AddrX>(goal_indice_read, id_set);
     double suc_rate_P = SyncReadGoal<AddrP>(goal_indice_read, id_set);
     return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / (num_[SERIES_X]+num_[SERIES_P]);
 }
-template <typename Addr> double DynamixelHandler::SyncReadGoal(set<GoalIndex> goal_indice_read, const set<uint8_t>& id_set){
+template <typename Addr> double DynamixelHandler::SyncReadGoal(set<GoalIndex> goal_indice_read, const set<id_t>& id_set){
     if ( goal_indice_read.empty() ) return 1.0; // 空なら即時return
     //* 読み込む範囲のgoal_addr_listのインデックスを取得
     auto [start, end] = minmax_element(goal_indice_read.begin(), goal_indice_read.end());
@@ -474,11 +474,11 @@ template <typename Addr> double DynamixelHandler::SyncReadGoal(set<GoalIndex> go
 }
 
 // 全てのモータの動作を停止させる．
-template <> void DynamixelHandler::StopDynamixels(const set<uint8_t>& id_set){
+template <> void DynamixelHandler::StopDynamixels(const set<id_t>& id_set){
     StopDynamixels<AddrX>(id_set);
     StopDynamixels<AddrP>(id_set);
 } 
-template <typename Addr> void DynamixelHandler::StopDynamixels(const set<uint8_t>& id_set){
+template <typename Addr> void DynamixelHandler::StopDynamixels(const set<id_t>& id_set){
     vector<uint8_t> id_list; 
     for (auto id : id_set) if ( series_[id]==Addr::series() ) id_list.push_back(id);
     auto offset_pulse_now = dyn_comm_.SyncRead(Addr::homing_offset, id_list);
@@ -491,7 +491,7 @@ template <typename Addr> void DynamixelHandler::StopDynamixels(const set<uint8_t
                                        : Addr::series()==SERIES_P ? "P series" : "Unknown");
 }
 
-template <> void DynamixelHandler::CheckDynamixels(const set<uint8_t>& id_set){
+template <> void DynamixelHandler::CheckDynamixels(const set<id_t>& id_set){
     has_hardware_error_.clear();
     CheckDynamixels<AddrX>(id_set);
     has_any_hardware_error_ = dyn_comm_.hardware_error_last_read();
@@ -499,7 +499,7 @@ template <> void DynamixelHandler::CheckDynamixels(const set<uint8_t>& id_set){
     has_any_hardware_error_ |= dyn_comm_.hardware_error_last_read();
     if ( has_any_hardware_error_ ) ROS_WARN( "Hardware Error are detected");
 }
-template <typename Addr> void DynamixelHandler::CheckDynamixels(const set<uint8_t>& id_set){
+template <typename Addr> void DynamixelHandler::CheckDynamixels(const set<id_t>& id_set){
     vector<uint8_t> target_id_list;
     for (int id : id_set) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
     if ( target_id_list.empty() ) return; // 読み込むデータがない場合は即時return
