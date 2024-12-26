@@ -1,4 +1,5 @@
 #include "dynamixel_handler.hpp"
+#include "optional_function/external_port.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "myUtils/logging_like_ros1.hpp"
 #include "myUtils/make_iterator_convenient.hpp"
@@ -109,18 +110,18 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     sub_shortcut_ = create_subscription<DynamixelShortcut>("dynamixel/shortcut", 4, bind(&DynamixelHandler::CallbackShortcut, this, _1));
     pub_debug_ = create_publisher<DynamixelDebug>("dynamixel/debug", 4);
     if ( !no_use_command_line ){ // コマンドラインからの操作用
-            sub_ctrl_x_pwm_  = create_subscription<DynamixelControlXPwm>                 ("dynamixel/command/x/pwm_control",                   4, bind(&DynamixelHandler::CallbackCmd_X_Pwm, this, _1));
-            sub_ctrl_x_cur_  = create_subscription<DynamixelControlXCurrent>             ("dynamixel/command/x/current_control",               4, bind(&DynamixelHandler::CallbackCmd_X_Current, this, _1));
-            sub_ctrl_x_vel_  = create_subscription<DynamixelControlXVelocity>            ("dynamixel/command/x/velocity_control",              4, bind(&DynamixelHandler::CallbackCmd_X_Velocity, this, _1));
-            sub_ctrl_x_pos_  = create_subscription<DynamixelControlXPosition>            ("dynamixel/command/x/position_control",              4, bind(&DynamixelHandler::CallbackCmd_X_Position, this, _1));
-            sub_ctrl_x_epos_ = create_subscription<DynamixelControlXExtendedPosition>    ("dynamixel/command/x/extended_position_control",     4, bind(&DynamixelHandler::CallbackCmd_X_ExtendedPosition, this, _1));
-            sub_ctrl_x_cpos_ = create_subscription<DynamixelControlXCurrentBasePosition> ("dynamixel/command/x/current_base_position_control", 4, bind(&DynamixelHandler::CallbackCmd_X_CurrentBasePosition, this, _1));
+        sub_ctrl_x_pwm_  = create_subscription<DynamixelControlXPwm>                 ("dynamixel/command/x/pwm_control",                   4, bind(&DynamixelHandler::CallbackCmd_X_Pwm, this, _1));
+        sub_ctrl_x_cur_  = create_subscription<DynamixelControlXCurrent>             ("dynamixel/command/x/current_control",               4, bind(&DynamixelHandler::CallbackCmd_X_Current, this, _1));
+        sub_ctrl_x_vel_  = create_subscription<DynamixelControlXVelocity>            ("dynamixel/command/x/velocity_control",              4, bind(&DynamixelHandler::CallbackCmd_X_Velocity, this, _1));
+        sub_ctrl_x_pos_  = create_subscription<DynamixelControlXPosition>            ("dynamixel/command/x/position_control",              4, bind(&DynamixelHandler::CallbackCmd_X_Position, this, _1));
+        sub_ctrl_x_epos_ = create_subscription<DynamixelControlXExtendedPosition>    ("dynamixel/command/x/extended_position_control",     4, bind(&DynamixelHandler::CallbackCmd_X_ExtendedPosition, this, _1));
+        sub_ctrl_x_cpos_ = create_subscription<DynamixelControlXCurrentBasePosition> ("dynamixel/command/x/current_base_position_control", 4, bind(&DynamixelHandler::CallbackCmd_X_CurrentBasePosition, this, _1));
 
-            sub_ctrl_p_pwm_  = create_subscription<DynamixelControlPPwm>             ("dynamixel/command/p/pwm_control",               4, bind(&DynamixelHandler::CallbackCmd_P_Pwm, this, _1));
-            sub_ctrl_p_cur_  = create_subscription<DynamixelControlPCurrent>         ("dynamixel/command/p/current_control",           4, bind(&DynamixelHandler::CallbackCmd_P_Current, this, _1));
-            sub_ctrl_p_vel_  = create_subscription<DynamixelControlPVelocity>        ("dynamixel/command/p/velocity_control",          4, bind(&DynamixelHandler::CallbackCmd_P_Velocity, this, _1));
-            sub_ctrl_p_pos_  = create_subscription<DynamixelControlPPosition>        ("dynamixel/command/p/position_control",          4, bind(&DynamixelHandler::CallbackCmd_P_Position, this, _1));
-            sub_ctrl_p_epos_ = create_subscription<DynamixelControlPExtendedPosition>("dynamixel/command/p/extended_position_control", 4, bind(&DynamixelHandler::CallbackCmd_P_ExtendedPosition, this, _1));
+        sub_ctrl_p_pwm_  = create_subscription<DynamixelControlPPwm>             ("dynamixel/command/p/pwm_control",               4, bind(&DynamixelHandler::CallbackCmd_P_Pwm, this, _1));
+        sub_ctrl_p_cur_  = create_subscription<DynamixelControlPCurrent>         ("dynamixel/command/p/current_control",           4, bind(&DynamixelHandler::CallbackCmd_P_Current, this, _1));
+        sub_ctrl_p_vel_  = create_subscription<DynamixelControlPVelocity>        ("dynamixel/command/p/velocity_control",          4, bind(&DynamixelHandler::CallbackCmd_P_Velocity, this, _1));
+        sub_ctrl_p_pos_  = create_subscription<DynamixelControlPPosition>        ("dynamixel/command/p/position_control",          4, bind(&DynamixelHandler::CallbackCmd_P_Position, this, _1));
+        sub_ctrl_p_epos_ = create_subscription<DynamixelControlPExtendedPosition>("dynamixel/command/p/extended_position_control", 4, bind(&DynamixelHandler::CallbackCmd_P_ExtendedPosition, this, _1));
 
         sub_status_ = create_subscription<DynamixelStatus>   ("dynamixel/command/status", 4, bind(&DynamixelHandler::CallbackCmd_Status, this, _1));
         sub_goal_   = create_subscription<DynamixelGoal>     ("dynamixel/command/goal",   4, bind(&DynamixelHandler::CallbackCmd_Goal, this, _1));
@@ -141,6 +142,9 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     BroadcastState_Goal();   
     BroadcastState_Error(); 
 
+    bool use_ex_port; get_parameter_or("use/external_port", use_ex_port, false);
+    if ( use_ex_port ) external_port_ = std::make_unique<DxlExternalPort>(*this);
+
     ROS_INFO( "..... DynamixelHandler is initialized");
 }
 
@@ -156,6 +160,9 @@ void DynamixelHandler::MainLoop(){
     static double n_present_suc_p=1, n_present_suc_f=1, n_present_read=1, n_any_read=1;
 
 /* 処理時間時間の計測 */ auto s_total = system_clock::now();
+    //* Additional function
+    if (external_port_) external_port_->MainProccess();
+
     //* topicをSubscribe & Dynamixelへ目標角をWrite
     SyncWriteGoal(goal_indice_write_, updated_id_goal_);
     goal_indice_write_.clear();
@@ -216,7 +223,7 @@ void DynamixelHandler::MainLoop(){
         if ( success_rate[ERROR  ]>0.0 ) msg.error = BroadcastState_Error();
     }
     bool is_any_read = std::any_of( success_rate.begin(), success_rate.end(), [](auto& x){ return x > 0.0; });
-    if ( is_any_read ) {
+    if ( is_any_read ) { 
         n_any_read++;
         BroadcastDebug();
         pub_dxl_states_->publish(msg);

@@ -62,3 +62,5 @@
         verbose/read_limit/raw: false
         verbose/read_limit/err: false
         verbose/read_hardware_error: true
+    # 
+        use/external_port : false

@@ -127,7 +127,7 @@ class DynamixelHandler : public rclcpp::Node {
         rclcpp::Subscription<DxlCommandsX>::SharedPtr sub_dxl_x_cmds_;
         rclcpp::Subscription<DxlCommandsP>::SharedPtr sub_dxl_p_cmds_;
         rclcpp::Subscription<DxlCommandsAll>::SharedPtr sub_dxl_all_cmds_;
-  
+
         //* 各種のフラグとパラメータ
         unsigned int  loop_rate_ = 50;
         unsigned int  ratio_mainloop_   = 100; // 0の時は初回のみ
@@ -287,6 +287,9 @@ class DynamixelHandler : public rclcpp::Node {
         template <typename Addr=AddrCommon> double SyncReadHardwareErrors(const set<id_t>& id_set=id_set_);
         template <typename Addr=AddrCommon> void StopDynamixels (const set<id_t>& id_set=id_set_);
         template <typename Addr=AddrCommon> void CheckDynamixels(const set<id_t>& id_set=id_set_);
+
+        class DxlExternalPort; // XH540とPシリーズに搭載されている外部ポートを使用するためのクラス，実際の宣言と定義は別ファイル
+        std::unique_ptr<DxlExternalPort> external_port_; // 
 };
 
 #endif /* DYNAMIXEL_HANDLER_H */

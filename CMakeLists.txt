@@ -97,12 +97,9 @@ install(
   DESTINATION lib/${PROJECT_NAME}
   )
 
-# ここまで
-
 # 以下の部分は同じPkg内でmsgを定義＆使用を行う場合にい必要な追記
 rosidl_get_typesupport_target(cpp_typesupport_target
   ${PROJECT_NAME} rosidl_typesupport_cpp)
-
 target_link_libraries(dynamixel_unify_baudrate_node "${cpp_typesupport_target}")
 
 # ============================dynamixel_handler==================================
@@ -119,6 +116,9 @@ add_executable(
 	src/dynamixel_handler_ros_interface_pub.cpp
 	src/dynamixel_handler_dyn_interface_loop.cpp
 	src/dynamixel_handler_dyn_interface_once.cpp
+
+  src/optional_function/external_port.cpp
+
 	src/main.cpp
 )
 target_include_directories(
@@ -140,14 +140,14 @@ install(
   TARGETS dynamixel_handler_node
   DESTINATION lib/${PROJECT_NAME}
 )
-# ここまで
 
 # 以下の部分は同じPkg内でmsgを定義＆使用を行う場合にい必要な追記
 rosidl_get_typesupport_target(cpp_typesupport_target
   ${PROJECT_NAME} rosidl_typesupport_cpp)
-
 target_link_libraries(dynamixel_handler_node "${cpp_typesupport_target}")
 # ==================================================================================
+
+
 
 ## ここまで
 
