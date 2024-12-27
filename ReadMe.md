@@ -4,12 +4,12 @@ Robotis社の[Dynamixel](https://e-shop.robotis.co.jp/list.php?c_id=89)をROSか
 
 Dynamixelとやり取りを行うライブラリは[別のリポジトリ](https://github.com/SHINOBI-organization/lib_dynamixel)として管理しており，git submoduleの機能を使って取り込んでいる．
 
-note: ROS2のみ対応
+note: ROS2のみ対応，ROS1 ver は[こちら](https://github.com/ROBOTIS-JAPAN-GIT/DynamixelHandler-ros1).ただし，開発が分離しているので機能はやや異なる．
 
 ## features of this package
  - **Dynamixel制御に特化した最小単位のパッケージ**
-    - **`dynamixel_handler_node`** と **別の制御ノード** を組み合わせて使用  
-    - 他のSDKでは必要となるコードの直接編集が不要  
+    - **`dynamixel_handler_node`** と **別の制御ノード** を組み合わせて使用する．  
+      そのため，このpkgのコードへの直接編集は不要．  
     - コントロールテーブルアドレスや分解能（4096カウント/回転など）を意識する必要なし  
     - サーボが「Joint」なのか「Wheel」なのか、事前の用途区別が不要
   
@@ -95,25 +95,28 @@ source ~/.bashrc # 初回 build 時のみ
 ### 2. dynamixel_handler nodeの起動
 
 #### 2-1. 自分の環境とconfigの設定を合わせる
-config/config_dynamixel_handler.ymlの該当部分を編集し，保存．
-以下はbaudrate: 1000000 かつ device name: /dec/ttyUSB0の場合
+`config/config_dynamixel_handler.yml`の該当部分を編集し，保存．   
+以下は baudrate: $57600$ かつ device name: `/dec/ttyUSB0` かつ latency timer: $16$ ms の場合
 ```yml
 # config/config_dynamixel_handler.launch
 /**:
     ros__parameters:
         # 通信機器の設定
-        device_name: /dev/ttyUSB0 # 通信するデバイス名
-        baudrate: 1000000 # 通信速度
+        device_name: /dev/ttyUSB0 # 通信するデバイス名,
+        baudrate: 57600    # 通信速度, Dynamixelのデフォルトは 57600 bps (で遅い) 
+        latency_timer: 16 # 通信のインターバル, 多くの環境でデフォルトは 16 ms (で遅い)
 ```
 
 通信環境の設定については[Parameters](#parameters)の章の[通信関係の設定](#通信関係の設定)を参照．
 
 #### 2-2. ターミナルから実行
+
 ```bash
 ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 ```
 出力例
 ```bash
+$ ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 # ... 略 ...
 [dynamixel_handler_node-1] 00000.00000: Initializing DynamixelHandler ..... 
 [dynamixel_handler_node-1] Succeeded to open the port : /dev/ttyUSB0!
@@ -139,14 +142,8 @@ ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 [dynamixel_handler_node-1] 00000.00000: Loop [900]: write=0.01ms read=5.30ms(p/f=100%/100%)
 ```
 
-連結したDynamixelが自動で探索され，見つかったDynamixelの初期設定が行われる．
-> [!TIP]
-> 通信状態によっては連結しているのに見つからない場合もある.  
-> baudrateの確認，laytency timer の確認が有効である．  
-> (laytency timer の確認は[LatencyTimer](#latencytimer)を参照．)  
-> また，[Parameters](#parameters) の`dyn_comm/retry_num` を大きくすることでも改善する可能性がある．
-
-初期化時の動作設定については[Parameters](#parameters)の章の[初期化時の動作設定](#初期化時の動作設定)を参照
+連結したDynamixelが自動で探索され，見つかったDynamixelの初期設定が行われる．うまく見つからない場合は[trouble shooting](#trouble-shooting)を参照.     
+初期化時の動作設定については[Parameters](#parameters)の章の[初期化時の動作設定](#初期化時の動作設定)を参照.
 
 ### 3. Dynamixelを制御
 
@@ -253,7 +250,7 @@ position_deg: # 現在の角度と目標角度
 
 さらなる詳細は[メッセージの定義](./msg/ReadMe.md)を参照
 
-## Published Topics (by `dynamixel_handler`)
+## Published Topics
 
 ### プログラム向けの統合的なステータス情報
 
@@ -289,11 +286,11 @@ position_deg: # 現在の角度と目標角度
 - **`/dynamixel/debug`** (`DynamixelDebug`型)  
   デバッグ用トピック(サーボが動作しないときにコマンドラインで状況を確認する目的)
 
-## Subscribed Topics (by `dynamixel_handler`)
+## Subscribed Topics
 
 ### プログラム向け統合コマンド
 
-- **`/dynamixel/commands/x`** (`DxlCommandsX`型) 
+- **`/dynamixel/commands/x`** (`DxlCommandsX`型)    
   Xシリーズ用のコマンドを統合したトピック．以下のフィールドからなる：
   - `pwm_control`: `/dynamixel/command/x/pwm_control` に相当  
   - `current_control`: `/dynamixel/command/x/current_control` に相当  
@@ -305,7 +302,7 @@ position_deg: # 現在の角度と目標角度
   - `gain`: `/dynamixel/command/gain` に相当  
   - `limit`: `/dynamixel/command/limit` に相当
 
-- **`/dynamixel/commands/p`** (`DxlCommandsP`型) 
+- **`/dynamixel/commands/p`** (`DxlCommandsP`型)    
   Pシリーズ用のコマンドを統合したトピック．以下のフィールドからなる： 
   - `pwm_control`: `/dynamixel/command/p/pwm_control` に相当  
   - `current_control`: `/dynamixel/command/p/current_control` に相当  
@@ -679,6 +676,25 @@ present系の8つのアドレスすべてから読み込んでも，同時読み
 ```bash
 source ~/.bashrc
 ```
+
+### nodeを起動してもdynamixelが1つも見つからない場合
+
+1. デバイス名の確認   
+   どんな方法で確認しても良いが，Dynamixelを認識するはずのUSBを抜く前後で `$ ls /dev/ttyUSB*` の出力を比較すれば，少なくとも正しいデバイス名がわかる．
+1. デバイスの実行権限の確認   
+   `$ sudo chmod 777 /dev/{your device name}` として改善すれば実行権限問題であることがわかる．
+1. Dynaimxel側の baudrate の確認    
+   Dynamixel wizardで確認するのが最も確実．とりあえず動くようにするには [dynamixel_unify_baudrate node](#Baudrateの一括変更) で目的のbaudrateに変換してしまうのが良い．
+
+### nodeを起動したときにdynamixelが一部しか見つからない
+
+1. laytency timer の確認    
+   `$ cat /sys/bus/usb-serial/devices/{your device name}/latency_timer` を実行して出てきたデバイス側の latency timer の数値が，ros parameter の `latency_timer` と一致しているかどうかを確認する．  
+   ros parameter 側の値を変えたい場合は config ファイルを修正すればよい．   
+   デバイス側値を変えたい場合は [LatencyTimer](#latencytimer) を参照．
+3. 通信状態が悪すぎる場合   
+   根本的にはケーブルやノイズ等を改善すべきだが，対症療法的に`dyn_comm/retry_num` を大きくすることでも改善する可能性がある．
+   [Parameters](#parameters) の該当パラメータを参照
 
 ### ``cannot publish data``といったようなエラーが出た場合
 デフォルトのDDSはFast-RTPSであるが，固有のバグを持っているらしく，実行時にエラーが発生する．
