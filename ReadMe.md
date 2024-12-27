@@ -16,10 +16,11 @@ note: ROS2のみ対応，ROS1 ver は[こちら](https://github.com/ROBOTIS-JAPA
  - **ROSトピックのみで制御できるシンプルなインターフェース**
     - **Publish**: `/dynamixel/states`  
       - Dynamixelが持つ情報を適切に分類し周期的に読み込み
-        - status: torqueのオンオフ, errorの有無, pingの成功, 制御モード 2Hz (デフォルト)
-        - Present value:current [mA], velocity [deg/s], position [deg]  50Hz (デフォルト)  
+        - Status: torqueのオンオフ, errorの有無, pingの成功, 制御モード 2Hz (デフォルト)
+        - Present value: current [mA], velocity [deg/s], position [deg]  50Hz (デフォルト)
+        - Goal value: pwm [%], current [mA] ... その他 2Hz (デフォルト)
         - Hardware error: 約2Hz (デフォルト)  
-        ※ goal value, limit, gain 等も適宜Publish  
+        ※ limit, gain 等も適宜Publish  
 
     - **Subscribe**: `/dynamixel/commands/x` (他、`/dynamixel/commands/p`など)
       - シリーズごとに定義された制御コマンド (現在 X, Pシリーズ のみ対応) 
@@ -258,10 +259,18 @@ position_deg: # 現在の角度と目標角度
   Xシリーズ・Pシリーズ共通のサーボ状態をまとめたトピック．以下のフィールドからなる：
   - `stamp` : メッセージのタイムスタンプ  
   - `status`: `/dynamixel/state/status` に相当  
-  - `goal`: `/dynamixel/state/goal` に相当  
-  - `gain`: `/dynamixel/state/gain` に相当  
-  - `limit`: `/dynamixel/state/limit` に相当  
-  - `error`: `/dynamixel/state/error` に相当
+  - `goal`  : `/dynamixel/state/goal` に相当  
+  - `gain`  : `/dynamixel/state/gain` に相当  
+  - `limit` : `/dynamixel/state/limit` に相当  
+  - `error` : `/dynamixel/state/error` に相当
+ 
+- **`/dynamixel/external_port/read`** (型)    
+  XH540とPシリーズが持つExternal Port機能を扱うためのトピック．以下のフィールドからなる:
+  - `stamp` : メッセージのタイムスタンプ  
+  - `id_list` : サーボのID
+  - `port` : External Portのポート番号
+  - `mode` : ポートのモード，analog in / digital out / digital in (pull up) / digital in (pull down)のどれか．
+  - `data` : ポートのデータ，モードに応じて 0--4096 (analog in) と 0 or 1 (digital ~) の値をとる．
 
 ### コマンドライン確認用ステータス情報
 
@@ -319,8 +328,17 @@ position_deg: # 現在の角度と目標角度
   - `goal`: `/dynamixel/command/goal` に相当  
   - `gain`: `/dynamixel/command/gain` に相当  
   - `limit`: `/dynamixel/command/limit` に相当  
-    ※ `~_control`系フィールドがないため制御モードの自動変更機能は無し. `status.mode`で個別モードを指定し`goal.~`で各種目標値を与える．
-
+    ※ `~_control`系フィールドがないため制御モードの自動変更機能は無し.    
+    　 `status.mode`で個別モードを指定し`goal.~`で各種目標値を与える．
+    
+- **`/dynamixel/external_port/write`** (型)    
+  XH540とPシリーズが持つExternal Port機能を扱うためのトピック．以下のフィールドからなる:
+  - `stamp` : メッセージのタイムスタンプ  (無効)
+  - `id_list` : 適用するサーボのID
+  - `port` : 適用するExternal Portのポート番号
+  - `mode` : ポートのモード，指定できるmodeは[定数として定義](./msg#dxlexternalport-type)されている．
+  - `data` : ポートのデータ，モードが digital out の場合のみ有効
+   
 ### コマンドライン用個別コマンド
 
 - **Xシリーズ用コマンド**
@@ -340,14 +358,15 @@ position_deg: # 現在の角度と目標角度
 
 - **共通コマンド**  
   - `/dynamixel/command/status` (`DynamixelStatus`型) : サーボの状態(トルク・エラー・通信・制御モード)設定  
-    （制御モードは`~_control`トピックを送ることで自動的に設定）
+    （制御モードについては，各モードの`~_control`トピックを送ることでも自動設定される）
   - `/dynamixel/command/goal` (`DynamixelGoal`型) : 目標値(位置・速度・電流など)の設定  
   - `/dynamixel/command/gain` (`DynamixelGain`型) : 制御ゲイン値の設定  
-  - `/dynamixel/command/limit` (`DynamixelLimit`型) : 制限値(最大速度、最大電流など)の設定
+  - `/dynamixel/command/limit` (`DynamixelLimit`型) : 制限値(最大速度、最大電流など)の設定    
+    ※ limit はROM領域の値なので，書き込む場合torqueが強制的にOFFになることに注意．
 
 - **Status変更用のショートカットコマンド**
   - `/dynamixel/shortcut` (`DynamixelShortcut`型) : Dynamixelの起動、停止、エラー解除などのショートカットコマンド  
-    - `command`: コマンド文字列  
+    - `command`: コマンド文字列, 指定できる文字列は[下記参照](#shortcut-command-list)  
     - `id_list`: 適用するサーボのIDリスト, 省略すると認識されているすべてのIDを選択したのと同等となる．  
 
 #### Shortcut Command list
@@ -513,15 +532,15 @@ cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
 
 ***************************
 
-## Control Table との対応
+## 各種情報の分類とControl Table との対応
 
-以下説明はXシリーズの場合．Pシリーズの場合は適宜読み替えること．
+本パッケージでは，Dynamixelが持つControl table内の情報を，以下の様に分類して扱う．
 
 ### 状態 (status)
  - torque_enable  : `/dynamixel/shortcut`の`command`=`'torque_on'` or `'enable'`で1,`command`=`'torque_off'` or `'disable'`で0に設定される．  
  - (ping)         : Control table ではないが，statusとして扱っている．pingが通るかどうか．
  - (error)        : Control table ではないが，statusとして扱っている．何らかのエラーを持っているかどうか．
- - operating_mode : 対応するtopicのsubで自動で設定される． 
+ - operating_mode : 対応する`/dynamixel/command/x/~_control`系のtopicのsubで自動で設定される． 
 
 ### 目標値 (goal)
  - goal_pwm             : 目標PWM値, PWM制御モードでのみ有効
@@ -531,8 +550,9 @@ cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
  - profile_acceleration : 最大加速度, 速度制御・位置制御・拡張位置制御・電流制御付き位置制御モードで有効
  - profile_velocity     : 目標速度値, 位置制御モードと拡張位置制御モード，電流制御付き位置制御で有効 
 
-`/dynamixel/commands/x` or 対応する`/dynamixel/command/x/~_control`系トピック or `/dynamixel/command/goal`をsubすると設定され，`loop_rate`の周期で書き込まれる．
-また，`/dynamixel/states` or `/dynamixel/state/goal` として `loop_rate`/`pub_ratio/goal` の周期で読みだされ，publishされる．
+Xシリーズの場合，
+`/dynamixel/commands/x` or `/dynamixel/command/x/~_control`系トピック or `/dynamixel/command/goal`によって設定され，`loop_rate`の周期で書き込まれる．   
+また，`/dynamixel/states` or `/dynamixel/state/goal` として `pub_ratio/goal` 毎に1回の周期で読みだされ，publishされる．
 
 ### 現在値 (present)
  - present_pwm          : 現在のPWM値
@@ -544,7 +564,7 @@ cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
  - present_input_voltage: 現在の入力電圧
  - present_temperature  : 現在の温度
 
-書き込みは不可．
+書き込みは不可．   
 `/dynamixel/states` or `/dynamixel/state/present` として `loop_rate`の内`pub_ratio/present/...`の最小値の割合で読みだされ，publishされる．
 
 ### 制限 (limit)
@@ -553,13 +573,15 @@ cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
  - min_voltage_limit     
  - pwm_limit   
  - current_limit   
- - acceleration_limit   
+ - acceleration_limit (読み書きが有効なのはPシリーズのみ)  
  - velocity_limit      
  - max_position_limit    
  - min_position_limit
   
-`/dynamixel/command/limit`をsubすると設定され，`loop_rate`の周期で書き込まれる．
-また，`/dynamixel/states` or `/dynamixel/state/limit` として `loop_rate`/`pub_ratio/limit` の周期で読みだされ，publishされる．
+`/dynamixel/command/limit`によって設定され，`loop_rate`の周期で書き込まれる．    
+また，`/dynamixel/states` or `/dynamixel/state/limit` として `pub_ratio/limit` 毎に1回の周期で読みだされ，publishされる．    
+
+note: ROM領域の値であるため，limitの書き込みが発生する場合は強制的にtorqueをoffにするようになっている．
 
 ### ゲイン (gain)
  - velocity_i_gain       
@@ -570,22 +592,17 @@ cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
  - feedforward_acc_gain  
  - feedforward_vel_gain  
   
-`/dynamixel/command/gain`をsubすると設定され，`loop_rate`の周期で書き込まれる．
-また，`/dynamixel/states` or `/dynamixel/state/gain` として `loop_rate`/`pub_ratio/gain` の周期で読みだされ，publishされる．
+`/dynamixel/command/gain`によって設定され，`loop_rate`の周期で書き込まれる．   
+また，`/dynamixel/states` or `/dynamixel/state/gain` として `pub_ratio/gain` 毎に1回の周期で読みだされ，publishされる．
 
 note: 制御モードによってデフォルト値が異なり，なんとモードを変えると勝手に書き換えられてしまう．制御モードをまたぐ場合の処理については検討中．
 
 ### エラー (error)
  - hardware_error_status  : サーボのハードウェアエラー情報
 
+書き込みは不可．  
 `/dynamixel/state/error`として`loop_rate`のうち，`pub_ratio/error`に一回の周期でpubされる. 
   
-### External Ports
- - external_port_mode_{x}
- - external_port_data_{x}
-
-X540シリーズのみ搭載の機能．topicから制御可能．未実装だがすぐに対応する．
-
 ### その他 (extra)
  - drive_mode             : not support yet
  - return_delay_time      : not support yet
@@ -604,15 +621,19 @@ X540シリーズのみ搭載の機能．topicから制御可能．未実装だ�
 > [!note] 
 > (bus_watchdog の設定値が1以上の時) bus_watchdogの設定値 × 20ms 通信がないと自動で動作停止処理が実行される．homing_offset が設定されている状態でこの動作停止処理が走るとなぜか homing_offsetだけ回転する．
 
+### External Ports
+ - external_port_mode_{1,2,...}
+ - external_port_data_{1,2,...}
+
+X540シリーズとPシリーズのみに搭載される機能．   
+
+
+
 ***************************
 
 ### 未実装機能
- - External Ports関連の実装
- - マルチスレッド化
- - extra topic のread/writeの実装
- - command topic を service にする
-   - 1対1通信になってしまって，利点が少ないのでは？
- - write するタイミングの変更
+ - extra に分類した情報の read/writeの実装
+ - write するタイミングの検討について
    - 現在の方法：sub callback でストアしメインループで write
      - [＋] write回数が抑えられる．
        - 各IDへの command が別の topic に乗ってきても，node 側で 1/roop_late [sec] 分の command をまとめてくれる
