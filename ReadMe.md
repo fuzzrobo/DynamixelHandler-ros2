@@ -15,11 +15,11 @@ note: ROS2のみ対応，ROS1 ver は[こちら](https://github.com/ROBOTIS-JAPA
   
  - **ROSトピックのみで制御できるシンプルなインターフェース**
     - **Publish**: `/dynamixel/states`  
-      - Dynamixelが持つ情報を適切に分類し周期的に読み込み
-        - Status: torqueのオンオフ, errorの有無, pingの成功, 制御モード 2Hz (デフォルト)
-        - Present value: current [mA], velocity [deg/s], position [deg]  50Hz (デフォルト)
-        - Goal value: pwm [%], current [mA] ... その他 2Hz (デフォルト)
-        - Hardware error: 約2Hz (デフォルト)  
+      - Dynamixelが持つ情報を[適切に分類](#各種情報の分類と-control-table-との対応)し周期的に読み込み
+        - Status: torqueのオンオフ, errorの有無, pingの成功, 制御モード (デフォルト 約2Hz)
+        - Present値: current [mA], velocity [deg/s], position [deg] ... など (デフォルト 約50Hz)
+        - Goal値: pwm [%], current [mA] ... など (デフォルト 約10Hz)
+        - Hardware error: Overloadエラー ... など (デフォルト 約2Hz)  
         ※ limit, gain 等も適宜Publish  
 
     - **Subscribe**: `/dynamixel/commands/x` (他、`/dynamixel/commands/p`など)
@@ -67,11 +67,11 @@ note: ROS2のみ対応，ROS1 ver は[こちら](https://github.com/ROBOTIS-JAPA
 ```bash
 cd ~/ros2_ws/src
 # sshの場合
-git clone --recursive git@github.com:SHINOBI-organization/DynamixelHandler-ros2.git dynamixel_handler
+git clone --recursive git@github.com:ROBOTIS-JAPAN-GIT/DynamixelHandler-ros2.git dynamixel_handler
 # httpsの場合
-git clone --recursive https://github.com/SHINOBI-organization/DynamixelHandler-ros2.git dynamixel_handler
+git clone --recursive https://github.com/ROBOTIS-JAPAN-GIT/DynamixelHandler-ros2.git dynamixel_handler
 # 旧バージョンを使いたい場合
-git clone --recursive https://github.com/SHINOBI-organization/DynamixelHandler-ros2.git dynamixel_handler -b v0.1.0
+git clone --recursive https://github.com/ROBOTIS-JAPAN-GIT/DynamixelHandler-ros2.git dynamixel_handler -b ver0.1.0
 ```
 
 ### ビルド
@@ -143,16 +143,17 @@ $ ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 [dynamixel_handler_node-1] 00000.00000: Loop [900]: write=0.01ms read=5.30ms(p/f=100%/100%)
 ```
 
-連結したDynamixelが自動で探索され，見つかったDynamixelの初期設定が行われる．うまく見つからない場合は[trouble shooting](#trouble-shooting)を参照.     
+連結したDynamixelが自動で探索され，見つかったDynamixelの初期設定が行われる．   
+うまく見つからない場合は[trouble shooting](#trouble-shooting)を参照.     
 初期化時の動作設定については[Parameters](#parameters)の章の[初期化時の動作設定](#初期化時の動作設定)を参照.
 
 ### 3. Dynamixelを制御
 
-コマンドラインから指令する用の topic として `/dyanmixel/command/...` と `/dyanmixel/shortcut` が    
+コマンドラインから指令する用の topic として `/dyanmixel/command/...` と `/dyanmixel/shortcut` が，    
 プログラムから指令する用の topic として `/dynamixel/commands/x` が用意されている．     
 
 以下ではコマンドラインから指令を送る場合の例を示す．   
-プログラムから指令を送る場合は [example]() を参照されたい．
+<!-- プログラムから指令を送る場合は [example]() を参照されたい． -->
 
 また，topic の詳細については [Topic](#topic) の章を参照．
 
@@ -173,12 +174,12 @@ ros2 topic pub /dynamixel/shortcut \
  dynamixel_handler/msg/DynamixelShortcut \
  "{command: 'torque_on', id_list: [5]}"
 ```
-ただし，デフォルトでは初期化時に自動でトルクONになっているため不要のはず．
+ただし，デフォルトでは初期化時に自動でトルクONになっているため不要のはず．   
 `/dynamixel/shortcut` topicで使えるコマンドについては，[Topic](#topic) の章を参照．
 
 ### 4. Dynamixelの情報を取得
 
-コマンドラインから確認する用の topic として `/dynamixel/state/...`  と `/dynamixel/debug` topic が    
+コマンドラインから確認する用の topic として `/dynamixel/state/...`  と `/dynamixel/debug` topic が，    
 プログラムから利用する用の topic として `/dynamxiel/states` が一定周期で pub され続けている．   
 
 以下ではコマンドラインから確認する例を示す．   
@@ -191,10 +192,8 @@ topic の詳細については [Topic](#topic) の章を参照．
 ```bash
 ros2 topic echo --flow-style /dynamixel/state/present # status, goal, gain, limit, error... など． 
 ```
-
-出力例
 ```yml
----
+--- # 出力例
 id_list: [5, 6] # 認識されているサーボのID
 pwm_percent: [] # 現在のPWM値
 current_ma: [0.0, -2.69] # 現在の電流値
@@ -206,6 +205,7 @@ temperature_degc: [] # 現在の温度
 input_voltage_v: [] # 現在の入力電圧
 ---
 ```
+上記は電流，速度，位置を読み込むように設定した場合であり，
 read & pub される情報の選択については[Parameters](#parameters)の章の[実行時の動作設定](#実行時の動作設定)を参照．
 
 #### 例: ID:1, 6, 7, 8, 9のモータが接続している場合のデバック用情報の確認
@@ -213,10 +213,8 @@ read & pub される情報の選択については[Parameters](#parameters)の�
 ```bash
 ros2 topic echo --flow-style /dynamixel/debug
 ```
-
-出力例
 ```yml
----
+--- # 出力例
 status: # /dynamixel/state/status と同じ
   id_list: [1, 6, 7, 8, 9] # 認識されているサーボのID
   torque: [true, true, true, true, true] # トルクがONかOFFか
@@ -234,6 +232,8 @@ position_deg: # 現在の角度と目標角度
   goal: [1007.666, -24.7852, 44.1211, -33.8379, -87.8906]
 ---
 ```
+トルクのオンオフ，制御モード，目標電流(実質的な最大電流)など，動作状況を確認するための情報が含まれる．
+
 
 > [!NOTE]
 > dynamixelからのread方式は Sync Read または Fast Sync Read であり，すべてのIDから一斉にreadするようになっている．   
@@ -247,28 +247,24 @@ position_deg: # 現在の角度と目標角度
 
 ***************************
 
-## Topic
-
-さらなる詳細は[各種情報の分類](#各種情報の分類と-control-table-との対応)や[メッセージの定義](./msg/ReadMe.md)を参照．
-
 ## Published Topics
 
-各情報は読み取り周期 `pub_ratio/{~}` に従って読み取られ，**読み取られた場合のみ** publish される．
-読み取りの周期は[実行時の動作設定](#実行時の動作設定)を参照．
+各情報は読み取り周期 `pub_ratio/{~}` に従って読み取られ，**読み取られた場合のみ** publish される．    
+読み取りの周期は[実行時の動作設定](#実行時の動作設定)や[各種情報の分類](#各種情報の分類と-control-table-との対応)を参照
 
 ### プログラム向けの統合的なステータス情報
 
-- **`/dynamixel/states`** (`DxlStates`型)  
+- **`/dynamixel/states`** ([`DxlStates`型](./msg#dynamixel_handlermsgdxlstates-type))  
   Xシリーズ・Pシリーズ共通のサーボ状態をまとめたトピック．以下のフィールドからなる：
   - `stamp` : メッセージのタイムスタンプ  
-  - `status`: `/dynamixel/state/status` に相当し，読み取り周期`pub_ratio/status`に一回データが埋められる．  
-  - `present`: `/dynamixel/state/status` に相当し，読み取り周期`pub_ratio/present.{~}`の最小値に一回データが埋められる．  
-  - `goal`  : `/dynamixel/state/goal` に相当, 読み取り周期`pub_ratio/goal`に一回データが埋められる．  
-  - `gain`  : `/dynamixel/state/gain` に相当, 読み取り周期`pub_ratio/gain`に一回データが埋められる．  
-  - `limit` : `/dynamixel/state/limit` に相当, 読み取り周期`pub_ratio/limit`に一回データが埋められる．  
-  - `error` : `/dynamixel/state/error` に相当, 読み取り周期`pub_ratio/error`に一回データが埋められる．
+  - `status`: `/dynamixel/state/status` に相当し，`pub_ratio/status`に一回データが埋められる．  
+  - `present`: `/dynamixel/state/present` に相当し，`pub_ratio/present.{~}`で読み込まれたデータのみ埋められる．  
+  - `goal`  : `/dynamixel/state/goal` に相当, `pub_ratio/goal`に一回データが埋められる．  
+  - `gain`  : `/dynamixel/state/gain` に相当, `pub_ratio/gain`に一回データが埋められる．  
+  - `limit` : `/dynamixel/state/limit` に相当, `pub_ratio/limit`に一回データが埋められる．  
+  - `error` : `/dynamixel/state/error` に相当, `pub_ratio/error`に一回データが埋められる．
  
-- **`/dynamixel/external_port/read`** (`DxlExternalPort`型)    
+- **`/dynamixel/external_port/read`** ([`DxlExternalPort`型](./msg#dynamixel_handlermsgdxlexternalport-type))    
   XH540とPシリーズが持つExternal Port機能を扱うためのトピック．以下のフィールドからなる:
   - `stamp` : メッセージのタイムスタンプ  
   - `id_list` : サーボのID
@@ -278,36 +274,41 @@ position_deg: # 現在の角度と目標角度
 
 ### コマンドライン確認用ステータス情報
 
-- **`/dynamixel/state/status`** (`DynamixelStatus`型)  
-  サーボの状態(トルク・エラー・ping・制御モード)を確認するためのトピック
+  フィールドは[メッセージの定義](./msg/ReadMe.md)を参照．
 
-- **`/dynamixel/state/present`** (`DynamixelPresent`型)  
-  サーボの現在値(位置、速度、電流など)を確認するためのトピック    
+- **`/dynamixel/state/status`** ([`DynamixelStatus`型](./msg#dynamixelstatus-type))  
+  サーボの状態(トルク・エラー・ping・制御モード)を示す．     
+  ※ エラーについてはハードウェアエラーの有無を示し，エラーの詳細は別途提供．
+
+- **`/dynamixel/state/present`** ([`DynamixelPresent`型](./msg#dynamixelpresent-type))  
+  サーボの現在値(位置、速度、電流など)を示す．    
   高速化のため，位置，速度などの要素個別で読み取り周期`pub_ratio/present.{~}`を設定できる．
 
-- **`/dynamixel/state/goal`** (`DynamixelGoal`型)  
-  サーボの目標値(目標位置、目標速度など)を確認するためのトピック
+- **`/dynamixel/state/goal`** ([`DynamixelGoal`型](./msg#dynamixelgoal-type))  
+  サーボの目標値(目標位置、目標速度など)を示す．   
 
-- **`/dynamixel/state/gain`** (`DynamixelGain`型)  
-  サーボの制御ゲイン値を確認するためのトピック
+- **`/dynamixel/state/gain`** ([`DynamixelGain`型](./msg#dynamixelgain-type))  
+  サーボの制御ゲイン値を示す．   
 
-- **`/dynamixel/state/limit`** (`DynamixelLimit`型)  
-  サーボの制限値(最大電流、最大速度など)を確認するためのトピック
+- **`/dynamixel/state/limit`** ([`DynamixelLimit`型](./msg#dynamixellimit-type))  
+  サーボの制限値(最大電流、最大速度など)を示す．   
 
-- **`/dynamixel/state/error`** (`DynamixelError`型)  
-  サーボのハードウェアエラー情報を確認するためのトピック
+- **`/dynamixel/state/error`** ([`DynamixelError`型](./msg#dynamixelerror-type))  
+  サーボのハードウェアエラー情報の詳細を示す．   
 
-- **`/dynamixel/debug`** (`DynamixelDebug`型)  
-  デバッグ用トピック(サーボが動作しないときにコマンドラインで状況を確認する目的)
+- **`/dynamixel/debug`** ([`DynamixelDebug`型](./msg#dynamixeldebug-type))  
+  デバッグ用トピック(サーボが動作しないときにコマンドラインで状況を確認する目的)．   
 
 ## Subscribed Topics
 
-Subscribe したデータを一時保存し，直後のメインループ内で書き込みを行う.
-そのため，書き込みの最大周期は`loop_rate`[Hz]となる．
+Subscribe時にデータが一時保存され，直後のメインループ内で書き込みが行われるため，書き込みの最大周期は`loop_rate`[Hz]となる．  
+詳細については[各種情報の分類](#各種情報の分類と-control-table-との対応)を参照
 
 ### プログラム向け統合コマンド
 
-- **`/dynamixel/commands/x`** (`DxlCommandsX`型)    
+  Subscribe したデータの各field(`pwm_control`, `status`, ... など)の中で **`id_list`フィールドが埋まっているfieldのみ**処理される．   
+
+- **`/dynamixel/commands/x`** ([`DxlCommandsX`型](./msg#dynamixel_handlermsgdxlcommandsx-type))    
   Xシリーズ用のコマンドを統合したトピック．以下のフィールドからなる：
   - `pwm_control`: `/dynamixel/command/x/pwm_control` に相当  
   - `current_control`: `/dynamixel/command/x/current_control` に相当  
@@ -319,7 +320,7 @@ Subscribe したデータを一時保存し，直後のメインループ内で�
   - `gain`: `/dynamixel/command/gain` に相当  
   - `limit`: `/dynamixel/command/limit` に相当
 
-- **`/dynamixel/commands/p`** (`DxlCommandsP`型)    
+- **`/dynamixel/commands/p`** ([`DxlCommandsP`型](./msg#dynamixel_handlermsgdxlcommandsp-type))    
   Pシリーズ用のコマンドを統合したトピック．以下のフィールドからなる： 
   - `pwm_control`: `/dynamixel/command/p/pwm_control` に相当  
   - `current_control`: `/dynamixel/command/p/current_control` に相当  
@@ -330,7 +331,7 @@ Subscribe したデータを一時保存し，直後のメインループ内で�
   - `gain`: `/dynamixel/command/gain` に相当  
   - `limit`: `/dynamixel/command/limit` に相当
 
-- **`/dynamixel/commands/all`** (`DxlCommandsAll`型)  
+- **`/dynamixel/commands/all`** ([`DxlCommandsAll`型](./msg#dynamixel_handlermsgdxlcommandsall-type))  
   X,Pシリーズを共通で扱うためのトピック. 以下のフィールドからなる：
   - `status`: `/dynamixel/command/status` に相当  
   - `goal`: `/dynamixel/command/goal` に相当  
@@ -339,54 +340,61 @@ Subscribe したデータを一時保存し，直後のメインループ内で�
     ※ `{~}_control`系フィールドがないため制御モードの自動変更機能は無し.    
       `status.mode`で個別モードを指定し`goal.~`で各種目標値を与える．
     
-- **`/dynamixel/external_port/write`** (`DxlExternalPort`型)    
+- **`/dynamixel/external_port/write`** ([`DxlExternalPort`型](./msg#dynamixel_handlermsgdxlexternalport-type))    
   XH540とPシリーズが持つExternal Port機能を扱うためのトピック．以下のフィールドからなる:
   - `stamp` : メッセージのタイムスタンプ  (無効)
   - `id_list` : 適用するサーボのID
   - `port` : 適用するExternal Portのポート番号
-  - `mode` : ポートのモード，指定できるmodeは[定数として定義](./msg#dxlexternalport-type)されている．
+  - `mode` : ポートのモード，指定できるmodeは定数として定義されている．
   - `data` : ポートのデータ，モードが digital out の場合のみ有効
    
 ### コマンドライン用個別コマンド
 
-  Xシリーズ用の制御コマンド : goal値の設定＋制御モードの変更を行うためのトピック
-  - **`/dynamixel/command/x/pwm_control`** (`DynamixelControlXCurrent`型)  
-  - **`/dynamixel/command/x/current_control`** (`DynamixelControlXCurrent`型)  
-  - **`/dynamixel/command/x/velocity_control`** (`DynamixelControlXVelocity`型)  
-  - **`/dynamixel/command/x/position_control`** (`DynamixelControlXPosition`型)  
-  - **`/dynamixel/command/x/extended_position_control`** (`DynamixelControlXExtendedPosition`型)  
-  - **`/dynamixel/command/x/current_base_position_control`** (`DynamixelControlXCurrentPosition`型)
+  フィールドが省略されているものは[メッセージの定義](./msg/ReadMe.md)を参照．
 
-  Pシリーズ用の制御コマンド : goal値の設定＋制御モードの変更を行うためのトピック
-  - **`/dynamixel/command/p/pwm_control`** (`DynamixelControlPCurrent`型)  
-  - **`/dynamixel/command/p/current_control`** (`DynamixelControlPCurrent`型)  
-  - **`/dynamixel/command/p/velocity_control`** (`DynamixelControlPVelocity`型)  
-  - **`/dynamixel/command/p/position_control`** (`DynamixelControlPPosition`型)  
-  - **`/dynamixel/command/p/extended_position_control`** (`DynamixelControlPExtendedPosition`型)
+  **Xシリーズ用の制御コマンド** : 関連するgoal値の設定＋制御モードの変更を行う. 
+  - **`/dynamixel/command/x/pwm_control`** ([`DynamixelControlXPwm`型](./msg#dynamixelcontrolxpwm-type))  
+  - **`/dynamixel/command/x/current_control`** ([`DynamixelControlXCurrent`型](./msg#dynamixelcontrolxcurrent-type))  
+  - **`/dynamixel/command/x/velocity_control`** ([`DynamixelControlXVelocity`型](./msg#dynamixelcontrolxvelocity-type))  
+  - **`/dynamixel/command/x/position_control`** ([`DynamixelControlXPosition`型](./msg#dynamixelcontrolxposition-type))  
+  - **`/dynamixel/command/x/extended_position_control`** ([`DynamixelControlXExtendedPosition`型](./msg#dynamixelcontrolxextendedposition-type))  
+  - **`/dynamixel/command/x/current_base_position_control`** ([`DynamixelControlXCurrentPosition`型](./msg#dynamixelcontrolxcurrentposition-type))
 
-  共通コマンド
-  - **`/dynamixel/command/status`** (`DynamixelStatus`型) 
-    サーボの状態(トルク・エラー・通信・制御モード)設定するトピック  
-    ※ 制御モードについては，各モードの`{~}_control`系トピックを送ることでも自動設定される   
+ **Pシリーズ用の制御コマンド** : 関連するgoal値の設定＋制御モードの変更を行う. 
+  - **`/dynamixel/command/p/pwm_control`** ([`DynamixelControlPPwm`型](./msg#dynamixelcontrolppwm-type))  
+  - **`/dynamixel/command/p/current_control`** ([`DynamixelControlPCurrent`型](./msg#dynamixelcontrolpcurrent-type))  
+  - **`/dynamixel/command/p/velocity_control`** ([`DynamixelControlPVelocity`型](./msg#dynamixelcontrolpvelocity-type))  
+  - **`/dynamixel/command/p/position_control`** ([`DynamixelControlPPosition`型](./msg#dynamixelcontrolpposition-type))  
+  - **`/dynamixel/command/p/extended_position_control`** ([`DynamixelControlPExtendedPosition`型](./msg#dynamixelcontrolpextendedposition-type))
 
-  - **`/dynamixel/command/goal`** (`DynamixelGoal`型)
-    目標値(位置・速度・電流など)の設定するトピック  
+  **共通コマンド**
+  - **`/dynamixel/command/status`** ([`DynamixelStatus`型](./msg#dynamixelstatus-type))       
+    サーボの状態を設定する. 以下のフィールドからなる：
+    - `id_list`: 適用するサーボのID
+    - `torque`: `true`/`false` で指定IDのトルクを安全にON/OFFする．
+    - `error`: `false`, `true`のどちらが指定されていてもエラークリアする．
+    - `ping`: `true`/`false` で指定したIDを認識リストへ追加/削除する．  
+    - `mode`: [制御モードの文字列](./msg#dynamixelstatus-type)によって指定したIDの制御モードを変更．    
+       ※ 各モードの`{~}_control`系トピックを送ることでも自動設定されるので，基本的には使わなくもてOK．   
 
-  - **`/dynamixel/command/gain`** (`DynamixelGain`型)
-    制御ゲイン値の設定するトピック  
+  - **`/dynamixel/command/goal`** ([`DynamixelGoal`型](./msg#dynamixelgoal-type))      
+    目標値(位置・速度・電流など)の設定する.  
 
-  - **`/dynamixel/command/limit`** (`DynamixelLimit`型)
-    制限値(最大速度、最大電流など)の設定するトピック    
+  - **`/dynamixel/command/gain`** ([`DynamixelGain`型](./msg#dynamixelgain-type))    
+    制御ゲイン値の設定する.  
+
+  - **`/dynamixel/command/limit`** ([`DynamixelLimit`型](./msg#dynamixellimit-type))    
+    制限値(最大速度、最大電流など)の設定する.    
     ※ limit はROM領域の値なので，書き込む場合torqueが強制的にOFFになることに注意．
 
-  - **`/dynamixel/shortcut`** (`DynamixelShortcut`型)
+  - **`/dynamixel/shortcut`** ([`DynamixelShortcut`型](./msg#dynamixelshortcut-type))    
     Dynamixelの起動、停止、エラー解除などのショートカットコマンド  
-    - `command`: コマンド文字列, 指定できる文字列は[下記参照](#shortcut-command-list)  
+    - `command`: コマンド文字列, 指定できる文字列は[下記参照](#shortcut-command-list)．  
     - `id_list`: 適用するサーボのIDリスト, 省略すると認識されているすべてのIDを選択したのと同等となる．  
   
 #### Shortcut Command list
 
-`/dynamixel/shortcut` topic `command` fieldに指定できる文字列.
+`/dynamixel/shortcut` topic `command` fieldに指定できる文字列．
 `DynamixelShortcut`型の定義内で[定数として定義](./msg#dynamixelshortcut-type)されている．
 
 - **高レベルコマンド**：ユーザの利用を想定
@@ -440,12 +448,13 @@ Subscribe したデータを一時保存し，直後のメインループ内で�
 
 `default/profile_acc`と`default/profile_vel`は位置制御時の最大加速度と最大速度を決める．
 この値が大きければキビキビとした動作になり，小さければ滑らかな動作になる．
+`{~}_control`系トピックで動的に指定することも可能．
 
 ### 実行時の動作設定
 ```yml
 # ループの設定
   loop_rate: 100 # メインループの周期
-  verbose_ratio: 300 # メインループの処理時間，通信の成功率を出力, ex 100なら100回に1回出力
+  verbose_ratio: 300 # メインループのlog出力の割合(処理時間，通信の成功率), ex 100なら100回に1回出力
   pub_ratio/present: # present_XXXを読み取り，/dynamixel/state/present トピックをpublish する割合
       pwm:                 0 # この回数に一回present_pwmを読み取る, 0=初回のみ
       current:             2 # この回数に一回present_currentを読み取る, 0=初回のみ
@@ -465,14 +474,15 @@ Subscribe したデータを一時保存し，直後のメインループ内で�
   use/split_read: false # 複数の情報を分割して読み取るかどうか
   use/split_write: true # 複数の情報を分割して書き込むかどうか
 ```
-各情報 (status, present, goal, gain, limit, error) は topic 名と対応．
-read と publish 周期は `loop_rate` を `pub_ratio/...` で割った値となる．
-例: `loop_rate` = 100, `pub_ratio/status` = 47 の時 100/47 ≃ 2Hz．  
+`pub_ratio/{~}`の各情報 (status, present, goal, gain, limit, error) は topic 名と対応．   
+read と publish 周期は `loop_rate` を `pub_ratio/{~}` で割った値となる．   
+> 例: `loop_rate` = 100, `pub_ratio/status` = 47 の時 100/47 ≃ 2Hz．   
+
 デフォルト値を素数にしているのは, serial read のタイミングが被って1ループの処理時間が長くなるのを防ぐため．
 
-present の情報のみ高速化のために各アドレス(pwm, current, velocity, ... , temperature)それぞれの読み取り割合を設定できる．
-`~/present` トピックのpublish周期は `loop_rate` を `pub_ratio/present.{~}` の最小値で割った値となる．
-例: `loop_rate` = 100, `pub_ratio/present/current` = 2 の時 100/2 = 50Hz．
+present値のみ高速化のために各アドレス(pwm, current, ... , temperature)の読み取り割合を設定できる．   
+`~/present` トピックのpublish周期は `loop_rate` を `pub_ratio/present.{~}` の最小値で割った値となる．   
+> 例: `loop_rate` = 100, `pub_ratio/present/current` = 2 の時 100/2 = 50Hz．
 
 ### log出力関係
 ```yml
@@ -503,57 +513,6 @@ Dynamixelの動作に直接関連しない，Optional機能の設定．
       use : false # External Portの機能を使うかどうか
       pub_ratio/data : 2   # この回数に一回 Data を読み取る.
       pub_ratio/mode : 100 # この回数に一回 Mode を読み取る, ROM値なので大きくても問題ない．
-```
-
-***************************
-
-## Baudrateの一括変更
-
-config/config_dynamixel_unify_baudrate.ymlの以下の部分を編集し，保存
-``` yml
-# config/config_dynamixel_unify_baudrate.yml
-/**:
-    ros__parameters:
-        # 通信機器の設定
-        device_name: /dev/ttyUSB0 # 通信するデバイス名
-        target_baudrate: 1000000 # 統一したい通信速度
-```
-ターミナルを開いて次を実行
-```bash
-ros2 launch dynamixel_handler dynamixel_unify_baudrate_launch.xml
-```
-全てのdynamixelのbaudrateを`TARGET_BAUDRATE`に設定してくれる．変更が終わると自動でnodeは終了する．
-
-***************************
-
-## LatencyTimer
-
-シリアル通信にはパケットの送受信の間にlatency timer分のインターバルが挟まる．
-(USBデバイスのデフォルトは16msのようであり，高速な通信の妨げとなることが多い)
-安定した通信のためには，使用するUBSデバイスの latency timer とros paramの `laytency_timer` を一致させる必要がある．
-
-ros paramの変更には，config/config_dynamixel_handler.ymlの以下の部分を編集して保存する．
-```yml
-# config/config_dynamixel_handler.yml
-latency_timer: 4 # 通信のインターバル
-```
-
-使用するUSBデバイスのlatency timerはコマンドラインから次のコマンドを実行することで変更できる．
-基本的に1度だけ実行すればよい．
-```bash
-echo ACTION==\"add\", SUBSYSTEM==\"usb-serial\", DRIVER==\"ftdi_sio\", ATTR{latency_timer}=\"4\" > 99-dynamixelsdk-usb.rules
-sudo cp ./99-dynamixelsdk-usb.rules /etc/udev/rules.d/
-sudo udevadm control --reload-rules
-sudo udevadm trigger --action=add
-rm 99-dynamixelsdk-usb.rules
-cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer # ttyUSB0の部分は環境に合わせて変更すること
-```
-
-一時的であれば以下のようにしてもよい．
-ttyUSB0 の部分は自分の環境に合わせて編集すること．
-```bash
-echo 4 | sudo tee /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
-cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
 ```
 
 ***************************
@@ -611,12 +570,12 @@ Xシリーズの場合，`/dynamixel/commands/x` or `/dynamixel/command/x/{~}_co
  - feedforward_vel_gain  
   
 ##### Subscrib / Write
-Xシリーズの場合，`/dynamixel/commands/x`の`gain`フィールド or `/dynamixel/command/x/gain` によって設定され，`loop_rate`の周期で書き込まれる．
+Xシリーズの場合，`/dynamixel/commands/x`の`gain`フィールド or `/dynamixel/command/gain` によって設定され，`loop_rate`の周期で書き込まれる．
 ##### Publish / Read
 `loop_rate`の内`pub_ratio/gain` 毎に1回の周期で読みだされ，`/dynamixel/states`の`gain`フィールド and `/dynamixel/state/gain` としてpublishされる．
 
 > [!note]
-> 制御モードによってデフォルト値が異なり，なんとモードを変えると勝手に書き換えられてしまう．制御モードをまたぐ場合の処理については検討中．
+> 制御モードによってデフォルト値が異なり，モードを変えると勝手に書き換えられてしまう．制御モードをまたぐ場合の処理については検討中．
 
 ### 制限 (limit)
  - temperature_limit : 温度がこの値を超えると Hardware error (overheating) が発生する．
@@ -673,9 +632,8 @@ Xシリーズの場合，`/dynamixel/commands/x`の`limit`フィールド or `/d
 > (bus_watchdog の設定値が1以上の時) bus_watchdogの設定値 × 20ms 通信がないと自動で動作停止処理が実行される．homing_offset が設定されている状態でこの動作停止処理が走るとなぜか homing_offsetだけ回転する．
 
 ### External Ports
- - external_port_data_{1,2,...} : 外部ポートのデータ，末尾の数字がポート番号に対応
- - external_port_mode_{1,2,...} : 各外部ポートのモード. Xシリーズは3つ，Pシリーズは4つ．    
-   以下の4つのmodeがある．
+ - external_port_data_{1,2,...} : 外部ポートのデータ，末尾の数字がポート番号に対応(Xシリーズは1,2,3，Pシリーズは1,2,3,4).
+ - external_port_mode_{1,2,...} : 各外部ポートのモード. 以下の4つのmodeがある．
      - analog input : 0.0v ~ 3.3v のアナログ値を読み取り 0 ~ 4095 の値としてdataに格納する
      - digital output : data の値 0 or 1 に応じて 0v or 3.3v を出力する
      - digital input (pullup) : プルアップされたデジタル値を読み取り，1 or 0 としてdataに格納する
@@ -693,22 +651,56 @@ Xシリーズの場合，`/dynamixel/commands/x`の`limit`フィールド or `/d
 `option/external_port.pub_ratio/data` 毎に1回の周期でdataが読みだされる．    
 mode or data のどちらか一方でも読みだされた場合`/dynamixel/external_port/read`トピック としてpublishされる．
 
+***************************
+
+## Baudrateの一括変更
+
+config/config_dynamixel_unify_baudrate.ymlの以下の部分を編集し，保存
+``` yml
+# config/config_dynamixel_unify_baudrate.yml
+/**:
+    ros__parameters:
+        # 通信機器の設定
+        device_name: /dev/ttyUSB0 # 通信するデバイス名
+        target_baudrate: 1000000 # 統一したい通信速度
+```
+ターミナルを開いて次を実行
+```bash
+ros2 launch dynamixel_handler dynamixel_unify_baudrate_launch.xml
+```
+全てのdynamixelのbaudrateを`TARGET_BAUDRATE`に設定してくれる．変更が終わると自動でnodeは終了する．
 
 ***************************
 
-### 未実装機能
- - extra に分類した情報の read/writeの実装
- - write するタイミングの検討について
-   - 現在の方法：sub callback でストアしメインループで write
-     - [＋] write回数が抑えられる．
-       - 各IDへの command が別の topic に乗ってきても，node 側で 1/roop_late [sec] 分の command をまとめてくれる
-     - [＋] write の周期が一定以下になり，read の圧迫や負荷の変動が起きづらい
-     - [－] 一度 command をストアするので，topic の sub から 最大 1/roop_late [sec] の遅延が生じてしまう．
-       - 8ms未満くらいは遅れるが，そもそものtopicの遅延の方が支配的?(topic遅延が6ms，callback->writeが遅延2ms)
-   - もう一つの方法：sub callback で直接 write
-     - [＋] callback後の遅延は生じない
-     - [－] topic の pub の仕方によってはwrite回数が増えてしまう
-       - 例えば，ID:5へ指令する command topic と ID:6が別のノードからpubされているとすると，callbackは2回呼ばれる．一度ストアしてからまとめてWrite方式だとwriteは1回だが，callbackで直接Write方式だとwriteも2回
+## LatencyTimer
+
+シリアル通信にはパケットの送受信の間にlatency timer分のインターバルが挟まる．
+(USBデバイスのデフォルトは16msのようであり，高速な通信の妨げとなることが多い)
+安定した通信のためには，使用するUBSデバイスの latency timer とros paramの `laytency_timer` を一致させる必要がある．
+
+ros paramの変更には，config/config_dynamixel_handler.ymlの以下の部分を編集して保存する．
+```yml
+# config/config_dynamixel_handler.yml
+latency_timer: 4 # 通信のインターバル
+```
+
+使用するUSBデバイスのlatency timerはコマンドラインから次のコマンドを実行することで変更できる．
+基本的に1度だけ実行すればよい．
+```bash
+echo ACTION==\"add\", SUBSYSTEM==\"usb-serial\", DRIVER==\"ftdi_sio\", ATTR{latency_timer}=\"4\" > 99-dynamixelsdk-usb.rules
+sudo cp ./99-dynamixelsdk-usb.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules
+sudo udevadm trigger --action=add
+rm 99-dynamixelsdk-usb.rules
+cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer # ttyUSB0の部分は環境に合わせて変更すること
+```
+
+一時的であれば以下のようにしてもよい．
+ttyUSB0 の部分は自分の環境に合わせて編集すること．
+```bash
+echo 4 | sudo tee /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
+cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
+```
 
 ***************************
 
@@ -819,3 +811,19 @@ ros2 launch dynamixel_handler launch_dynamixel_handler.py
 
 ※ 一度ビルドしていれば，yamlファイルの変更に伴うビルドは不要
 
+
+***************************
+
+### 未実装機能
+ - extra に分類した情報の read/writeの実装
+ - write するタイミングの検討について
+   - 現在の方法：sub callback でストアしメインループで write
+     - [＋] write回数が抑えられる．
+       - 各IDへの command が別の topic に乗ってきても，node 側で 1/roop_late [sec] 分の command をまとめてくれる
+     - [＋] write の周期が一定以下になり，read の圧迫や負荷の変動が起きづらい
+     - [－] 一度 command をストアするので，topic の sub から 最大 1/roop_late [sec] の遅延が生じてしまう．
+       - 8ms未満くらいは遅れるが，そもそものtopicの遅延の方が支配的?(topic遅延が6ms，callback->writeが遅延2ms)
+   - もう一つの方法：sub callback で直接 write
+     - [＋] callback後の遅延は生じない
+     - [－] topic の pub の仕方によってはwrite回数が増えてしまう
+       - 例えば，ID:5へ指令する command topic と ID:6が別のノードからpubされているとすると，callbackは2回呼ばれる．一度ストアしてからまとめてWrite方式だとwriteは1回だが，callbackで直接Write方式だとwriteも2回
