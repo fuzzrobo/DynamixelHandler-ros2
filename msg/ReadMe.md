@@ -20,29 +20,27 @@
 
 #### プログラムから使う想定もの
 
-   - `/dynamixel/states` : すべての状態をまとめたmsg
-   - `/dynamixel/commands/x` : Xシリーズのコマンドをまとめたmsg
-   - `/dynamixel/commands/p` : Pシリーズのコマンドをまとめたmsg
-   - `/dynamixel/commands/all` : X,Pシリーズのコマンドをまとめたmsg
-   - `/dynamixel/ex_port/write` : 外部ポートへの書き込み・設定を行うmsg
-   - `/dynamixel/ex_port/read` : 外部ポートの読み取りを行うmsg
+   - `/dynamixel/states` : すべての状態をまとめたトピック
+   - `/dynamixel/commands/x` : Xシリーズのコマンドをまとめたトピック
+   - `/dynamixel/commands/p` : Pシリーズのコマンドをまとめたトピック
+   - `/dynamixel/commands/all` : X,Pシリーズへまとめてコマンドするトピック
   
 #### コマンドラインから使う想定のもの
 
-   デバック用
+   **デバック用**
    - `/dynamixel/debug` : サーボが動かないときにに確認したい情報をまとめたもの
    - `/dynamixel/shortcut` : トルクのオンオフ・エラー解除・IDの追加削除などを行うためのもの
 
-   状態確認用
-   - `/dynamixel/state/status` : サーボの状態を示すmsg
-   - `/dynamixel/state/present` : 現在の値を示すmsg
-   - `/dynamixel/state/goal` : 目標値を示すmsg
-   - `/dynamixel/state/gain` : ゲインを示すmsg
-   - `/dynamixel/state/limit` : 制限値を示すmsg
-   - `/dynamixel/state/error` : エラーを示すmsg
-   - `/dynamixel/state/extra` : その他の情報を示すmsg
+   **状態確認用**
+   - `/dynamixel/state/status` : サーボの状態を示す
+   - `/dynamixel/state/present` : 現在の値を示す
+   - `/dynamixel/state/goal` : 目標値を示す
+   - `/dynamixel/state/gain` : ゲインを示す
+   - `/dynamixel/state/limit` : 制限値を示す
+   - `/dynamixel/state/error` : エラーを示す
+   - `/dynamixel/state/extra` : その他の情報を示す
 
-   コマンド送信用
+   **コマンド送信用**
    - `/dynamixel/command/x/pwm_control` : pwm制御モードでの指令を送る
    - `/dynamixel/command/x/current_control` : 電流制御モードでの指令を送る
    - `/dynamixel/command/x/velocity_control` : 速度制御モードでの指令を送る
@@ -61,7 +59,7 @@
    - `/dynamixel/command/gain` : ゲインを変更する
    - `/dynamixel/command/limit` : 制限値を変更する
    - `/dynamixel/command/extra` : その他の情報を変更する
-   - 
+  
 -----
 
 ## How to use
@@ -217,8 +215,8 @@ dynamixel_handler/DynamixelLimit limit
 dynamixel_handler/DynamixelError error
 dynamixel_handler/DynamixelExtra extra
 ```
-具体的な詳細については，[それぞれの型定義](#その他のコマンドライン用トピックの型定義)を参照.　
-↓ 出力例．
+具体的な詳細については，[それぞれの要素の型定義](#それぞれの要素の型定義)を参照.　
+↓ 出力例（これを見ればだいたいわかるはず）
 ```yaml 
 $ ros2 topic echo --flow-style /dynamixel/states #このtopicはコマンドラインから見る想定ではない．
 stamp: 0000
@@ -327,8 +325,8 @@ dynamixel_handler/DynamixelGain   gain
 dynamixel_handler/DynamixelLimit  limit
 dynamixel_handler/DynamixelExtra  extra
 ```
-具体的な詳細については，[それぞれの型定義](#その他のコマンドライン用トピックの型定義)を参照.
-↓ 出力例．
+具体的な詳細については，[それぞれの要素の型定義](#それぞれの要素の型定義)を参照.
+↓ 出力例（これを見ればだいたいわかるはず）
 ```yaml
 $ ros2 topic echo --flow-style /dynamixel/commands/x #このtopicはコマンドラインから送る想定ではない．
 pwm_control: # DynamixelControlXPwm型
@@ -448,10 +446,10 @@ dynamixel_handler/DynamixelLimit  limit
 dynamixel_handler/DynamixelExtra  extra
 ```
 
-### その他のコマンドライン用トピックの型定義
+### それぞれの要素の型定義
 
 #### `DynamixelShortcut` type
-トルクのオンオフなどのコマンドを送るtopic `/dynamixel/shortcut` の型．
+トルクのオンオフなどのコマンドを送るトピック `/dynamixel/shortcut` の型．
    ```yml
    string   command
    uint16[]  id_list
@@ -476,22 +474,37 @@ dynamixel_handler/DynamixelExtra  extra
    ```
 また，括弧内はalias．すなわち，`command="clear_error"`とするのと`command="CE"`とするのは同じ．
 
+#### `DynamixelDebug` type
+デバック用の情報を読み込むためのトピック `/dynamixel/debug` の型．
+   ```yml
+   DynamixelStatus status
+   DynamixelDebugElement current_ma
+   DynamixelDebugElement velocity_deg_s
+   DynamixelDebugElement position_deg
+   ```
+
+##### `DynamixelDebugElement` type
+   ```yml
+   float64[] present
+   float64[] goal
+   ```
+
 #### `DynamixelControlXPwm` type
-XシリーズをPWM制御モードで動かすためのtopic `/dynamixel/command/x/pwm_control` の型．
+XシリーズをPWM制御モードで動かすためのトピック `/dynamixel/command/x/pwm_control` の型．
    ```yml
    uint16[] id_list
    float64[] pwm_percent
    ```
 
 #### `DynamixelControlXCurrent` type
-Xシリーズを電流制御モードで動かすためのtopic `/dynamixel/command/x/current_control` の型
+Xシリーズを電流制御モードで動かすためのトピック `/dynamixel/command/x/current_control` の型
    ```yml
    uint16[] id_list
    float64[] current_mA
    ```
 
 #### `DynamixelControlXVelocity` type
-Xシリーズを速度制御モードで動かすためのtopic　`/dynamixel/command/x/velocity_control`の型
+Xシリーズを速度制御モードで動かすためのトピック　`/dynamixel/command/x/velocity_control`の型
    ```yml
    uint16[] id_list
    float64[] velocity_deg_s
@@ -499,7 +512,7 @@ Xシリーズを速度制御モードで動かすためのtopic　`/dynamixel/co
    ```
 
 #### `DynamixelControlXPosition` type
-Xシリーズを位置制御モードで動かすためのtopic　`/dynamixel/command/x/position_control`の型
+Xシリーズを位置制御モードで動かすためのトピック　`/dynamixel/command/x/position_control`の型
    ```yml
    uint16[] id_list
    float64[] position_deg
@@ -508,7 +521,7 @@ Xシリーズを位置制御モードで動かすためのtopic　`/dynamixel/co
    ```
 
 #### `DynamixelControlXExtendedPosition` type
-Xシリーズを拡張位置制御モードで動かすためのtopic　`/dynamixel/command/x/extended_position_control`の型
+Xシリーズを拡張位置制御モードで動かすためのトピック　`/dynamixel/command/x/extended_position_control`の型
    ```yml
    uint16[] id_list
    float64[] position_deg
@@ -518,7 +531,7 @@ Xシリーズを拡張位置制御モードで動かすためのtopic　`/dynami
    ```
 
 #### `DynamixelControlXCurrentPosition` type　
-Xシリーズを電流制限付き位置制御モードで動かすためのtopic `/dynamixel/command/x/current_position _control`の型
+Xシリーズを電流制限付き位置制御モードで動かすためのトピック `/dynamixel/command/x/current_position _control`の型
    ```yml
    uint16[] id_list
    float64[] current_ma
@@ -529,8 +542,7 @@ Xシリーズを電流制限付き位置制御モードで動かすためのtopi
    ```
 
 #### `DynamixelStatus` type
-`/dynamixel/command/status` 
-`/dynamixel/state/status`
+Status 関連を読み書きするためのトピック `/dynamixel/command/status` と `/dynamixel/state/status` の型
    ```yml
    uint16[] id_list
    bool[] torque
@@ -547,11 +559,10 @@ Xシリーズを電流制限付き位置制御モードで動かすためのtopi
    ```
 
 #### `DynamixelGoal` type
-`/dynamixel/command/goal`
-`/dynamixel/state/goal` 
+Goal値を読み書きするためのトピック `/dynamixel/command/goal` と `/dynamixel/state/goal` の型
    ```yml
    uint16[] id_list
-   float64[] pwm_pulse
+   float64[] pwm_percent
    float64[] current_ma
    float64[] velocity_deg_s
    float64[] profile_acc_deg_ss
@@ -559,9 +570,22 @@ Xシリーズを電流制限付き位置制御モードで動かすためのtopi
    float64[] position_deg
    ```
 
+#### `DynamixelPresent` type
+Present値を読み出すためのトピック `/dynamixel/state/present` の型
+   ```yml
+   uint16[] id_list
+   float64[] pwm_percent
+   float64[] current_ma
+   float64[] velocity_deg_s
+   float64[] position_deg
+   float64[] vel_trajectory_deg_s
+   float64[] pos_trajectory_deg
+   float64[] input_voltage_v
+   float64[] temperature_degc
+   ```
+
 #### `DynamixelGain` type
-`/dynamixel/command/gain`
-`/dynamixel/state/gain`
+Gainを読み書きするためのトピック `/dynamixel/command/gain` と `/dynamixel/state/gain` の型
    ```yml
    uint16[] id_list
    float64[] velocity_i_gain_pulse
@@ -573,8 +597,7 @@ Xシリーズを電流制限付き位置制御モードで動かすためのtopi
    float64[] feedforward_1st_gain_pulse
    ```
 #### `DynamixelLimit` type
-`/dynamixel/command/limit`
-`/dynamixel/state/limit`
+Limitを読み書きするためのトピック `/dynamixel/command/limit`　と　`/dynamixel/state/limit`　の型
    ```yml
    uint16[] id_list
    float64[] temperature_limit_degc
@@ -589,20 +612,29 @@ Xシリーズを電流制限付き位置制御モードで動かすためのtopi
    ```
 
 #### `DynamixelError` type
-
-
-#### `DynamixelDebug` type
-
-
-#### `DynamixelDebugElement` type
+Errorを読みだすためのトピック `/dynamixel/state/error` の型
+   ```yml
+   uint16[] id_list
+   bool[] input_voltage
+   bool[] motor_hall_sensor
+   bool[] overheating
+   bool[] motor_encoder
+   bool[] electronical_shock
+   bool[] overload
+   ```
 
 ---
 ---
 ---
 
-## external port に関して
-こいつだけ, XH540シリーズだけで使える機能なので，独立させる．
+## External port に関して
+
+   - `/dynamixel/external_port/write` : 外部ポートへの書き込み・設定を行うmsg
+   - `/dynamixel/external_port/read` : 外部ポートの読み取りを行うmsg
+
+
 ```cpp
+#include "dynamixel_handler/msg/dxl_external_port.hpp"
 // ID: 1 のサーボのポート1と2にはLEDが接続されている
 constexpr int ID_LIGHT = 1;
 constexpr int PORT_LIGHT1 = 1;
@@ -611,7 +643,7 @@ constexpr int PORT_LIGHT2 = 2;
 constexpr int ID_MAGNET = 2;
 constexpr int PORT_MAGNET = 3;
 // 使い方1 書き込み
-ExternalPort msg;
+DxlExternalPort msg;
 msg.set__id_list({ID_LIGHT            , ID_LIGHT            });
 msg.set__port   ({PORT_LIGHT1         , PORT_LIGHT2         });
 msg.set__mode   ({msg.MODE_DIGITAL_OUT, msg.MODE_DIGITAL_OUT});
@@ -631,30 +663,20 @@ for ( size_t i = 0; i < msg.id_list.size(); i++ ) {
 printf("magnet sensor is %d\n", val_magnet);
 ```
 
-`dynamixel_handler::msg::ExternalPort` の中身
+`dynamixel_handler::msg::DxlExternalPort` の中身
 ```yaml
-$ ros2 topic echo --flow-style /dynamixel/ex_port/write # ex_port型
+$ ros2 topic echo --flow-style /dynamixel/external_port/write # DxlExternalPort型
 stamp: 0000
 id_list: [1, 1, 2]
 port: [1, 2, 3]
 mode: ["d_out", "d_out", "a_in"]
 data: [1, 0, 0]
 
-$ ros2 topic echo --flow-style /dynamixel/ex_port/read # ex_port型
+$ ros2 topic echo --flow-style /dynamixel/external_port/read # DxlExternalPort型
 stamp: 0000
-id_list: [1, 1, 2]
-port: [1, 2, 3]
-mode: ["d_out", "d_out", "a_in"]
-data: [1, 0, 100]
----
-stamp: 0001
-id_list: [2]
-port: [3]
-mode: ["a_in"]
-data: [200]
+id_list: [1, 1, 1, 2, 2, 2]
+port: [1, 2, 3, 1, 2, 3]
+mode: ["d_out", "d_out", "d_in_pu", "d_in_pd", "d_in_pd", "a_in"]
+data: [1, 0, 0, 1, 1, 2000]
 ---
 ```
-高周期でreadする可能性もあるし，readするしないを決めるための方法が必要かもしれない．
-
-取りあえず，ex_port/writeトピックで触れてないポートは，readしないことにしよう．
-そして，a_in/d_in系の書き込みをしたものについては，常時read, それ以外は，ex_port/writeトピックの直後だけreadする．
