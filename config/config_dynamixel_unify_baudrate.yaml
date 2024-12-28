@@ -1,6 +1,14 @@
 # /ns/dyn_unify_baudrate:
 /**:
     ros__parameters:
+    #  指定可能なボーレート
+        # 9600    
+        # 57600   
+        # 115200  
+        # 1000000 
+        # 2000000 
+        # 3000000 
+        # 4000000 
     # 通信機器の設定
         device_name: /dev/ttyUSB0 # 通信するデバイス名
         target_baudrate: 2000000 # 通信速度
@@ -9,4 +17,4 @@
         min_id: 0
         max_id: 30
         min_search_baudrate: 57600
-        max_search_baudrate: 2000000
+        max_search_baudrate: 4000000

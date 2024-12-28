@@ -1,7 +1,3 @@
-builtin_interfaces/Time stamp
-
-dynamixel_handler/DynamixelOptionMode mode
-
 uint16[] id_list
 
 float64[] pwm_percent
@@ -11,4 +7,4 @@ float64[] position_deg
 float64[] vel_trajectory_deg_s
 float64[] pos_trajectory_deg
 float64[] input_voltage_v
-float64[] temperature_deg_c
+float64[] temperature_degc

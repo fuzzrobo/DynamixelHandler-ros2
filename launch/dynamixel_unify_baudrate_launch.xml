@@ -4,18 +4,10 @@
     <set_env name="RCUTILS_COLORIZED_OUTPUT" value="1"/>
 
     <!-- 変数 -->
-    <arg name="name_space" default="ns"/> <!-- config/{}.yaml内のnamespaceとそろえる必要あり -->
+    <arg name="name_space" default=""/> <!-- config/{}.yaml内のnamespaceとそろえる必要あり -->
     <arg name="name_pkg" default="dynamixel_handler"/>
 
-   <!-- 通信設定 -->
-    <arg name="device_name" default="/dev/ttyUSB0"/>
-    <arg name="target_baudrate" default="115200"/>
-    <arg name="latency_timer" default="16"/>
-    
     <node pkg="$(var name_pkg)" exec="dynamixel_unify_baudrate_node" name="dyn_unify_baudrate" namespace="$(var name_space)" output="screen">
-        <param name="device_name" value="$(var device_name)"/>
-        <param name="target_baudrate" value="$(var target_baudrate)"/>
-        <param name="latency_timer" value="$(var latency_timer)"/>
-        <param from="$(find-pkg-share $(var name_pkg))/config/dynamixel_unify_baudrate.yaml"/>
+        <param from="$(find-pkg-share $(var name_pkg))/config/config_dynamixel_unify_baudrate.yaml"/>
     </node>
 </launch>

@@ -1,8 +1,8 @@
-builtin_interfaces/Time stamp
+uint16[] id_list
 
-uint16[] input_voltage
-uint16[] motor_hall_sensor
-uint16[] overheating
-uint16[] motor_encoder
-uint16[] electronical_shock
-uint16[] overload
+bool[] input_voltage
+bool[] motor_hall_sensor
+bool[] overheating
+bool[] motor_encoder
+bool[] electronical_shock
+bool[] overload

@@ -1,0 +1,10 @@
+dynamixel_handler/DynamixelControlPPwm pwm_control
+dynamixel_handler/DynamixelControlPCurrent current_control
+dynamixel_handler/DynamixelControlPVelocity velocity_control
+dynamixel_handler/DynamixelControlPPosition position_control
+dynamixel_handler/DynamixelControlPExtendedPosition extended_position_control
+dynamixel_handler/DynamixelStatus status
+dynamixel_handler/DynamixelGain gain
+dynamixel_handler/DynamixelLimit limit
+dynamixel_handler/DynamixelExtra extra
+

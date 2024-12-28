@@ -11,14 +11,14 @@ def generate_launch_description():
     config1 = os.path.join(
         get_package_share_directory(pkg_name1),
         'config',
-        'dynamixel_unify_baudrate.yaml'
+        'config_dynamixel_unify_baudrate.yaml'
     )
 
     node1 = Node(
         package=pkg_name1,
         executable='dynamixel_unify_baudrate_node',
         name='dxl_unify_handler',
-        namespace='ns1',
+        namespace='',
         output='screen',
         emulate_tty=True,
         parameters=[config1]
