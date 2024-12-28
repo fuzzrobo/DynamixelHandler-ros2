@@ -3,7 +3,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 
-#include "dynamixel_handler/msg/external_port.hpp"
+#include "dynamixel_handler/msg/dxl_external_port.hpp"
 using namespace dynamixel_handler::msg;
 
 #include "../dynamixel_handler.hpp"
@@ -30,23 +30,23 @@ using std::tuple;
  * Dynanixel XH540 や P シリーズが持つ外部ポートを扱うためのクラス
  * Dynaimxelの基本動作に対する拡張機能という位置づけとしたため，このように分離して実装する．
 */
-class DynamixelHandler::DxlExternalPort {
+class DynamixelHandler::ExternalPort {
     public:
         //* ROS 初期設定とメインループ 
-        DxlExternalPort(DynamixelHandler& parent); // コンストラクタ, 初期設定を行う
-        ~DxlExternalPort(); // デストラクタ,  終了処理を行う
+        ExternalPort(DynamixelHandler& parent); // コンストラクタ, 初期設定を行う
+        ~ExternalPort(); // デストラクタ,  終了処理を行う
         void MainProccess(); // 本体のdynamixel_handlerのメインループで実行したい処理．
 
         // DynamixelHandlerのインスタンスを保持するための変数
         DynamixelHandler& parent_;
 
         //* ROS publishを担う関数と subscliber callback関数
-        ExternalPort BroadcastExternalPort();
-        rclcpp::Publisher<ExternalPort>::SharedPtr pub_ex_port_;
+        void BroadcastExternalPort();
+        rclcpp::Publisher<DxlExternalPort>::SharedPtr pub_ex_port_;
 
         //* ROS publisher subscriber instance
-        void CallbackExternalPort(const ExternalPort::SharedPtr msg);
-        rclcpp::Subscription<ExternalPort>::SharedPtr sub_ex_port_;
+        void CallbackExternalPort(const DxlExternalPort::SharedPtr msg);
+        rclcpp::Subscription<DxlExternalPort>::SharedPtr sub_ex_port_;
 
         unsigned int pub_ratio_mode_ = 0; // 何回に1回publishするか
         unsigned int pub_ratio_data_ = 0; // 何回に1回publishするか

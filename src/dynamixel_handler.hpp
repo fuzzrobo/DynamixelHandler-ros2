@@ -288,8 +288,8 @@ class DynamixelHandler : public rclcpp::Node {
         template <typename Addr=AddrCommon> void StopDynamixels (const set<id_t>& id_set=id_set_);
         template <typename Addr=AddrCommon> void CheckDynamixels(const set<id_t>& id_set=id_set_);
 
-        class DxlExternalPort; // XH540とPシリーズに搭載されている外部ポートを使用するためのクラス，実際の宣言と定義は別ファイル
-        std::unique_ptr<DxlExternalPort> external_port_; // 
+        class ExternalPort; // XH540とPシリーズに搭載されている外部ポートを使用するためのクラス，実際の宣言と定義は別ファイル
+        std::unique_ptr<ExternalPort> external_port_; // 
 };
 
 #endif /* DYNAMIXEL_HANDLER_H */

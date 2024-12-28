@@ -47,7 +47,7 @@ set(msg_files
   "msg/DynamixelControlPPosition.msg"
   "msg/DynamixelControlPExtendedPosition.msg"
 
-  "msg/ExternalPort.msg"
+  "msg/DxlExternalPort.msg"
 )
 set(srv_files
 

@@ -142,8 +142,8 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     BroadcastState_Goal();   
     BroadcastState_Error(); 
 
-    bool use_ex_port; get_parameter_or("use/external_port", use_ex_port, false);
-    if ( use_ex_port ) external_port_ = std::make_unique<DxlExternalPort>(*this);
+    bool use_ex_port; get_parameter_or("option/external_port.use", use_ex_port, false);
+    if ( use_ex_port ) external_port_ = std::make_unique<ExternalPort>(*this);
 
     ROS_INFO( "..... DynamixelHandler is initialized");
 }

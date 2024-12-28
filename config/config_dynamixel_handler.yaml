@@ -6,7 +6,7 @@
         no_use_command_line: false # true: プログラム用のトピックのみ使用する/ false: コマンドライン用のトピックも出力する
     # 通信機器の設定
         device_name: /dev/ttyUSB0 # 通信するデバイス名
-        baudrate: 2000000 # 通信速度
+        baudrate: 57600 # 通信速度
         latency_timer: 16 # 通信のインターバル
     # 通信の設定
         dyn_comm/retry_num: 5
@@ -62,5 +62,8 @@
         verbose/read_limit/raw: false
         verbose/read_limit/err: false
         verbose/read_hardware_error: true
-    # 
-        use/external_port : false
+    # Optonal機能
+        option/external_port:
+            use : false # External Portの機能を使うかどうか
+            pub_ratio/data : 2   # この回数に一回 Data を読み取る.
+            pub_ratio/mode : 100 # この回数に一回 Mode を読み取る, ROM値なので大きくても問題ない．
