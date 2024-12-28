@@ -629,10 +629,12 @@ Errorを読みだすためのトピック `/dynamixel/state/error` の型
 
 ## External port に関して
 
+### Topic list
+
    - `/dynamixel/external_port/write` : 外部ポートへの書き込み・設定を行うmsg
    - `/dynamixel/external_port/read` : 外部ポートの読み取りを行うmsg
 
-
+### How to use
 ```cpp
 #include "dynamixel_handler/msg/dxl_external_port.hpp"
 // ID: 1 のサーボのポート1と2にはLEDが接続されている
@@ -647,10 +649,11 @@ DxlExternalPort msg;
 msg.set__id_list({ID_LIGHT            , ID_LIGHT            });
 msg.set__port   ({PORT_LIGHT1         , PORT_LIGHT2         });
 msg.set__mode   ({msg.MODE_DIGITAL_OUT, msg.MODE_DIGITAL_OUT});
-msg.set__data   ({level>0 ? 1 : 0, level>1 ? 1 : 0});
+msg.set__data   ({1                   , 0                   });
 msg.id_list.push_back(ID_MAGNET);
 msg.port.push_back(PORT_MAGNET);
 msg.mode.push_back(msg.MODE_ANALOG_IN);
+msg.data.push_back(0); // id_listとdataの要素数を合わせるためのダミー値
 pub_ex_port_->publish( msg );
 
 // 使い方2 読み込み
@@ -663,7 +666,7 @@ for ( size_t i = 0; i < msg.id_list.size(); i++ ) {
 printf("magnet sensor is %d\n", val_magnet);
 ```
 
-`dynamixel_handler::msg::DxlExternalPort` の中身
+↓出力例(これを見ればだいたいわかるはず)
 ```yaml
 $ ros2 topic echo --flow-style /dynamixel/external_port/write # DxlExternalPort型
 stamp: 0000
@@ -679,4 +682,21 @@ port: [1, 2, 3, 1, 2, 3]
 mode: ["d_out", "d_out", "d_in_pu", "d_in_pd", "d_in_pd", "a_in"]
 data: [1, 0, 0, 1, 1, 2000]
 ---
+```
+
+### Topic type detail
+
+#### `dynamixel_handler::msg::DxlExternalPort` type
+外部ポートの設定を行うためのトピック `/dynamixel/external_port/write` と `/dynamixel/external_port/read` の型．
+```yaml
+builtin_interfaces/Time stamp
+uint16[] id_list
+uint16[] port
+string[] mode
+uint16[] data
+#====== mode field に指定できる文字列 ======
+string MODE_ANALOG_IN           = "a_in"
+string MODE_DIGITAL_OUT         = "d_out"
+string MODE_DIGITAL_IN_PULLUP   = "d_in_pu"
+string MODE_DIGITAL_IN_PULLDOWN = "d_in_pd"
 ```
