@@ -111,8 +111,8 @@ void DynamixelHandler::CallbackCmd_X_Pwm(const DynamixelControlXPwm& msg) {
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "PWM ctrl(X), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( size_t i=0; i<id_list.size(); i++ ) 
-        if ( auto& ID=id_list[i]; series_[ID] == SERIES_X ) ChangeOperatingMode(ID, OPERATING_MODE_PWM);
+    for ( auto& ID : id_list )
+        if ( series_[ID] == SERIES_X ) ChangeOperatingMode(ID, OPERATING_MODE_PWM);
         else { if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID); ID = 255;} // 不適なseriesの場合はid=255にして，以降，無視されるようにする
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__pwm_percent(msg.pwm_percent)
@@ -123,8 +123,8 @@ void DynamixelHandler::CallbackCmd_X_Position(const DynamixelControlXPosition& m
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Position ctrl(X), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( size_t i=0; i<id_list.size(); i++ ) 
-        if ( auto& ID=id_list[i]; series_[ID] == SERIES_X ) ChangeOperatingMode(ID, OPERATING_MODE_POSITION);
+    for ( auto& ID : id_list ) 
+        if ( series_[ID] == SERIES_X ) ChangeOperatingMode(ID, OPERATING_MODE_POSITION);
         else { if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID); ID = 255;} // 不適なseriesの場合はid=255にして，以降，無視されるようにする
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__position_deg(msg.position_deg)
@@ -137,8 +137,8 @@ void DynamixelHandler::CallbackCmd_X_Velocity(const DynamixelControlXVelocity& m
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Velocity ctrl(X), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( size_t i=0; i<id_list.size(); i++ ) 
-        if ( auto& ID=id_list[i]; series_[ID] == SERIES_X ) ChangeOperatingMode(ID, OPERATING_MODE_VELOCITY);
+    for ( auto& ID : id_list )
+        if ( series_[ID] == SERIES_X ) ChangeOperatingMode(ID, OPERATING_MODE_VELOCITY);
         else { if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID); ID = 255;} // 不適なseriesの場合はid=255にして，以降，無視されるようにする
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__velocity_deg_s(msg.velocity_deg_s)
@@ -150,8 +150,8 @@ void DynamixelHandler::CallbackCmd_X_Current(const DynamixelControlXCurrent& msg
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Current ctrl(X), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( size_t i=0; i<id_list.size(); i++ ) 
-        if ( auto& ID=id_list[i]; series_[ID] == SERIES_X ) ChangeOperatingMode(ID, OPERATING_MODE_CURRENT);
+    for ( auto& ID : id_list )
+        if ( series_[ID] == SERIES_X ) ChangeOperatingMode(ID, OPERATING_MODE_CURRENT);
         else { if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID); ID = 255;} // 不適なseriesの場合はid=255にして，以降，無視されるようにする
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__current_ma(msg.current_ma)
@@ -162,8 +162,8 @@ void DynamixelHandler::CallbackCmd_X_CurrentBasePosition(const DynamixelControlX
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Current-base Position ctrl(X), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( size_t i=0; i<id_list.size(); i++ )
-        if ( auto& ID=id_list[i]; series_[ID] == SERIES_X ) ChangeOperatingMode(ID, OPERATING_MODE_CURRENT_BASE_POSITION);
+    for ( auto& ID : id_list )
+        if ( series_[ID] == SERIES_X ) ChangeOperatingMode(ID, OPERATING_MODE_CURRENT_BASE_POSITION);
         else { if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID); ID = 255;} // 不適なseriesの場合はid=255にして，以降，無視されるようにする
     vector<double> position_deg(msg.position_deg);
     if ( size_t N_rot=msg.rotation.size(); N_rot==0 || N_rot==id_list.size() ) {
@@ -182,8 +182,8 @@ void DynamixelHandler::CallbackCmd_X_ExtendedPosition(const DynamixelControlXExt
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Extended Position ctrl(X), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( size_t i=0; i<id_list.size(); i++ )
-        if ( auto& ID=id_list[i]; series_[ID] == SERIES_X ) ChangeOperatingMode(ID, OPERATING_MODE_EXTENDED_POSITION);
+    for ( auto& ID : id_list )
+        if ( series_[ID] == SERIES_X ) ChangeOperatingMode(ID, OPERATING_MODE_EXTENDED_POSITION);
         else { if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID); ID = 255;} // 不適なseriesの場合はid=255にして，以降，無視されるようにする
     vector<double> position_deg(msg.position_deg);
     if ( size_t N_rot=msg.rotation.size(); N_rot==0 || N_rot==id_list.size() ) {
@@ -201,8 +201,8 @@ void DynamixelHandler::CallbackCmd_P_Pwm(const DynamixelControlPPwm& msg) {
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "PWM ctrl(P), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( size_t i=0; i<id_list.size(); i++ ) 
-        if ( auto& ID=id_list[i]; series_[ID] == SERIES_P ) ChangeOperatingMode(ID, OPERATING_MODE_PWM);
+    for ( auto& ID : id_list ) 
+        if ( series_[ID] == SERIES_P ) ChangeOperatingMode(ID, OPERATING_MODE_PWM);
         else { if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID); ID = 255;} // 不適なseries の場合はid=255にして，以降，無視されるようにする
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__pwm_percent(msg.pwm_percent)
@@ -213,8 +213,8 @@ void DynamixelHandler::CallbackCmd_P_Current(const DynamixelControlPCurrent& msg
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Current ctrl(P), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( size_t i=0; i<id_list.size(); i++ ) 
-        if ( auto& ID=id_list[i]; series_[ID] == SERIES_P ) ChangeOperatingMode(ID, OPERATING_MODE_CURRENT);
+    for ( auto& ID : id_list ) 
+        if ( series_[ID] == SERIES_P ) ChangeOperatingMode(ID, OPERATING_MODE_CURRENT);
         else { if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID); ID = 255;} // 不適なseries の場合はid=255にして，以降，無視されるようにする
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__current_ma(msg.current_ma)
@@ -225,8 +225,8 @@ void DynamixelHandler::CallbackCmd_P_Velocity(const DynamixelControlPVelocity& m
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Velocity ctrl(P), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( size_t i=0; i<id_list.size(); i++ ) 
-        if ( auto& ID=id_list[i]; series_[ID] == SERIES_P ) ChangeOperatingMode(ID, OPERATING_MODE_VELOCITY);
+    for ( auto& ID : id_list ) 
+        if ( series_[ID] == SERIES_P ) ChangeOperatingMode(ID, OPERATING_MODE_VELOCITY);
         else { if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID); ID = 255;} // 不適なseries の場合はid=255にして，以降，無視されるようにする
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__current_ma(msg.current_ma)
@@ -239,8 +239,8 @@ void DynamixelHandler::CallbackCmd_P_Position(const DynamixelControlPPosition& m
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Position ctrl(P), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( size_t i=0; i<id_list.size(); i++ ) 
-        if ( auto& ID=id_list[i]; series_[ID] == SERIES_P ) ChangeOperatingMode(ID, OPERATING_MODE_POSITION);
+    for ( auto& ID : id_list ) 
+        if ( series_[ID] == SERIES_P ) ChangeOperatingMode(ID, OPERATING_MODE_POSITION);
         else { if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID); ID = 255;} // 不適なseries の場合はid=255にして，以降，無視されるようにする
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__current_ma(msg.current_ma)
@@ -254,8 +254,8 @@ void DynamixelHandler::CallbackCmd_P_ExtendedPosition(const DynamixelControlPExt
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Extended Position ctrl(P), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( size_t i=0; i<id_list.size(); i++ )
-        if ( auto& ID=id_list[i]; series_[ID] == SERIES_P ) ChangeOperatingMode(ID, OPERATING_MODE_EXTENDED_POSITION);
+    for ( auto& ID : id_list )
+        if ( series_[ID] == SERIES_P ) ChangeOperatingMode(ID, OPERATING_MODE_EXTENDED_POSITION);
         else { if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID); ID = 255;} // 不適なseries の場合はid=255にして，以降，無視されるようにする
     vector<double> position_deg(msg.position_deg);
     if ( size_t N_rot=msg.rotation.size(); N_rot==0 || N_rot==id_list.size() ) {
