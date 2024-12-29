@@ -71,19 +71,31 @@
 /// ...
 /// 略, 動くコードは example を参照のこと
 /// ...
-dynamixel_handler::msg::DxlStates msg; //すべての状態が確認できる
+dynamixel_handler::msg::DxlStates::SharedPtr msg; //すべての状態が確認できる
 // subscribe した status の確認, 単に表示するだけ
-for (size_t i = 0; i < msg.status.id_list.size(); i++) {
+for (size_t i = 0; i < msg->status.id_list.size(); i++) {
    printf("servo [%d], torque %s, has %s, ping is %s, mode is %s\n", 
-      msg.status.id_list[i],
-      msg.status.torque[i] ? "on" : "off",
-      msg.status.error[i] ? "error" : "no error",
-      msg.status.ping[i] ? "response" : "no response",
-      msg.status.mode[i]
+      msg->status.id_list[i],
+      msg->status.torque[i] ? "on" : "off",
+      msg->status.error[i] ? "error" : "no error",
+      msg->status.ping[i] ? "response" : "no response",
+      msg->status.mode[i] // これは文字列なのでそのまま表示
    ); 
 }
-// subscribe した present value を変数に格納, present valueはすべての要素があるとは限らないので確認が必要
-auto p = msg.present;
+// subscribe した present value を変数に格納, `pub_outdated_present_value`パラメータが`true`の場合
+for (size_t i=0; i < msg->present.id_list.size(); i++) {
+   auto id = msg->present.id_list[i];
+   cur_map[id] = msg->present.current_ma[i];
+   vel_map[id] = msg->present.velocity_deg_s[i];
+   pos_map[id] = msg->present.position_deg[i];
+}
+```
+<details>
+<summary> `pub_outdated_present_value`パラメータが`false`の場合 </summary>
+
+```cpp
+// この時，present valueはすべての要素があるとは限らないので以下のように確認が必要
+auto& p = msg->present;
 for (size_t i=0; i < p.id_list.size(); i++) {
    auto id = p.id_list[i];
    if ( !p.current_ma.empty()     ) cur_map[id] = p.current_ma[i];
@@ -91,6 +103,7 @@ for (size_t i=0; i < p.id_list.size(); i++) {
    if ( !p.position_deg.empty()   ) pos_map[id] = p.position_deg[i];
 }
 ```
+</details>
 
 #### コマンドラインでの使用
 
@@ -125,15 +138,15 @@ max_position_limit_deg: [0.0, 0.0, 0.0, 0.0]
 min_position_limit_deg: [0.0, 0.0, 0.0, 0.0]
 
 $ ros2 topic echo --flow-style /dynamixel/state/present #  DynamixelPresent型
-id_list: [1,2,3,4]
+id_list: [1,2,3,4] # `pub_outdated_present_value`パラメータが`true`の場合, 以下のように全ての要素がid_listと同じ長さになる．
 pwm_pulse: [0.0, 0.0, 0.0, 0.0]
 current_ma: [0.0, 0.0, 0.0, 0.0]
 velocity_deg_s: [0.0, 0.0, 0.0, 0.0]
 position_deg: [0.0, 0.0, 0.0, 0.0]
 vel_trajectory_deg_s: [0.0, 0.0, 0.0, 0.0]
 pos_trajectory_deg: [0.0, 0.0, 0.0, 0.0]
-input_voltage_v: []
-temperature_degc: []
+input_voltage_v: [0.0, 0.0, 0.0, 0.0]
+temperature_degc: [0.0, 0.0, 0.0, 0.0]
 
 # ... 略
 ```
@@ -228,14 +241,14 @@ status: # DynamixelStatus型, pub_ratio/status に一回 read される．．
    mode: ['position', 'velocity', 'current', 'velocity']
 present: # DynamixelPresent型, pub_ratio/present.~ に一回 read され，1要素でも読み取ったら埋める
    id_list: [1, 2, 3, 4]
-   pwm_percent: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.pwm に一回 read される．
-   current_ma: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.current に一回 read される．
-   velocity_deg_s: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.velocity に一回 read される．
-   position_deg: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.position に一回 read される．
-   vel_trajectory_deg_s: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.vel_trajectory に一回 read される．
-   pos_trajectory_deg: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.pos_trajectory に一回 read される．
-   input_voltage_v: [] # pub_ratio/present.input_voltage に一回 read される．
-   temperature_degc: [] # pub_ratio/present.temperature に一回 read される．
+   pwm_percent: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.pwm に一回更新される．
+   current_ma: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.current に一回更新される．
+   velocity_deg_s: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.velocity に一回更新される．
+   position_deg: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.position に一回更新される．
+   vel_trajectory_deg_s: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.vel_trajectory に一回更新される．
+   pos_trajectory_deg: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.pos_trajectory に一回更新される．
+   input_voltage_v: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.input_voltage に一回更新される．
+   temperature_degc: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.temperature に一回更新される．
 goal: # DynamixelGoal型, pub_ratio/goalに一回 read され，読み取ったら埋める
    id_list: [1, 2, 3, 4]
    pwm_percent: [0.0, 0.0, 0.0, 0.0]

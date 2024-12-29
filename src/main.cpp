@@ -38,6 +38,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     // main loop の設定
     this->get_parameter_or("loop_rate", loop_rate_, 50u);
     this->get_parameter_or("verbose_ratio", ratio_mainloop_ , 100u);
+    this->get_parameter_or("pub_outdated_present_value", do_pub_pre_all_, true);
     this->get_parameter_or("pub_ratio/present.pwm"                 , pub_ratio_present_[PRESENT_PWM          ],  0u);
     this->get_parameter_or("pub_ratio/present.current"             , pub_ratio_present_[PRESENT_CURRENT      ],  1u);
     this->get_parameter_or("pub_ratio/present.velocity"            , pub_ratio_present_[PRESENT_VELOCITY     ],  1u);

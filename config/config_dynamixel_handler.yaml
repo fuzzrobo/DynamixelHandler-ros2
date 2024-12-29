@@ -28,6 +28,7 @@
     # ループの設定
         loop_rate: 100 # メインループの周期
         verbose_ratio: 300 # メインループのlog出力の割合(処理時間，通信の成功率), ex 100なら100回に1回出力
+        pub_outdated_present_value: true # 最新でないpresent_XXXをpublishするかどうか. false ならば 直近のループでreadした Present の要素のみmsgに含められる．
         pub_ratio/present: # present_XXXを読み取る割合
             pwm:                  0 # この回数に一回present_pwmを読み取る
             current:              2 # この回数に一回present_currentを読み取る

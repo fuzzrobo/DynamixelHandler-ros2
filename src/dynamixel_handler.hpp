@@ -142,6 +142,7 @@ class DynamixelHandler : public rclcpp::Node {
         double default_profile_acc_deg_ss_ = 0.0;
         bool do_clean_hwerr_ = false;
         bool do_torque_on_   = false;
+        bool do_pub_pre_all_ = true;
 
         //* Dynamixelとの通信
         DynamixelCommunicator dyn_comm_;
