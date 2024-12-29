@@ -115,26 +115,22 @@ source ~/.bashrc # 初回 build 時のみ
 ```bash
 ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 ```
-出力例
 ```bash
-$ ros2 launch dynamixel_handler dynamixel_handler_launch.xml
+# 出力例
 # ... 略 ...
 [dynamixel_handler_node-1] 00000.00000: Initializing DynamixelHandler ..... 
 [dynamixel_handler_node-1] Succeeded to open the port : /dev/ttyUSB0!
-[dynamixel_handler_node-1] Succeeded to change the latency timer : 4!
-[dynamixel_handler_node-1] Succeeded to change the baudrate : 2000000!
-[dynamixel_handler_node-1] 00000.00000: 
-[dynamixel_handler_node-1] Expected number of Dynamixel is not set. Free number of Dynamixel is allowed
+[dynamixel_handler_node-1] Succeeded to change the latency timer : 16!
+[dynamixel_handler_node-1] Succeeded to change the baudrate : 57000!
+[dynamixel_handler_node-1] 00000.00000: Expected number of Dynamixel is not set. 
+[dynamixel_handler_node-1] 00000.00000: Free number of Dynamixel is allowed.
 [dynamixel_handler_node-1] 00000.00000:  Auto scanning Dynamixel (id range [0] to [30]) ...
-[dynamixel_handler_node-1] 00000.00000:   Scanning: 0 
-[dynamixel_handler_node-1] 00000.00000:    * X series servo id [1] is found 
+[dynamixel_handler_node-1] 00000.00000:    * P series servo id [1] is found 
 [dynamixel_handler_node-1] 00000.00000:    ID [1] is enabled torque 
-[dynamixel_handler_node-1] 00000.00000:   Scanning: 5 
 [dynamixel_handler_node-1] 00000.00000:    * X series servo id [6] is found 
 [dynamixel_handler_node-1] 00000.00000:    ID [6] is enabled torque 
 [dynamixel_handler_node-1] 00000.00000:    * X series servo id [7] is found 
 [dynamixel_handler_node-1] 00000.00000:    ID [7] is enabled torque 
-[dynamixel_handler_node-1] 00000.00000:   Scanning: 30
 [dynamixel_handler_node-1] 00000.00000:  ... Finish scanning Dynamixel 
 [dynamixel_handler_node-1] 00000.00000: ..... DynamixelHandler is initialized 
 [dynamixel_handler_node-1] 00000.00000: Loop [0]: write=0.00ms read=11.72ms(p/f=100%/100%) 

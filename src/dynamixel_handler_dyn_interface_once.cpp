@@ -9,11 +9,9 @@ static constexpr double DEG = M_PI/180.0; // degを単位に持つ数字に掛�
 
 // 各シリーズのDynamixelを検出する．
 uint8_t DynamixelHandler::ScanDynamixels(id_t id_min, id_t id_max, uint32_t num_expected, uint32_t times_retry) {
-    id_set_.clear();
     for (int id = id_min; id <= id_max; id++){
-        addDynamixel(id);
-        if ( id==id_min || (!is_in(id, id_set_) && is_in(id-1, id_set_)) ) ROS_INFO("[reserved line for scan]");
-        if ( !is_in(id, id_set_) ) ROS_INFO("%c[2K%c[1A%c[0K  Scanning ID: %d", 0x1b, 0x1b, 0x1b, id);
+        ROS_INFO("  Scanning ID: %d%c[999D%c[1A", id, 0x1b, 0x1b);
+        AddDynamixel(id);
         if ( !rclcpp::ok() ) return 0;
     } 
     auto num_found = id_set_.size();
@@ -21,10 +19,9 @@ uint8_t DynamixelHandler::ScanDynamixels(id_t id_min, id_t id_max, uint32_t num_
     if ( times_retry <= 0 ) return num_found;
     if ( num_found != 0 && num_found >= num_expected ) return num_found;
     // 再帰処理
-    if ( num_found < num_expected )  
-        ROS_WARN( "  Less expected number of Dynamixel are found,\n > %d times retry left", times_retry );
-    if ( num_expected == 0 )
-        ROS_WARN( "  Dynamixels are not found yet,\n > %d times retry left", times_retry );
+    if ( num_found < num_expected ) ROS_WARN("  '%ld' dynamixels are not found yet", num_expected-num_found );
+    if ( num_expected == 0 )        ROS_WARN("  No dynamixels are found yet" );
+    ROS_WARN("   > %d times retry left ( %ld/%s servos )", times_retry, num_found, num_expected==0?"?":std::to_string(num_expected).c_str());
     rsleep(100);
     return ScanDynamixels(id_min, id_max, num_expected, times_retry-1);
 }
