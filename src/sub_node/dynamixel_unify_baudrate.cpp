@@ -12,7 +12,7 @@ using std::string;
 int main(int argc, char **argv) {
     rclcpp::init(argc, argv);
 	// *** init node
-	std::shared_ptr<rclcpp::Node> nh = rclcpp::Node::make_shared("dynamixel_change_baudrate_node");
+	std::shared_ptr<rclcpp::Node> nh = rclcpp::Node::make_shared("dynamixel_unify_baudrate_node");
 
 
     int id_max, id_min;
