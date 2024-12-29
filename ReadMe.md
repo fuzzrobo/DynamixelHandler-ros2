@@ -431,9 +431,10 @@ Subscribe時にデータが一時保存され，直後のメインループ内�
 ```yml
 # サーボの初期設定
   init/expected_servo_num: 0 # 期待するサーボの数，0ならいくつでもOK
-  init/auto_search_min_id: 0 # 探索するサーボのIDの最小値
-  init/auto_search_max_id: 20 # 探索するサーボのIDの最大値
-  init/auto_search_retry_times: 10 # 探索のリトライ回数
+  init/auto_search:
+      min_id: 0      # 探索するサーボのIDの最小値
+      max_id: 30     # 探索するサーボのIDの最大値
+      retry_times: 4 # 探索のリトライ回数
   init/hardware_error_auto_clean: true # 初期化時に Hardware error を自動でクリアするかどうか
   init/torque_auto_enable: true # 初期化時に Torque を自動でONにするかどうか
   term/torque_auto_disable: true # 終了時に Torque を自動でOFFにするかどうか
