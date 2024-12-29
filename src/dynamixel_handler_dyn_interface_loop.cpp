@@ -162,6 +162,14 @@ using std::chrono::microseconds;
 template <>double DynamixelHandler::SyncReadPresent(set<PresentIndex> present_indice_read, const set<id_t>& id_set ){
     double suc_rate_X = SyncReadPresent<AddrX>(present_indice_read, id_set);
     double suc_rate_P = SyncReadPresent<AddrP>(present_indice_read, id_set);
+    for ( auto id : id_set ) if ( is_dummy(id) ) {
+        present_r_[id][PRESENT_PWM] = goal_w_[id][GOAL_PWM];
+        present_r_[id][PRESENT_CURRENT] = goal_w_[id][GOAL_CURRENT];
+        present_r_[id][PRESENT_VELOCITY] = goal_w_[id][GOAL_VELOCITY];
+        present_r_[id][PRESENT_POSITION] = goal_w_[id][GOAL_POSITION];
+        present_r_[id][PRESENT_INPUT_VOLTAGE] = 25;
+        present_r_[id][PRESENT_TEMPERATURE] = 25;
+    }
     return (suc_rate_X*num_[SERIES_X] + suc_rate_P*num_[SERIES_P] + num_[SERIES_UNKNOWN]) / (num_[SERIES_X]+num_[SERIES_P]+num_[SERIES_UNKNOWN]);
 }
 template <typename Addr> double DynamixelHandler::SyncReadPresent(set<PresentIndex> present_indice_read, const set<id_t>& id_set ){
@@ -280,6 +288,7 @@ template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(const s
 template <> double DynamixelHandler::SyncReadGain(set<GainIndex> gain_indice_read, const set<id_t>& id_set){
     double suc_rate_X = SyncReadGain<AddrX>(gain_indice_read, id_set);
     double suc_rate_P = SyncReadGain<AddrP>(gain_indice_read, id_set);
+    for (auto id : id_set) if ( is_dummy(id) ) gain_r_[id] = gain_w_[id];
     return (suc_rate_X*num_[SERIES_X] + suc_rate_P*num_[SERIES_P] + num_[SERIES_UNKNOWN]) / (num_[SERIES_X]+num_[SERIES_P]+num_[SERIES_UNKNOWN]);
 }
 template <typename Addr> double DynamixelHandler::SyncReadGain(set<GainIndex> gain_indice_read, const set<id_t>& id_set){
@@ -347,6 +356,7 @@ template <typename Addr> double DynamixelHandler::SyncReadGain(set<GainIndex> ga
 template <> double DynamixelHandler::SyncReadLimit(set<LimitIndex> limit_indice_read, const set<id_t>& id_set){
     double suc_rate_X = SyncReadLimit<AddrX>(limit_indice_read, id_set);
     double suc_rate_P = SyncReadLimit<AddrP>(limit_indice_read, id_set);
+    for (auto id : id_set) if ( is_dummy(id) ) limit_r_[id] = limit_w_[id];
     return (suc_rate_X*num_[SERIES_X] + suc_rate_P*num_[SERIES_P] + num_[SERIES_UNKNOWN]) / (num_[SERIES_X]+num_[SERIES_P]+num_[SERIES_UNKNOWN]);
 }
 template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> limit_indice_read, const set<id_t>& id_set){
@@ -416,6 +426,7 @@ template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> 
 template <> double DynamixelHandler::SyncReadGoal(set<GoalIndex> goal_indice_read, const set<id_t>& id_set){
     double suc_rate_X = SyncReadGoal<AddrX>(goal_indice_read, id_set);
     double suc_rate_P = SyncReadGoal<AddrP>(goal_indice_read, id_set);
+    for (auto id : id_set) if ( is_dummy(id) ) goal_r_[id] = goal_w_[id];
     return (suc_rate_X*num_[SERIES_X] + suc_rate_P*num_[SERIES_P] + num_[SERIES_UNKNOWN]) / (num_[SERIES_X]+num_[SERIES_P]+num_[SERIES_UNKNOWN]);
 }
 template <typename Addr> double DynamixelHandler::SyncReadGoal(set<GoalIndex> goal_indice_read, const set<id_t>& id_set){

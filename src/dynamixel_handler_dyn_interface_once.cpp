@@ -34,6 +34,13 @@ bool DynamixelHandler::DummyUpDynamixel(id_t id){
     series_[id] = SERIES_UNKNOWN;
     id_set_.insert(id);
     num_[SERIES_UNKNOWN]++;
+    // limitのみgoal値の制限に用いられるので，動作に必要なもののみ仮の値を入れておく
+    limit_w_[id][PWM_LIMIT         ] = 100; // 最大
+    limit_w_[id][CURRENT_LIMIT     ] = 20000; // 適当に20A
+    limit_w_[id][ACCELERATION_LIMIT] = 100000*DEG; // 適当に大きな値
+    limit_w_[id][VELOCITY_LIMIT    ] = 100000*DEG; // 適当に大きな値
+    limit_w_[id][MAX_POSITION_LIMIT] =  180*DEG; // 最大 
+    limit_w_[id][MIN_POSITION_LIMIT] = -180*DEG; // 最小 
     if ( do_clean_hwerr_ ) ClearHardwareError(id); // 現在の状態を変えない
     if ( do_torque_on_ )   TorqueOn(id);           // 現在の状態を変えない
     return true;
