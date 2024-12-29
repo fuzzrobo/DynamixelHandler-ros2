@@ -12,10 +12,10 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
                                                                   .allow_undeclared_parameters(true)
                                                                   .automatically_declare_parameters_from_overrides(true)) {
     ROS_INFO( "Initializing DynamixelHandler .....");
-
+    // 開発用
     bool is_debug; get_parameter_or("debug", is_debug, false);
     bool no_use_command_line; get_parameter_or("no_use_command_line", no_use_command_line, false);
-
+    vector<int64_t> dummy_id_list; this->get_parameter("dummy_servo_id_list", dummy_id_list); //int64_t で受けないといけない．
     // 通信の開始
     int baudrate      ; this->get_parameter_or("baudrate"     , baudrate     ,           57600);
     int latency_timer ; this->get_parameter_or("latency_timer", latency_timer,              16);
@@ -24,7 +24,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     dyn_comm_ = DynamixelCommunicator(device_name.c_str(), baudrate, latency_timer);
     if ( !dyn_comm_.OpenPort() ) { fflush(stdout); // printfのバッファを吐き出す． これがないと printfの表示が遅延する
         ROS_ERROR("Failed to open USB device [%s]", dyn_comm_.port_name().c_str()); 
-        if ( !is_debug ) ROS_STOP("Initialization failed (device open)");
+        if ( !is_debug && dummy_id_list.empty() ) ROS_STOP("Initialization failed (device open)");
     } 
     // serial通信のverbose設定
     bool serial_verbose; get_parameter_or("dyn_comm/verbose", serial_verbose, false);
@@ -86,6 +86,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     else                 {ROS_WARN("Expected servo number is not set."); ROS_WARN("Free number of Dynamixel is allowed");}
     ROS_INFO(" Auto scanning Dynamixel (id range '%d' to '%d') ...", id_min, id_max);
     /* *********************** dynamixelを探索し，初期化する ***********************************/
+    /* */for (const auto id : dummy_id_list) DummyUpDynamixel(id);
     /* */auto num_found = ScanDynamixels(id_min, id_max, num_expected, times_retry);
     /* ***********************************************************************************/
     if( num_found==0 ) { // 見つからなかった場合は初期化失敗で終了
@@ -199,7 +200,7 @@ void DynamixelHandler::MainLoop(){
         success_rate[STATUS] = 1.0;
         for (auto id: id_set_) if ( auto_remove_count_ ) 
             if ( ping_err_[id] > auto_remove_count_) RemoveDynamixel(id);
-        if (success_rate[STATUS]) msg.status = BroadcastState_Status();
+        if ( success_rate[STATUS] ) msg.status = BroadcastState_Status();
     }
     if ( !present_indice_read_.empty() ){
         success_rate[PRESENT] = SyncReadPresent(present_indice_read_, target_id_set);

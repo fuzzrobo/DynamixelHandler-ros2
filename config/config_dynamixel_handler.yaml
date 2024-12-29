@@ -4,6 +4,7 @@
     # 開発用
         debug: false # true: デバイスとの接続に失敗してもエラーを出力しない/ false: エラーを出力して終了する
         no_use_command_line: false # true: プログラム用のトピックのみ使用する/ false: コマンドライン用のトピックも出力する
+        # dummy_servo_id_list: [] # ダミーのサーボを作成する,同じIDのサーボが存在する場合でもダミーが優先される． 
     # 通信機器の設定
         device_name: /dev/ttyUSB0 # 通信するデバイス名
         baudrate: 57600 # 通信速度

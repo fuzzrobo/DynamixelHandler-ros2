@@ -80,7 +80,7 @@ void DynamixelHandler::CallbackCmd_Status(const DynamixelStatus& msg) {
     for (size_t i=0; i<msg.id_list.size(); i++) if ( auto ID = msg.id_list[i]; is_in(ID, valid_id_list) ) { // 順番がずれるのでわざとこの書き方をしている．
         if ( has_error  ) { ClearHardwareError(ID); TorqueOn(ID); }
         if ( has_torque ) msg.torque[i] ? TorqueOn(ID)     : TorqueOff(ID)      ;
-        if ( has_ping   ) msg.ping[i]   ? addDynamixel(ID) : RemoveDynamixel(ID);
+        if ( has_ping   ) msg.ping[i]   ? AddDynamixel(ID) : RemoveDynamixel(ID);
         if ( has_mode   ) {
                  if (msg.mode[i] == msg.CONTROL_PWM                  ) ChangeOperatingMode(ID, OPERATING_MODE_PWM                  );
             else if (msg.mode[i] == msg.CONTROL_CURRENT              ) ChangeOperatingMode(ID, OPERATING_MODE_CURRENT              );
@@ -88,7 +88,7 @@ void DynamixelHandler::CallbackCmd_Status(const DynamixelStatus& msg) {
             else if (msg.mode[i] == msg.CONTROL_POSITION             ) ChangeOperatingMode(ID, OPERATING_MODE_POSITION             );
             else if (msg.mode[i] == msg.CONTROL_EXTENDED_POSITION    ) ChangeOperatingMode(ID, OPERATING_MODE_EXTENDED_POSITION    );
             else if (msg.mode[i] == msg.CONTROL_CURRENT_BASE_POSITION) 
-                                 switch (series_[ID]) { case SERIES_X: ChangeOperatingMode(ID, OPERATING_MODE_CURRENT_BASE_POSITION); break;
+                                 switch (series_[ID]) { default:       ChangeOperatingMode(ID, OPERATING_MODE_CURRENT_BASE_POSITION); break;
                                                         case SERIES_P: ChangeOperatingMode(ID, OPERATING_MODE_EXTENDED_POSITION    );
                                                                        ROS_WARN("  ID [%d] is P-series, so alternative mode is selected", ID);}
             else ROS_WARN("  Invalid operating mode [%s], please see CallbackCmd_Status.msg definition.", msg.mode[i].c_str());

@@ -162,7 +162,7 @@ using std::chrono::microseconds;
 template <>double DynamixelHandler::SyncReadPresent(set<PresentIndex> present_indice_read, const set<id_t>& id_set ){
     double suc_rate_X = SyncReadPresent<AddrX>(present_indice_read, id_set);
     double suc_rate_P = SyncReadPresent<AddrP>(present_indice_read, id_set);
-    return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / (num_[SERIES_X]+num_[SERIES_P]);
+    return (suc_rate_X*num_[SERIES_X] + suc_rate_P*num_[SERIES_P] + num_[SERIES_UNKNOWN]) / (num_[SERIES_X]+num_[SERIES_P]+num_[SERIES_UNKNOWN]);
 }
 template <typename Addr> double DynamixelHandler::SyncReadPresent(set<PresentIndex> present_indice_read, const set<id_t>& id_set ){
     if ( present_indice_read.empty() ) return 1.0; // 空なら即時return
@@ -229,7 +229,7 @@ template <typename Addr> double DynamixelHandler::SyncReadPresent(set<PresentInd
 template <> double DynamixelHandler::SyncReadHardwareErrors(const set<id_t>& id_set){
     double suc_rate_X = SyncReadHardwareErrors<AddrX>(id_set);
     double suc_rate_P = SyncReadHardwareErrors<AddrP>(id_set);
-    return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / (num_[SERIES_X]+num_[SERIES_P]);
+    return (suc_rate_X*num_[SERIES_X] + suc_rate_P*num_[SERIES_P] + num_[SERIES_UNKNOWN]) / (num_[SERIES_X]+num_[SERIES_P]+num_[SERIES_UNKNOWN]);
 }
 template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(const set<id_t>& id_set){
     if ( !has_any_hardware_error_ ) { hardware_err_.clear(); return 1.0; } // 事前にエラーが検出できていない場合は省略
@@ -280,7 +280,7 @@ template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(const s
 template <> double DynamixelHandler::SyncReadGain(set<GainIndex> gain_indice_read, const set<id_t>& id_set){
     double suc_rate_X = SyncReadGain<AddrX>(gain_indice_read, id_set);
     double suc_rate_P = SyncReadGain<AddrP>(gain_indice_read, id_set);
-    return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / (num_[SERIES_X]+num_[SERIES_P]);
+    return (suc_rate_X*num_[SERIES_X] + suc_rate_P*num_[SERIES_P] + num_[SERIES_UNKNOWN]) / (num_[SERIES_X]+num_[SERIES_P]+num_[SERIES_UNKNOWN]);
 }
 template <typename Addr> double DynamixelHandler::SyncReadGain(set<GainIndex> gain_indice_read, const set<id_t>& id_set){
     if ( gain_indice_read.empty() ) return 1.0; // 空なら即時return
@@ -347,7 +347,7 @@ template <typename Addr> double DynamixelHandler::SyncReadGain(set<GainIndex> ga
 template <> double DynamixelHandler::SyncReadLimit(set<LimitIndex> limit_indice_read, const set<id_t>& id_set){
     double suc_rate_X = SyncReadLimit<AddrX>(limit_indice_read, id_set);
     double suc_rate_P = SyncReadLimit<AddrP>(limit_indice_read, id_set);
-    return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / (num_[SERIES_X]+num_[SERIES_P]);
+    return (suc_rate_X*num_[SERIES_X] + suc_rate_P*num_[SERIES_P] + num_[SERIES_UNKNOWN]) / (num_[SERIES_X]+num_[SERIES_P]+num_[SERIES_UNKNOWN]);
 }
 template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> limit_indice_read, const set<id_t>& id_set){
     if ( limit_indice_read.empty() ) return 1.0; // 空なら即時return
@@ -416,7 +416,7 @@ template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> 
 template <> double DynamixelHandler::SyncReadGoal(set<GoalIndex> goal_indice_read, const set<id_t>& id_set){
     double suc_rate_X = SyncReadGoal<AddrX>(goal_indice_read, id_set);
     double suc_rate_P = SyncReadGoal<AddrP>(goal_indice_read, id_set);
-    return (suc_rate_X * num_[SERIES_X] + suc_rate_P * num_[SERIES_P]) / (num_[SERIES_X]+num_[SERIES_P]);
+    return (suc_rate_X*num_[SERIES_X] + suc_rate_P*num_[SERIES_P] + num_[SERIES_UNKNOWN]) / (num_[SERIES_X]+num_[SERIES_P]+num_[SERIES_UNKNOWN]);
 }
 template <typename Addr> double DynamixelHandler::SyncReadGoal(set<GoalIndex> goal_indice_read, const set<id_t>& id_set){
     if ( goal_indice_read.empty() ) return 1.0; // 空なら即時return

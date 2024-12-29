@@ -26,7 +26,20 @@ uint8_t DynamixelHandler::ScanDynamixels(id_t id_min, id_t id_max, uint32_t num_
     return ScanDynamixels(id_min, id_max, num_expected, times_retry-1);
 }
 
-bool DynamixelHandler::addDynamixel(id_t id){
+bool DynamixelHandler::is_dummy(id_t id) { return is_in(id, id_set_) && series_[id] == SERIES_UNKNOWN;}
+bool DynamixelHandler::DummyUpDynamixel(id_t id){
+    if ( is_in(id, id_set_) ) return false; // すでに登録されている場合は失敗
+    ROS_INFO("   *   Dummy  servo ID [%d] is added", id);
+    model_[id] = 0;
+    series_[id] = SERIES_UNKNOWN;
+    id_set_.insert(id);
+    num_[SERIES_UNKNOWN]++;
+    if ( do_clean_hwerr_ ) ClearHardwareError(id); // 現在の状態を変えない
+    if ( do_torque_on_ )   TorqueOn(id);           // 現在の状態を変えない
+    return true;
+}
+
+bool DynamixelHandler::AddDynamixel(id_t id){
     if ( is_in(id, id_set_) ) return true;
     if ( !dyn_comm_.tryPing(id) ) return false;
 
@@ -111,6 +124,7 @@ bool DynamixelHandler::ClearHardwareError(id_t id){
 bool DynamixelHandler::ChangeOperatingMode(id_t id, DynamixelOperatingMode mode){
     if ( !is_in(id, id_set_) ) return false;
     if ( op_mode_[id] == mode ) return true; // 既に同じモードの場合は何もしない
+    if ( is_dummy(id) ) { op_mode_[id] = mode; return true;} // ダミーの場合は即時反映
     if ( get_clock()->now().seconds() - when_op_mode_updated_[id] < 1.0 ) rsleep(1000); // 1秒以内に変更した場合は1秒待つ
     // 変更前のトルク状態を確認
     const bool prev_torque = ReadTorqueEnable(id); // read失敗しても0が返ってくるので問題ない
@@ -144,6 +158,7 @@ bool DynamixelHandler::ChangeOperatingMode(id_t id, DynamixelOperatingMode mode)
 bool DynamixelHandler::TorqueOn(id_t id){
     if ( !is_in(id, id_set_) ) return false;
     if ( tq_mode_[id] == TORQUE_ENABLE ) return true; // 既にトルクが入っている場合は何もしない
+    if ( is_dummy(id) ) { tq_mode_[id] = TORQUE_ENABLE; return true;} // ダミーの場合は即時反映
     // dynamixel内のgoal値とこのプログラム内のgoal_w_を一致させる．
     const auto now_pos = ReadPresentPosition(id); // 失敗すると0が返って危ないので確認する
     if ( !( dyn_comm_.timeout_last_read() || dyn_comm_.comm_error_last_read() )){
@@ -176,6 +191,7 @@ bool DynamixelHandler::TorqueOn(id_t id){
 bool DynamixelHandler::TorqueOff(id_t id){
     if ( !is_in(id, id_set_) ) return false;
     if ( tq_mode_[id] == TORQUE_DISABLE ) return true; // 既にトルクが切られている場合は何もしない
+    if ( is_dummy(id) ) { tq_mode_[id] = TORQUE_DISABLE; return true;} // ダミーの場合は即時反映
     // トルクを切る
     WriteTorqueEnable(id, false);
     // 結果を確認
