@@ -6,6 +6,8 @@
 // 角度変換
 static constexpr double DEG = M_PI/180.0; // degを単位に持つ数字に掛けるとradになる
 static double deg2rad(double deg){ return deg*DEG; }
+static vector<bool> falses(size_t N) { return vector<bool>(N, false); }
+static vector<bool> trues (size_t N) { return vector<bool>(N,  true); }
 
 void DynamixelHandler::CallbackCmdsX(const DxlCommandsX::SharedPtr msg) {
     if ( verbose_callback_ ) ROS_INFO("=====================================");
@@ -44,43 +46,51 @@ void DynamixelHandler::CallbackShortcut(const DynamixelShortcut& msg) {
         ROS_INFO_STREAM(id_list_layout(msg.id_list, "Shortcut, ID"));
         ROS_INFO(" command [%s] (ID=[] or [254] means all IDs)", msg.command.c_str());
     }
-    // msg.id_list内をもとに，処理用のIDリストを作成
-    vector<uint16_t> id_list;
-    for (auto id : id_set_) if ( msg.id_list.empty() || msg.id_list==vector<uint16_t>{0xFE} || is_in(id, msg.id_list) ) id_list.push_back(id);
-    auto st_cmd = DynamixelStatus().set__id_list(id_list);
-         if (msg.command == msg.CLEAR_ERROR  || msg.command == "CE"  ) CallbackCmd_Status(st_cmd.set__error (vector<bool>(id_list.size(), false)));
-    else if (msg.command == msg.TORQUE_ON    || msg.command == "TON" ) CallbackCmd_Status(st_cmd.set__torque(vector<bool>(id_list.size(),  true)));
-    else if (msg.command == msg.TORQUE_OFF   || msg.command == "TOFF") CallbackCmd_Status(st_cmd.set__torque(vector<bool>(id_list.size(), false)));
-    else if (msg.command == msg.ADD_ID       || msg.command == "ADID") CallbackCmd_Status(st_cmd.set__ping  (vector<bool>(id_list.size(),  true)));
-    else if (msg.command == msg.REMOVE_ID    || msg.command == "RMID") CallbackCmd_Status(st_cmd.set__ping  (vector<bool>(id_list.size(), false)));
-    else if (msg.command == msg.RESET_OFFSET ) for (auto id : id_list) {WriteHomingOffset(id, 0);              ROS_INFO("  - set: offset zero, ID [%d]"   , id);} // 開発者用でほぼ使われないので if(verbose_)は付けない
-    else if (msg.command == msg.ENABLE       ) for (auto id : id_list) {WriteTorqueEnable(id, TORQUE_ENABLE);  ROS_INFO("  - set: torque enable, ID [%d]" , id);} // 開発者用でほぼ使われないので if(verbose_)は付けない
-    else if (msg.command == msg.DISABLE      ) for (auto id : id_list) {WriteTorqueEnable(id, TORQUE_DISABLE); ROS_INFO("  - set: torque disable, ID [%d]", id);} // 開発者用でほぼ使われないので if(verbose_)は付けない
-    else if (msg.command == msg.REBOOT       ) for (auto id : id_list) {dyn_comm_.Reboot(id);                  ROS_INFO("  - reboot: ID [%d] ", id);}
-    else ROS_WARN("  Invalid command [%s]", msg.command.c_str());
+    auto st = DynamixelStatus();
+    const auto& cmd = msg.command; // 略記
+    const auto& N = msg.id_list.size();// IDリストのサイズ
+    const auto& id_list = ( N==0 || (N==1 && msg.id_list[0]==0xFE) ) // [] or [254] なら全ID
+                          ? vector<uint16_t>(id_set_.begin(), id_set_.end()) : msg.id_list;
+         if (cmd==msg.CLEAR_ERROR || cmd=="CE"  ) CallbackCmd_Status(st.set__id_list(id_list).set__error (falses(id_list.size())));
+    else if (cmd==msg.TORQUE_ON   || cmd=="TON" ) CallbackCmd_Status(st.set__id_list(id_list).set__torque( trues(id_list.size())));
+    else if (cmd==msg.TORQUE_OFF  || cmd=="TOFF") CallbackCmd_Status(st.set__id_list(id_list).set__torque(falses(id_list.size())));
+    else if (cmd==msg.ADD_ID      || cmd=="ADID") CallbackCmd_Status(st.set__id_list(id_list).set__ping  ( trues(id_list.size())));
+    else if (cmd==msg.REMOVE_ID   || cmd=="RMID") CallbackCmd_Status(st.set__id_list(id_list).set__ping  (falses(id_list.size())));
+    else if (cmd==msg.RESET_OFFSET ) for(auto id: id_list){ // 開発者用で頻繁には使われないので if(verbose_)は付けない
+                                        WriteHomingOffset(id, 0);              ROS_INFO("  - set: offset zero, ID [%d]"   , id);}
+    else if (cmd==msg.ENABLE       ) for(auto id: id_list){ // 開発者用で頻繁には使われないので if(verbose_)は付けない
+                                        WriteTorqueEnable(id, TORQUE_ENABLE);  ROS_INFO("  - set: torque enable, ID [%d]" , id);}
+    else if (cmd==msg.DISABLE      ) for(auto id: id_list){ // 開発者用で頻繁には使われないので if(verbose_)は付けない
+                                        WriteTorqueEnable(id, TORQUE_DISABLE); ROS_INFO("  - set: torque disable, ID [%d]", id);}
+    else if (cmd==msg.REBOOT       ) for(auto id: id_list){ // Reboot()はdummyでも送信をしてしまうので，事前にis_dummy()で確認する
+                                        if( !is_dummy(id) ) dyn_comm_.Reboot(id);; ROS_INFO("  - reboot: ID [%d]", id); }
+    else ROS_WARN("  Invalid command [%s]", cmd.c_str());
 }
 
 void DynamixelHandler::CallbackCmd_Status(const DynamixelStatus& msg) {
-    // msg.id_list内のIDの妥当性を確認
-    vector<uint16_t> valid_id_list;
-    for (auto id : msg.id_list) if ( is_in(id, id_set_) ) valid_id_list.push_back(id);
-    if ( valid_id_list.empty() ) return; // 有効なIDがない場合は何もしない
+    // msg内の各要素のサイズがIDリストと一致しているか確認
     const bool has_torque = msg.id_list.size() == msg.torque.size();
     const bool has_error  = msg.id_list.size() == msg.error.size() ;
     const bool has_ping   = msg.id_list.size() == msg.ping.size()  ;
     const bool has_mode   = msg.id_list.size() == msg.mode.size()  ;
+    // msg.id_list内のIDの妥当性を確認, has_ping が true の場合は，id_set_に含まれていないIDも有効とする
+    vector<uint16_t> valid_id_list;
+    for (auto id : msg.id_list) if ( is_in(id, id_set_) || has_ping ) valid_id_list.push_back(id);
+    if ( valid_id_list.empty() ) return; // 有効なIDがない場合は何もしない
+    // log出力, 
     if (verbose_callback_ ) {
         ROS_INFO("Status cmd, '%zu' servo(s) are tryed to updated", valid_id_list.size());
         ROS_INFO_STREAM(id_list_layout(valid_id_list, "  ID")); // valid_id_list はここで必要なので，わざわざ独立したvectorとして用意している
-        if ( has_torque ) ROS_INFO("  - updated: torque"); else if ( !msg.torque.empty() ) ROS_WARN("  - skipped: torque (size mismatch)");
-        if ( has_error  ) ROS_INFO("  - updated: error "); else if ( !msg.error .empty() ) ROS_WARN("  - skipped: error  (size mismatch)");
-        if ( has_ping   ) ROS_INFO("  - updated: ping  "); else if ( !msg.ping  .empty() ) ROS_WARN("  - skipped: ping   (size mismatch)");
-        if ( has_mode   ) ROS_INFO("  - updated: mode  "); else if ( !msg.mode  .empty() ) ROS_WARN("  - skipped: mode   (size mismatch)");
+        if ( has_torque ) ROS_INFO("  - change torque mode   "); else if ( !msg.torque.empty() ) ROS_WARN("  - skipped: torque (size mismatch)");
+        if ( has_error  ) ROS_INFO("  - try clear error      "); else if ( !msg.error .empty() ) ROS_WARN("  - skipped: error  (size mismatch)");
+        if ( has_ping   ) ROS_INFO("  - add/remove id (ping) "); else if ( !msg.ping  .empty() ) ROS_WARN("  - skipped: ping   (size mismatch)");
+        if ( has_mode   ) ROS_INFO("  - change operating mode"); else if ( !msg.mode  .empty() ) ROS_WARN("  - skipped: mode   (size mismatch)");
     }
+    // 各IDに対して，msg内の指令をもとに処理を行う
     for (size_t i=0; i<msg.id_list.size(); i++) if ( auto ID = msg.id_list[i]; is_in(ID, valid_id_list) ) { // 順番がずれるのでわざとこの書き方をしている．
-        if ( has_error  ) { ClearHardwareError(ID); TorqueOn(ID); }
+        if ( has_ping   ) msg.ping[i]   ? AddDynamixel(ID) : RemoveDynamixel(ID); // 先にAddDynamixelを行わないと，他の処理ができない.
         if ( has_torque ) msg.torque[i] ? TorqueOn(ID)     : TorqueOff(ID)      ;
-        if ( has_ping   ) msg.ping[i]   ? AddDynamixel(ID) : RemoveDynamixel(ID);
+        if ( has_error  ) { ClearHardwareError(ID); TorqueOn(ID); }
         if ( has_mode   ) {
                  if (msg.mode[i] == msg.CONTROL_PWM                  ) ChangeOperatingMode(ID, OPERATING_MODE_PWM                  );
             else if (msg.mode[i] == msg.CONTROL_CURRENT              ) ChangeOperatingMode(ID, OPERATING_MODE_CURRENT              );
