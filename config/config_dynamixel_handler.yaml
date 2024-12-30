@@ -22,7 +22,6 @@
         init/hardware_error_auto_clean: true # 初期化時に Hardware error を自動でクリアするかどうか
         init/torque_auto_enable: true # 初期化時に Torque を自動でONにするかどうか
         term/torque_auto_disable: true # 終了時に Torque を自動でOFFにするかどうか
-        middle/no_response_id_auto_remove_count: 0 # 通信が途切れた場合に何カウントで自動で削除するかどうか
     # デフォルト値の設定
         default/profile_acc: 600.0 # deg/s^2
         default/profile_vel: 100.0 # deg/s
@@ -45,9 +44,9 @@
         pub_ratio/limit: 307 # この回数に一回 Limit を読み取る, 0=初回のみ
         pub_ratio/error: 53 # この回数に一回 Hardware error を読み取る, 0=初回のみ
     # Read/Write方式
-        use/fast_read: false
-        use/split_read: false
-        use/split_write: true
+        method/fast_read: false
+        method/split_read: false
+        method/split_write: true
     # デバッグ用
         max_log_width: 6
         verbose/callback: true

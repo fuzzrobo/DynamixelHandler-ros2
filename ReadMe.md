@@ -6,54 +6,65 @@ Dynamixelとやり取りを行うライブラリは[別のリポジトリ](https
 
 note: ROS2のみ対応，ROS1 ver は[こちら](https://github.com/ROBOTIS-JAPAN-GIT/DynamixelHandler-ros1).ただし，開発が分離しているので機能はやや異なる．
 
-## features of this package
+## Features of this package
  - **Dynamixel制御に特化した最小単位のパッケージ**
-    - **`dynamixel_handler_node`** と **別の制御ノード** を組み合わせて使用する．  
-      そのため，このpkgのコードへの直接編集は不要．  
-    - コントロールテーブルアドレスや分解能（4096カウント/回転など）を意識する必要なし  
-    - サーボが「Joint」なのか「Wheel」なのか、事前の用途区別が不要
+    - このパッケージが提供する **`dynamixel_handler_node`** は，サーボモータとの通信を担う．
+    - サーボの動作制御はユーザーが開発する **別の制御ノード**が行い，`dynamixel_handler_node`は通信の仲介を行うイメージ．
+    - ユーザーはシリアル通信の通信プロトコルや，コントロールテーブルついて知る必要が(あまり)ない．
+    - Dynamixelの各種情報や機能が[適切に分類](#各種情報の分類と-control-table-との対応)され，ほぼすべての情報・機能を利用することが可能
   
- - **ROSトピックのみで制御できるシンプルなインターフェース**
-    - **Publish**: `/dynamixel/states`  
-      - Dynamixelが持つ情報を[適切に分類](#各種情報の分類と-control-table-との対応)し周期的に読み込み
-        - Status: torqueのオンオフ, errorの有無, pingの成功, 制御モード (デフォルト 約2Hz)
-        - Present値: current [mA], velocity [deg/s], position [deg] ... など (デフォルト 約50Hz)
-        - Goal値: pwm [%], current [mA] ... など (デフォルト 約10Hz)
-        - Hardware error: Overloadエラー ... など (デフォルト 約2Hz)  
-        ※ limit, gain 等も適宜Publish  
-
+ - **ROSトピックのみで制御できるシンプルなインターフェース**   
+    トピック通信だけで利用できるので，このパッケージ自体のコードの編集は不要 
     - **Subscribe**: `/dynamixel/commands/x` (他、`/dynamixel/commands/p`など)
-      - シリーズごとに定義された制御コマンド (現在 X, Pシリーズ のみ対応) 
-      - 制御コマンドの内容に合わせてサーボの制御モードが自動変更
+      - シリーズごとに定義された制御コマンドを送ることで動作制御．
+      - 制御コマンドの内容に合わせてサーボの制御モードが自動変更．
+    - **Publish**: `/dynamixel/states`  
+      - [分類された各情報](#各種情報の分類と-control-table-との対応)を個別の周期で自動的に read & publish．
+        - Status: torqueのオンオフ, errorの有無, pingの成否, 制御モード (デフォルト 約2Hz)
+        - Present: current [mA], velocity [deg/s], position [deg] などの現在値 (デフォルト 約50Hz)
+        - Error: overloadエラー などのハードウェアエラー (デフォルト 約2Hz)  
+        - etc... (Goal, Limit, Gain, Extra)
 
- - **物理量ベースでやり取り**
-      - 目標値を 0 ~ 4095 などのパルス値(整数値)に変換する必要なし．
-      - current [mA], velocity [deg/s], position [deg] などの物理量を直接指定可能  
-       ※ ただし角度については，rad (-π ~ π) ではなく degree (-180.0 ~ 180.0)で扱う．
+ - **物理量ベースでのやり取り**
+    - current [mA], velocity [deg/s], position [deg] などの物理量を直接扱える．
+    - Dynamixelから read されたパルス値(0 ~ 4095 など)は物理量に変換してから publish される． 
+    - Dynamixelへの目標値は物理量で入力され，内部でパルス値に変換されてから write される．  
+     
+    ※ 特に角度を rad (-π ~ π) ではなく degree (-180.0 ~ 180.0) で扱うので直感的．
 
- - **比較的高速なRead/Write** 
+ - **高速で安定したRead/Write** 
    - 読み書きをできるだけ一括で行うことで通信回数を削減  
       - 連続アドレスの一括読み書き
       - 複数サーボの一括読み書き (SyncRead/SyncWrite)
+    - Fast Sync Read インストラクションによるReadの高速化
+      - 通信形式についての細かい知識が無くてもros paramで設定するだけで利用可能．  
     - ROS Node周期に同期したRead/Write  
-      - TopicのCallbackに依存しない安定通信  
-      - 適切な `LATENCY_TIMER` (1~4ms) と `baudrate` (推奨 1,000,000bps 以上) が必要
-    - Fast Sync Read インストラクションでさらにRead高速化可能  
-      - 12サーボ同時Read/Writeでも150Hz程度の通信が可能なことを確認
+      - Topicの受信頻度に依存しないため，安定した通信が可能．
 
+    ※ 12サーボ同時Read/Writeでも150Hz程度の通信が可能なことを確認  
+    ※※ 高速通信には適切な `LATENCY_TIMER` (1~4ms) と `baudrate` (推奨 1,000,000bps 以上) が必要
 
  - **開発の手間を減らす便利機能**
-    - 初期化 
+    - 初期化時の動作 
       - 連結したDynamixelを自動で認識
+      - 連結されるDynamixel数の指定 (Optional)
+        - ロボットのサーボ数を事前に入力することで，断線などの異常を検知可能
       - エラーを自動でクリア (Optional)
       - トルクを自動でON (Optional)
-    - 終了時
+    - 終了時の動作
       - node を kill したタイミングで動作を停止 
       - node を kill したタイミングでトルクをOFF (Optional)
-    - エラークリア時の回転数消失問題を homing offset により自動補正
-    - baudrateを一括で変更可能 (独立ノードとして提供)
+    - Dummy Servo 機能 (Optional)
+      - 未接続のサーボのIDを与えることで，そのIDのサーボの挙動を簡易シミュレート
+      - 未接続のサーボを考慮したい時や実機を動かしたくない場合でも動作確認が可能
+    - ハードウェアエラーのクリア
+      - エラークリア時の回転数消失問題を homing offset により自動補正
+    - Baudrateの一括変更 (別ノードで提供)
+      -  パッケージに同梱している dynamixel_unify_baudrate_node で一括で変更可能
+
 
  - **ROSパラメータによる各種ログ表示制御**
+   - CallBackした内容
    - Read/Write にかかる平均時間とSerial通信の成功率
    - Read/Write されるパルス値
    - Readに失敗したID
@@ -61,7 +72,7 @@ note: ROS2のみ対応，ROS1 ver は[こちら](https://github.com/ROBOTIS-JAPA
 
 ***************************
 
-## how to install
+## How to install
 
 ### パッケージをgit clone
 ```bash
@@ -83,11 +94,14 @@ source ~/.bashrc # 初回 build 時のみ
 
 ***************************
 
-## how to use
+## How to use
 
 ### 1. Dynamixelの接続
+
+Dynamixel Wizardでモータの動作確認ができる程度の状態を想定．
+
 - DynaimixelをディジーチェーンにしてU2D2経由でUSB接続されていること．
-- idに重複がないように事前にDynamixel Wizardなどを用いて設定すること.
+- idに重複がないように事前に設定されていること.
 - baudrateが全て統一されていること．
 
 > [!TIP]
@@ -141,7 +155,7 @@ ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 
 連結したDynamixelが自動で探索され，見つかったDynamixelの初期設定が行われる．   
 うまく見つからない場合は[trouble shooting](#trouble-shooting)を参照.     
-初期化時の動作設定については[Parameters](#parameters)の章の[初期化時の動作設定](#初期化時の動作設定)を参照.
+初期化時の動作設定については[Parameters](#parameters)の章の[初期化・終了時等の挙動設定](#初期化・終了時等の挙動設定)を参照.
 
 ### 3. Dynamixelを制御
 
@@ -151,7 +165,7 @@ ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 以下ではコマンドラインから指令を送る場合の例を示す．   
 <!-- プログラムから指令を送る場合は [example]() を参照されたい． -->
 
-また，topic の詳細については [Topic](#topic) の章を参照．
+また，topic の詳細については [Topic](#subscribed-topics) の章を参照．
 
 #### 例：ID:5のDynamixel Xシリーズ のサーボを位置制御モードで角度を90degにする場合
 
@@ -171,7 +185,7 @@ ros2 topic pub /dynamixel/shortcut \
  "{command: 'torque_on', id_list: [5]}"
 ```
 ただし，デフォルトでは初期化時に自動でトルクONになっているため不要のはず．   
-`/dynamixel/shortcut` topicで使えるコマンドについては，[Topic](#topic) の章を参照．
+`/dynamixel/shortcut` topicで使えるコマンドについては[こちら](#shortcut-command-list) を参照．
 
 ### 4. Dynamixelの情報を取得
 
@@ -180,7 +194,7 @@ ros2 topic pub /dynamixel/shortcut \
 
 以下ではコマンドラインから確認する例を示す．   
 
-topic の詳細については [Topic](#topic) の章を参照．    
+topic の詳細については [Topic](#published-topics) の章を参照．    
 また，read周期については[Parameters](#parameters)の章の[実行時の動作設定](#実行時の動作設定)を参照．
 
 #### 例: ID:5とID:6のモータが接続している場合の現在値の確認
@@ -230,16 +244,6 @@ position_deg: # 現在の角度と目標角度
 ```
 トルクのオンオフ，制御モード，目標電流(実質的な最大電流)など，動作状況を確認するための情報が含まれる．
 
-
-> [!NOTE]
-> dynamixelからのread方式は Sync Read または Fast Sync Read であり，すべてのIDから一斉にreadするようになっている．   
-> ros param `use/fast_read` が `false`の場合は Sync Read が，`true` の場合は Fast Sync Read が用いられる．  
-> それぞれの違いは[公式の動画](https://www.youtube.com/watch?v=claLIK8omIQ)を参照されたし．
-> 
-> 複数のアドレスの情報を一括でreadするか，分割でreadするかは，ros param `use/split_read` によって変更できる．  
-> 分割でreadする場合は，読み込む情報の数分だけreadに時間がかかるので注意．
-> 
-> その他，read方式については後述の[速度に関してメモ](#速度に関してメモ)を参照.
 
 ***************************
 
@@ -421,13 +425,15 @@ Subscribe時にデータが一時保存され，直後のメインループ内�
   device_name: /dev/ttyUSB0 # 通信するデバイス名
   baudrate: 1000000 # 通信速度
   latency_timer: 4 # 通信のインターバル
+```
+基本的な通信の設定．自分の環境に合わせて設定する．
+
+### 初期化・終了時等の挙動設定
+```yml
 # 通信の設定
   dyn_comm/retry_num: 10 # 通信失敗時のリトライ回数
   dyn_comm/inerval_msec: 5 # 通信失敗時のインターバル時間
   dyn_comm/verbose: false # 通信失敗時の詳細をエラーとして出すか
-```
-### 初期化時の挙動設定
-```yml
 # サーボの初期設定
   init/expected_servo_num: 0 # 期待するサーボの数，0ならいくつでもOK
   init/auto_search:
@@ -437,14 +443,16 @@ Subscribe時にデータが一時保存され，直後のメインループ内�
   init/hardware_error_auto_clean: true # 初期化時に Hardware error を自動でクリアするかどうか
   init/torque_auto_enable: true # 初期化時に Torque を自動でONにするかどうか
   term/torque_auto_disable: true # 終了時に Torque を自動でOFFにするかどうか
-  middle/no_response_id_auto_remove_count: 0 # 通信が途切れた場合に何カウントで自動で削除するかどうか
 # デフォルト値の設定
   default/profile_acc: 600.0 # deg/s^2
   default/profile_vel: 100.0 # deg/s
 ```
+`dyn_comm/...`は初期化処理における ping 通信失敗時の挙動を決める．    
+基本的に数字が小さい方が初期化が早くなるが，サーボを発見できない可能性が高くなる．(デフォルト値は大きめに設定している)
+
 `init/expected_servo_num` が `0`の時は，1つ以上servoが見つかるまでスキャンを繰り返す．  
 `init/expected_servo_num` が `0` でない場合は，その数だけservoが見つかるまでスキャンを繰り返す．  
-`init/auto_search_retry_times`の回数分のスキャンが失敗した場合，初期化失敗でノードは落ちる．
+`init/auto_search.retry_times`の回数分のスキャンが失敗した場合，初期化失敗でノードは落ちる．
 
 `default/profile_acc`と`default/profile_vel`は位置制御時の最大加速度と最大速度を決める．
 この値が大きければキビキビとした動作になり，小さければ滑らかな動作になる．
@@ -470,10 +478,6 @@ Subscribe時にデータが一時保存され，直後のメインループ内�
   pub_ratio/gain: 101 # この回数に一回 Gain を読み取り，/dynamixel/state/gain トピックをpublish する, 0=初回のみ
   pub_ratio/limit: 307 # この回数に一回 Limit を読み取り，/dynamixel/state/limit トピックをpublish する, 0=初回のみ
   pub_ratio/error: 53 # この回数に一回 Hardware error を読み取り，/dynamixel/state/error トピックをpublish する, 0=初回のみ
-# Read/Write方式
-  use/fast_read: true # Fast Sync Read を使うかどうか
-  use/split_read: false # 複数の情報を分割して読み取るかどうか
-  use/split_write: true # 複数の情報を分割して書き込むかどうか
 ```
 `pub_ratio/{~}`の各情報 (status, present, goal, gain, limit, error) は topic 名と対応．   
 read と publish 周期は `loop_rate` を `pub_ratio/{~}` で割った値となる．   
@@ -488,6 +492,24 @@ present値のみ高速化のために各アドレス(pwm, current, ... , tempera
 このため，present値の直近で読み取った最新の値と，古い値が混在することになる．   
 `pub_outdated_present_value` が `true` の場合は古い値も含めて全てのアドレスの値をpublishする．   
 `pub_outdated_present_value` が `false` の場合は，直近のループで読み取った値のみをpublishする．  
+
+```yml
+# Read/Write方式
+  method/fast_read: true # Fast Sync Read を使うかどうか
+  method/split_read: false # 複数の情報を分割して読み取るかどうか
+  method/split_write: true # 複数の情報を分割して書き込むかどうか
+```
+`method/fast_read` が `true` の場合は Fast Sync Read を使い，`false` の場合は Sync Read を使う．それぞれの違いは[公式の動画](https://www.youtube.com/watch?v=claLIK8omIQ)を参照されたし．   
+基本的に`true` の方が高速．ファームウェアが古い場合は `false` でないと情報が読み取れないのでデフォルトは`false`．   
+
+`method/split_read` が `true` の場合は，各情報を分割して読み取り，`false` の場合は一括で読み取る．   
+`false` の方が高速．`true`の方が安定．
+
+`method/split_write` が `true` の場合は，各情報を分割して書き込み，`false` の場合は一括で書き込む．    
+`false` の方が高速だが，あまり差はない．`true`の方が安定．
+
+> [!NOTE]
+> 上記のread方式による速度の違いについては[速度に関してメモ](#速度に関してメモ)も参照.
 
 ### log出力関係
 ```yml
@@ -509,11 +531,28 @@ present値のみ高速化のために各アドレス(pwm, current, ... , tempera
   verbose/read_limit/err: false # limitデータの読み込みエラーを出力
   verbose/read_hardware_error: true # 検出したHardware errorを出力
 ```
+基本的には上記の説明の通り．
+`verbose/write_{~}`や`verbose/read_{~}`が`true`の場合は，書き込むアドレスと書き込むパルス値を直接確認できる．
+
+### 開発用
+```yml
+# 開発用
+  debug: false # true: デバイスとの接続に失敗してもエラーを出力しない/ false: エラーを出力して終了する
+  no_use_command_line: false # true: プログラム用のトピックのみ使用する/ false: コマンドライン用のトピックも出力する
+  dummy_servo_id_list: [6,7] # ダミーのサーボを作成する,同じIDのサーボが存在する場合でもダミーが優先される．
+```
+`debug` が `true` の場合は，デバイスとの接続失敗やサーボが見つからなかった場合でもプログラムが続行する．
+
+`no_use_command_line` が `true` の場合は，コマンドライン用のトピックをpublish/subscribeしないので，`$ ros2 topic list` がすっきりする．ノード起動時にDDSがネットワークにかける負荷も小さくなるかも？(未確認)
+
+`dummy_servo_id_list` に指定したIDは，実際のサーボが存在しなくても，プログラム上ダミーのサーボが作成される．実機がない場合での上位のROSノードの動作確認などに便利．
+指定したIDのサーボがつながれている場合でもIDが指定されていればダミーサーボが優先されるので，実際のサーボとの通信は行われない．ロボットを動かさずに上位のノードの動作確認がしたいときに，ロボット全部のサーボのIDをダミーに指定してやると安全に動作確認ができる．
 
 ### Optional機能
 Dynamixelの動作に直接関連しない，Optional機能の設定．
-現在は特定のモデルに存在するExternal Portの設定のみ．
+現在は特定のモデルに存在するExternal Portの設定のみ．Dynamixelプロトコル対応のIMUなどの機能を追加する予定．
 ```yml
+# Optonal機能
   option/external_port:
       use : false # External Portの機能を使うかどうか
       pub_ratio/data : 2   # この回数に一回 Data を読み取る.
@@ -712,7 +751,7 @@ cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
 
 ## 速度に関してメモ
 
-### Sync Read vs Fast Sync Read(`use/fast_read`パラメータ)
+### Sync Read vs Fast Sync Read(`method/fast_read`パラメータ)
 結論としては，読み込むデータとサーボの数が少ないならFastを使う方がよい．
 
 Fast Sync Readは受信するパケットが全サーボ分1つながりになっている．
@@ -725,9 +764,9 @@ Fast Sync Readはパケットがつながっているため，1つでも返事�
 通常のSync Readはパケットが独立しているため，断線するより前のサーボからの返事は受け取ることができる．
 断線や接続不良が危惧されるような状況では通信周期を犠牲にして，Sync Readを使わざるを得ないだろう．
 
-### 複数アドレスの同時読み込み(`use/split_read`パラメータ)
+### 複数アドレスの同時読み込み(`method/split_read`パラメータ)
 後述の書き込みと異なり，こちらは分割ではなく同時にするのが良い．
-すなわち`use/split_read`は`false`を推奨する．
+すなわち`method/split_read`は`false`を推奨する．
 
 複数のアドレスからデータを読み込みたいとき，分割して読み込む場合はシリアル通信の処理時間が，アドレス数分だけ長くなる．
 100Hz以上で回そうと思うと，present_current, present_velocity, present_positionという基本の3つを取り出すだけでもきつい．
@@ -738,11 +777,11 @@ present系の8つのアドレスすべてから読み込んでも，同時読み
 
 （上記は全て， 14サーボ直列，lib_dynamixel側のLATENCY_TIMER=2ms, デバイス側のlatency timer=2ms, baudrate=1M での結果）
 
-### 複数アドレスの同時書き込み(`use/split_write`パラメータ)
+### 複数アドレスの同時書き込み(`method/split_write`パラメータ)
 書き込みに関しては，同時ではなく分割するのが良いだろう．
-すなわち`use/split_write`は`true`を推奨する．
+すなわち`method/split_write`は`true`を推奨する．
 
-自分の環境では，`use/split_write`を`false`の状態で，12サーボに goal_current, goal_velocity, profile_acc, profile_vel, goal_position を同時にSync Writeしようとしたら，書き込みが失敗してうまく動かなかった． 
+自分の環境では，`method/split_write`を`false`の状態で，12サーボに goal_current, goal_velocity, profile_acc, profile_vel, goal_position を同時にSync Writeしようとしたら，書き込みが失敗してうまく動かなかった． 
 書き込むサーボが少なければ動く．
 また，`use_split_write`を`true`にして，分割で書き込み，1度に書き込むアドレスを減らしても動く．
 書き込みに関しては，分割して行っても処理時間はほぼ変わらない(1ms未満しか遅くならない)ので，基本は`true`としておくべき．

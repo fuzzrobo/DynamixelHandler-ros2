@@ -53,9 +53,9 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     this->get_parameter_or("pub_ratio/limit"  , pub_ratio_["limit"],   0u);
     this->get_parameter_or("pub_ratio/error"  , pub_ratio_["error"], 100u);
     this->get_parameter_or("max_log_width"    , width_log_, 7u);
-    this->get_parameter_or("use/split_write"    , use_split_write_    , false);
-    this->get_parameter_or("use/split_read"     , use_split_read_     , false);
-    this->get_parameter_or("use/fast_read"      , use_fast_read_      , true);
+    this->get_parameter_or("method/split_write"    , use_split_write_    , false);
+    this->get_parameter_or("method/split_read"     , use_split_read_     , false);
+    this->get_parameter_or("method/fast_read"      , use_fast_read_      , true);
     this->get_parameter_or("verbose/callback"           , verbose_callback_, false);
     this->get_parameter_or("verbose/write_goal"         , verbose_["w_goal"  ], false);
     this->get_parameter_or("verbose/write_gain"         , verbose_["w_gain"  ], false);
@@ -71,7 +71,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     this->get_parameter_or("verbose/read_limit/raw"     , verbose_["r_limit"    ], false);
     this->get_parameter_or("verbose/read_limit/err"     , verbose_["r_limit_err"], false);
     this->get_parameter_or("verbose/read_hardware_error", verbose_["r_hwerr" ], false);
-    this->get_parameter_or("middle/no_response_id_auto_remove_count", auto_remove_count_   , 0u);
+    this->get_parameter_or("no_response_id_auto_remove_count", auto_remove_count_   , 0u);
 
     // id_set_の作成
     this->get_parameter_or("default/profile_vel", default_profile_vel_deg_s_, 100.0);
@@ -147,6 +147,9 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
 
     bool use_ex_port; get_parameter_or("option/external_port.use", use_ex_port, false);
     if ( use_ex_port ) external_port_ = std::make_unique<ExternalPort>(*this);
+    
+    // bool use_imu_DXIMO; get_parameter_or("use/BTE098_DXMIO_with_IMU", use_imu_DXIMO, false);
+    // if ( use_imu_DXIMO ) imu_dximo_ = std::make_unique<DynamixelIMU_DXIMO>(*this);
 
     ROS_INFO( "..... DynamixelHandler is initialized");
 }
@@ -176,7 +179,6 @@ void DynamixelHandler::MainLoop(){
     SyncWriteLimit(limit_indice_write_, updated_id_limit_);
     limit_indice_write_.clear();
     updated_id_limit_.clear();
-    // shared_lock, lock_guard を使いやすいようにうまいことリファクタしたい．
 
     //* present value について read する情報を決定
     static const auto& r = pub_ratio_present_; //長いので省略
