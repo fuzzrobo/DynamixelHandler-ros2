@@ -142,6 +142,7 @@ class DynamixelHandler : public rclcpp::Node {
         double default_profile_acc_deg_ss_ = 0.0;
         bool do_clean_hwerr_ = false;
         bool do_torque_on_   = false;
+        bool do_pub_pre_all_ = true;
 
         //* Dynamixelとの通信
         DynamixelCommunicator dyn_comm_;
@@ -242,12 +243,14 @@ class DynamixelHandler : public rclcpp::Node {
 
         //* 単体通信を組み合わせた上位機能
         uint8_t ScanDynamixels(id_t id_min, id_t id_max, uint32_t num_expected, uint32_t time_retry_ms);
+        bool DummyUpDynamixel(id_t servo_id);
         bool RemoveDynamixel(id_t servo_id);
-        bool addDynamixel(id_t servo_id);
+        bool AddDynamixel(id_t servo_id);
         bool ClearHardwareError(id_t servo_id);
         bool ChangeOperatingMode(id_t servo_id, DynamixelOperatingMode mode);
         bool TorqueOn(id_t servo_id);
         bool TorqueOff(id_t servo_id);
+        bool is_dummy(id_t servo_id);
         //* Dynamixel単体との通信による下位機能
         uint8_t ReadHardwareError(id_t servo_id);
         bool    ReadTorqueEnable(id_t servo_id);
