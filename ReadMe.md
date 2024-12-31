@@ -20,9 +20,9 @@ note: ROS2のみ対応，ROS1 ver は[こちら](https://github.com/ROBOTIS-JAPA
       - 制御コマンドの内容に合わせてサーボの制御モードが自動変更．
     - **Publish**: `/dynamixel/states`  
       - [分類された各情報](#各種情報の分類と-control-table-との対応)を個別の周期で自動的に read & publish．
-        - Status: torqueのオンオフ, errorの有無, pingの成否, 制御モード (デフォルト 約2Hz)
-        - Present: current [mA], velocity [deg/s], position [deg] などの現在値 (デフォルト 約50Hz)
-        - Error: overloadエラー などのハードウェアエラー (デフォルト 約2Hz)  
+        - "Status": torqueのオンオフ, errorの有無, pingの成否, 制御モード (デフォルト 約2Hz)
+        - "Error": overload エラー などのハードウェアエラー (デフォルト 約2Hz)  
+        - "Present": current [mA], velocity [deg/s], position [deg] などの現在値 (デフォルト 約50Hz)
         - etc... (Goal, Limit, Gain, Extra)
 
  - **物理量ベースでのやり取り**
@@ -42,7 +42,7 @@ note: ROS2のみ対応，ROS1 ver は[こちら](https://github.com/ROBOTIS-JAPA
       - Topicの受信頻度に依存しないため，安定した通信が可能．
 
     ※ 12サーボ同時Read/Writeでも150Hz程度の通信が可能なことを確認  
-    ※※ 高速通信には適切な `LATENCY_TIMER` (1~4ms) と `baudrate` (推奨 1,000,000bps 以上) が必要
+    ※※ 高速通信には適切な [`latency timer`](#latency-timer)  (1~4ms) と `baudrate` (推奨 1,000,000bps 以上) が必要
 
  - **開発の手間を減らす便利機能**
     - 初期化時の動作 
@@ -69,6 +69,8 @@ note: ROS2のみ対応，ROS1 ver は[こちら](https://github.com/ROBOTIS-JAPA
    - Read/Write されるパルス値
    - Readに失敗したID
    - etc...
+  
+  各機能の設定については ros param から可能なので，詳細は [Parameters](#parameters)の章を参照．
 
 ***************************
 
@@ -94,7 +96,10 @@ source ~/.bashrc # 初回 build 時のみ
 
 ***************************
 
-## How to use
+## How to use by command line
+
+以下ではコマンドラインから本パッケージを利用する方法を説明する．   
+プログラムから利用する場合は[こちら](#how-to-use-by-program)を参照．
 
 ### 1. Dynamixelの接続
 
@@ -154,50 +159,43 @@ ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 ```
 
 連結したDynamixelが自動で探索され，見つかったDynamixelの初期設定が行われる．   
-うまく見つからない場合は[trouble shooting](#trouble-shooting)を参照.     
+うまく見つからない場合は[Trouble Shooting](#trouble-shooting)を参照.     
 初期化時の動作設定については[Parameters](#parameters)の章の[初期化・終了時等の挙動設定](#初期化・終了時等の挙動設定)を参照.
 
-### 3. Dynamixelを制御
+### 3. Dynamixelの動作を制御
 
-コマンドラインから指令する用の topic として `/dyanmixel/command/...` と `/dyanmixel/shortcut` が，    
-プログラムから指令する用の topic として `/dynamixel/commands/x` が用意されている．     
+コマンドラインから指令する用の topic として `/dyanmixel/command/...` と `/dyanmixel/shortcut` が用意されている．     
 
-以下ではコマンドラインから指令を送る場合の例を示す．   
-<!-- プログラムから指令を送る場合は [example]() を参照されたい． -->
+topic の詳細については [Topic](#subscribed-topics) の章を参照．
 
-また，topic の詳細については [Topic](#subscribed-topics) の章を参照．
-
-#### 例：ID:5のDynamixel Xシリーズ のサーボを位置制御モードで角度を90degにする場合
+#### 例：ID:5の Dynamixel(Xシリーズ) を位置制御モードで角度を90degに制御
 
 `/dynamixel/command/x/position_control` topicにIDと角度を設定してpublish．
 ```bash
-ros2 topic pub /dynamixel/command/x/position \
+ros2 topic pub /dynamixel/command/x/position_control \
  dynamixel_handler/msg/DynamixelControlXPosition \
  "{id_list: [5], position_deg: [90], profile_vel_deg_s: [], profile_acc_deg_ss: []}" -1
 ```
 > [!note]
 > ID:5のDynamixelの制御モードは自動的に位置制御に変換される．
 
-もしトルクが入っていなかった場合，`/dynamixel/shortcut` topicに "torque_on" コマンドとIDを設定してpublish
+#### 例：ID:5の Dynamixel のトルクをOFF
+`/dynamixel/shortcut` topicに "torque_off" コマンドとIDを設定してpublish
 ```bash
 ros2 topic pub /dynamixel/shortcut \
  dynamixel_handler/msg/DynamixelShortcut \
- "{command: 'torque_on', id_list: [5]}"
+ "{command: 'torque_off', id_list: [5]}"
 ```
-ただし，デフォルトでは初期化時に自動でトルクONになっているため不要のはず．   
 `/dynamixel/shortcut` topicで使えるコマンドについては[こちら](#shortcut-command-list) を参照．
 
 ### 4. Dynamixelの情報を取得
 
-コマンドラインから確認する用の topic として `/dynamixel/state/...`  と `/dynamixel/debug` topic が，    
-プログラムから利用する用の topic として `/dynamxiel/states` が一定周期で pub され続けている．   
-
-以下ではコマンドラインから確認する例を示す．   
+コマンドラインから確認する用の topic として `/dynamixel/state/...`  と `/dynamixel/debug` topic が一定周期で pub され続けている．   
 
 topic の詳細については [Topic](#published-topics) の章を参照．    
 また，read周期については[Parameters](#parameters)の章の[実行時の動作設定](#実行時の動作設定)を参照．
 
-#### 例: ID:5とID:6のモータが接続している場合の現在値の確認
+#### 例: ID:5とID:6の Dynamixel の現在値の確認
 
 ```bash
 ros2 topic echo --flow-style /dynamixel/state/present # status, goal, gain, limit, error... など． 
@@ -218,7 +216,7 @@ input_voltage_v: [0.0, 0.0] # 現在の入力電圧
 上記は電流，速度，位置を読み込むように設定した場合なのでそれ以外の要素は初期値の0になっている．   
 read & pub される情報の選択については[Parameters](#parameters)の章の[実行時の動作設定](#実行時の動作設定)を参照．
 
-#### 例: ID:1, 6, 7, 8, 9のモータが接続している場合のデバック用情報の確認
+#### 例: ID:1, 6, 7, 8, 9の Dynamixel のデバック用情報の確認
 
 ```bash
 ros2 topic echo --flow-style /dynamixel/debug
@@ -244,6 +242,208 @@ position_deg: # 現在の角度と目標角度
 ```
 トルクのオンオフ，制御モード，目標電流(実質的な最大電流)など，動作状況を確認するための情報が含まれる．
 
+## How to use by program
+
+以下ではプログラムから本パッケージを利用する方法を説明する．      
+ここでは最低限の使い方を紹介し，細かい情報・機能については述べない．
+ゲインや制限値などの変更については，[各種情報の分類と Control Table との対応](#各種情報の分類と-control-table-との対応)や[Topic](#subscribed-topics)の章を参照．
+
+### 1. Dynamixel の接続
+
+[コマンドラインから利用する場合](#1-Dynamixelの接続) と同様．
+
+### 2. dynamixel_handler node の起動
+
+[コマンドラインから利用する場合](#2-dynamixel_handler-nodeの起動) と同様．
+
+### 3. Dynamixelの動作を制御 & 情報を取得
+
+プログラムから動作制御する用の topic として `/dynamixel/commands/x` (`DxlCommandsX`型) が用意されている．    
+(Pシリーズを制御する場合は `/dynamixel/commands/p` を利用, 両方を併用する場合は `/dynamixel/commands/all` を利用)   
+
+プログラムから情報取得する用の topic として `/dynamxiel/states` (`DxlStates`型) が用意されている．
+(シリーズ問わず全ての情報を利用できる)
+
+ここでは，最低限の使い方として
+  - トルクのオンオフ
+  - 電流制限付き位置制御で往復運動
+  - トルクなどの状態を表示
+  - 現在値の保存と表示
+
+を行う簡単なプログラムを示す．おそらくだいたいのやりたいことはこれを見ればわかるはず．       
+<!-- CMakeList.txtやpackage.xmlの書き方などのパッケージ全体については， [あとでURLはる]()　を参照． -->
+
+<details>
+<summary>コード全体</summary>
+
+```cpp
+// example1.cpp
+#include "rclcpp/rclcpp.hpp"
+
+#include "dynamixel_handler/msg/dxl_states.hpp"
+#include "dynamixel_handler/msg/dxl_commands_x.hpp"
+using namespace dynamixel_handler::msg;
+
+#include <map>
+#include <chrono>
+using namespace std::chrono_literals;
+
+int main() {
+    rclcpp::init(0, nullptr);
+    auto node  = std::make_shared<rclcpp::Node>("example1_node");
+
+    rclcpp::Time updated_time;
+    std::map<uint8_t, double> dxl_pos, dxl_vel, dxl_cur;
+    auto sub_st = node->create_subscription<DxlStates>("dynamixel/states", 10, 
+        [&](const DxlStates::SharedPtr msg){
+            // トルクのオンオフ，エラーの有無，pingの成否，制御モードなどの情報を表示．
+            for (size_t i = 0; i < msg->status.id_list.size(); i++) {
+                RCLCPP_INFO(node->get_logger(), "- servo [%d], torque %s, has %s, ping is %s, mode is %s", 
+                    msg->status.id_list[i],
+                    msg->status.torque[i] ? "on" : "off",
+                    msg->status.error[i] ? "error" : "no error",
+                    msg->status.ping[i] ? "response" : "no response",
+                    msg->status.mode[i].c_str()
+                ); 
+            }
+            // データがreadされた時刻の保存, 位置，速度，電流の現在値の保存
+            if(!msg->present.id_list.empty()) updated_time = msg->stamp;
+            for (size_t i = 0; i < msg->present.id_list.size(); i++) {
+                auto id = msg->present.id_list[i];
+                dxl_pos[id] = msg->present.position_deg[i];
+                dxl_vel[id] = msg->present.velocity_deg_s[i];
+                dxl_cur[id] = msg->present.current_ma[i];
+            }
+    });
+
+    auto pub_cmd = node->create_publisher<DxlCommandsX>("dynamixel/commands/x", 10);
+    auto timer = node->create_wall_timer(1.0s, [&](){
+        RCLCPP_INFO(node->get_logger(), "* Present value updated time %f", updated_time.seconds());
+        for (const auto& [id, _] : dxl_pos) {
+            RCLCPP_INFO(node->get_logger(), "* servo [%d], pos %f, vel %f, cur %f", id, dxl_pos[id], dxl_vel[id], dxl_cur[id]);
+        }
+
+        auto cmd = DxlCommandsX();
+        for (const auto& [id, pos] : dxl_pos) {
+            // トルクをオンに．
+            cmd.status.id_list.push_back(id);
+            cmd.status.torque.push_back(true);
+            // 電流を300mAに制限しつつ， +-45degで往復運動させる．
+            auto target = (pos < -40) ? 45 : (pos > 40) ? -45 : 0;
+            auto& cmd_cpos = cmd.current_base_position_control;
+            cmd_cpos.id_list.push_back(id);
+            cmd_cpos.position_deg.push_back(target/*deg*/);
+            cmd_cpos.current_ma.push_back(300/*mA*/);
+        }
+        if (!cmd.status.id_list.empty()) pub_cmd->publish(cmd);
+    });
+
+    rclcpp::spin(node);
+    rclcpp::shutdown();
+    return 0;
+}
+```
+</details>
+
+#### 3-1. 動作制御部分について
+
+`DxlCommandsX`型のメッセージ利用するためのヘッダファイルをインクルード．
+```cpp
+#include "dynamixel_handler/msg/dxl_commands_x.hpp"
+using namespace dynamixel_handler::msg; // 長くなるので名前空間を省略すると便利
+```
+
+`dynaimxel/command/x` topic を publish するための publisher を作成．
+```cpp
+auto pub_cmd = node->create_publisher<DxlCommandsX>("dynamixel/commands/x", 10);
+```
+
+`DxlCommandsX`型のメッセージを作成し，以下を指令するmsgをpublishする．
+ - `cmd.status` を用いてトルクをオン
+ - `cmd.current_base_position_control` 用いて
+     - 電流を300mAに制限
+     - +-45degで往復運動させる．
+```cpp
+auto cmd = DxlCommandsX(); // 空のメッセージを作成
+for (const auto& [id, pos] : dxl_pos) {
+    // トルクをオンに (毎回送る必要はないが，簡易サンプルなので毎回送るようにないいている)
+    cmd.status.id_list.push_back(id);
+    cmd.status.torque.push_back(true); // true でトルクオン, false でトルクオフ
+    // 電流を300mAに制限しつつ， +-45degで往復運動させる．
+    auto target = (pos < -40) ? 45 : (pos > 40) ? -45 : 0;
+    auto& cmd_cpos = cmd.current_base_position_control; // 長いので参照を用いて省略
+    cmd_cpos.id_list.push_back(id);
+    cmd_cpos.position_deg.push_back(target/*deg*/); // 目標角度
+    cmd_cpos.current_ma.push_back(300/*mA*/);       // 目標電流値，この値を超えないように制御される
+}
+if (!cmd.status.id_list.empty()) pub_cmd->publish(cmd);
+```
+
+#### 3-2. 情報取得部分について
+
+`DxlStates`型のメッセージを利用するためのヘッダファイルをインクルード．
+```cpp
+#include "dynamixel_handler/msg/dxl_states.hpp"
+using namespace dynamixel_handler::msg; // 長くなるので名前空間を省略すると便利
+```
+
+`dynamixel/states` topic を subscribe するための subscriber を作成．  
+今回は簡略化のためにCallback関数をラムダ式で記述しているが，通常は関数を定義してそれを渡す．
+```cpp
+auto sub_st = node->create_subscription<DxlStates>("dynamixel/states", 10, 
+    [&](const DxlStates::SharedPtr msg){ // ラムダ式によるCallback関数
+        //... 省略 ...
+});
+```
+
+Callback関数内で，トルクのオンオフ，エラーの有無，pingの成否，制御モードを表示．
+```cpp
+auto sub_st = node->create_subscription<DxlStates>("dynamixel/states", 10, 
+  [&](const DxlStates::SharedPtr msg){ // ラムダ式によるCallback関数
+      // トルクのオンオフ，エラーの有無，pingの成否，制御モードなどの情報を表示．
+      for (size_t i = 0; i < msg->status.id_list.size(); i++) {
+          RCLCPP_INFO(node->get_logger(), 
+              "- servo [%d], torque %s, has %s, ping is %s, mode is %s", 
+              msg->status.id_list[i],
+              msg->status.torque[i] ? "on" : "off", // cpp で boolen の表示は面倒なので文字列に変換
+              msg->status.error[i] ? "error" : "no error", // 同上
+              msg->status.ping[i] ? "response" : "no response", // 同上
+              msg->status.mode[i].c_str() // std::string は c_str() で char* に変換
+          ); 
+      }
+      //... 省略 ...
+});
+```
+
+現在値の保存するための変数を用意し，Callback関数内で保存．Timerで定期的に現在値を表示．
+```cpp
+rclcpp::Time updated_time; // より厳密な制御のために，データがreadされた時刻を利用できる
+std::map<uint8_t, double> dxl_pos, dxl_vel, dxl_cur; // id とそれぞれの値を保存する map を用意すると便利
+auto sub_st = node->create_subscription<DxlStates>("dynamixel/states", 10, 
+    [&](const DxlStates::SharedPtr msg){
+        //... 省略 ...
+        // データがreadされた時刻の保存
+        if(!msg->present.id_list.empty()) updated_time = msg->stamp;
+        // 位置，速度，電流の現在値の保存
+        for (size_t i = 0; i < msg->present.id_list.size(); i++) {
+            auto id = msg->present.id_list[i];
+            dxl_pos[id] = msg->present.position_deg[i];
+            dxl_vel[id] = msg->present.velocity_deg_s[i];
+            dxl_cur[id] = msg->present.current_ma[i];
+        } // 一度 map に保存することで，サーボのIDでアクセスできるようになるので便利
+});
+//... 省略 ...
+auto timer = node->create_wall_timer(1.0s, [&](){ // 1.0sごとに実行される．
+    // データがreadされた時刻を表示
+    RCLCPP_INFO(node->get_logger(), "* Present value updated time %f", updated_time.seconds());
+    // 各サーボの現在値を表示
+    for (const auto& [id, _] : dxl_pos) {
+        RCLCPP_INFO(node->get_logger(), //　ID をキーにして保存した値を利用
+        "* servo [%d], pos %f, vel %f, cur %f", id, dxl_pos[id], dxl_vel[id], dxl_cur[id]);
+    }
+    // ... 省略 ...
+});
+```
 
 ***************************
 
@@ -256,7 +456,7 @@ position_deg: # 現在の角度と目標角度
 
 - **`/dynamixel/states`** ([`DxlStates`型](./msg#dynamixel_handlermsgdxlstates-type))  
   Xシリーズ・Pシリーズ共通のサーボ状態をまとめたトピック．以下のフィールドからなる：
-  - `stamp` : メッセージのタイムスタンプ  
+  - `stamp` : データが読み取れた時刻  
   - `status`: `/dynamixel/state/status` に相当し，`pub_ratio/status`に一回データが埋められる．  
   - `present`: `/dynamixel/state/present` に相当し，`pub_ratio/present.{~}`の最小値に一回埋められる．  
   - `goal`  : `/dynamixel/state/goal` に相当, `pub_ratio/goal`に一回データが埋められる．  
@@ -266,7 +466,7 @@ position_deg: # 現在の角度と目標角度
  
 - **`/dynamixel/external_port/read`** ([`DxlExternalPort`型](./msg#dynamixel_handlermsgdxlexternalport-type))    
   XH540とPシリーズが持つExternal Port機能を扱うためのトピック．以下のフィールドからなる:
-  - `stamp` : メッセージのタイムスタンプ  
+  - `stamp` : データが読み取れた時刻  
   - `id_list` : サーボのID
   - `port` : External Portのポート番号
   - `mode` : ポートのモード，analog in / digital out / digital in (pull up) / digital in (pull down)
@@ -495,7 +695,7 @@ present値のみ高速化のために各アドレス(pwm, current, ... , tempera
 
 ```yml
 # Read/Write方式
-  method/fast_read: true # Fast Sync Read を使うかどうか
+  method/fast_read: false # Fast Sync Read を使うかどうか
   method/split_read: false # 複数の情報を分割して読み取るかどうか
   method/split_write: true # 複数の情報を分割して書き込むかどうか
 ```
@@ -543,10 +743,12 @@ present値のみ高速化のために各アドレス(pwm, current, ... , tempera
 ```
 `debug` が `true` の場合は，デバイスとの接続失敗やサーボが見つからなかった場合でもプログラムが続行する．
 
-`no_use_command_line` が `true` の場合は，コマンドライン用のトピックをpublish/subscribeしないので，`$ ros2 topic list` がすっきりする．ノード起動時にDDSがネットワークにかける負荷も小さくなるかも？(未確認)
+`no_use_command_line` が `true` の場合は，コマンドライン用のトピックを pub & sub しないので，`$ ros2 topic list` がすっきりする．ノード起動時にDDSがネットワークにかける負荷も小さくなるかも？(未確認)
 
-`dummy_servo_id_list` に指定したIDは，実際のサーボが存在しなくても，プログラム上ダミーのサーボが作成される．実機がない場合での上位のROSノードの動作確認などに便利．
-指定したIDのサーボがつながれている場合でもIDが指定されていればダミーサーボが優先されるので，実際のサーボとの通信は行われない．ロボットを動かさずに上位のノードの動作確認がしたいときに，ロボット全部のサーボのIDをダミーに指定してやると安全に動作確認ができる．
+`dummy_servo_id_list` に指定したIDは，実際のサーボが存在しなくても，プログラム上ダミーのサーボが作成される．つまり何もつながなくても `/dynamixel/states` などのトピックがpublishされる．       
+実機がない場合での上位のROSノードの動作確認などに便利．
+指定したIDのサーボがつながれている場合でもIDが指定されていればダミーサーボが優先されるので，実際のサーボとの通信は行われない．      
+ロボットを動かさずに上位のノードの動作確認がしたいときに，ロボット全部のサーボのIDをダミーに指定してやると安全に動作確認ができる．
 
 ### Optional機能
 Dynamixelの動作に直接関連しない，Optional機能の設定．
@@ -566,13 +768,14 @@ Dynamixelの動作に直接関連しない，Optional機能の設定．
 本パッケージでは，Dynamixelが持つControl table内の情報を，以下の様に分類して扱う．
 
 ### 状態 (status)
- - torque_enable  : `/dynamixel/shortcut`の`command`=`'torque_on'` or `'enable'`で1,`command`=`'torque_off'` or `'disable'`で0に設定される．  
+ - torque_enable  : サーボが制御を受け付けるかどうか．falseだと脱力してトルクを出さない．  
  - (ping)         : Control table の情報ではないが，statusとして扱っている．pingが通るかどうか．
  - (error)        : Control table の情報ではないが，statusとして扱っている．何らかのエラーを持っているかどうか．
- - operating_mode : 対応する`/dynamixel/command/x/{~}_control`系のtopicのsubで自動で設定される． 
-  
+ - operating_mode : サーボの制御モード，PWM, 電流制御, 速度制御, 位置制御, 拡張位置制御, 電流制御付き位置制御の6つのモードがある．
+ -  
 ##### Subscrib / Write  
 Xシリーズの場合，`/dynamixel/commands/x`の`status`フィールド or `/dynamixel/command/status` によって設定され，`loop_rate`の周期で書き込まれる．
+operationg_modeのみ，対応する`/dynamixel/command/x/{~}_control`系のtopicのsubでも自動で設定される． 
 ##### Publish / Read  
 `loop_rate`の内`pub_ratio/status` 毎に1回の周期で読みだされ，`/dynamixel/states`の`status`フィールド and `/dynamixel/state/status` としてpublishされる．
 
@@ -717,7 +920,7 @@ ros2 launch dynamixel_handler dynamixel_unify_baudrate_launch.xml
 
 ***************************
 
-## LatencyTimer
+## Latency Timer
 
 シリアル通信にはパケットの送受信の間にlatency timer分のインターバルが挟まる．
 (USBデバイスのデフォルトは16msのようであり，高速な通信の妨げとなることが多い)
@@ -752,25 +955,26 @@ cat /sys/bus/usb-serial/devices/ttyUSB0/latency_timer
 ## 速度に関してメモ
 
 ### Sync Read vs Fast Sync Read(`method/fast_read`パラメータ)
-結論としては，読み込むデータとサーボの数が少ないならFastを使う方がよい．
+結論としては，読み込むデータとサーボの数がそこまで多くないならFastを使う方がよい．
 
-Fast Sync Readは受信するパケットが全サーボ分1つながりになっている．
-つまり1回の通信でやり取りするパケット数が少なくなるので，同時に読み書きするサーボが多くなると速度に違いが出てくる．
-少なくとも10サーボくらいで顕著にFast Sync Readの方が早くなる．
+Fast Sync Readは受信するパケットが全サーボ分1つながりになっている．     
+つまり1回の通信でやり取りするパケット数が少なくなるので，同時に読み書きするサーボが多くなると速度に違いが出てくる．    
+少なくとも10サーボくらいで顕著にFast Sync Readの方が早くなる．   
+ただ，サーボが多すぎると通信が不安定になることがある．
 
 Fast Sync Read側のデメリットとしては，直列しているサーボのどこかで断線等が起きた場合に弱いという点が挙げられる．
-Fast Sync Readはパケットがつながっているため，1つでも返事をしないサーボがあるとパケットが全滅してしまう．
-（これはlib_dynamixelのパケット処理の実装が悪いかもしれないが，知識不足ですぐに改善できなさそう．）
-通常のSync Readはパケットが独立しているため，断線するより前のサーボからの返事は受け取ることができる．
+Fast Sync Readはパケットがつながっているため，1つでも返事をしないサーボがあるとパケットが全滅してしまう．   
+（これはlib_dynamixelのパケット処理の実装が悪いかもしれないが，知識不足ですぐに改善できなさそう．）    
+通常のSync Readはパケットが独立しているため，断線するより前のサーボからの返事は受け取ることができる．    
 断線や接続不良が危惧されるような状況では通信周期を犠牲にして，Sync Readを使わざるを得ないだろう．
 
 ### 複数アドレスの同時読み込み(`method/split_read`パラメータ)
-後述の書き込みと異なり，こちらは分割ではなく同時にするのが良い．
+後述の書き込みと異なり，こちらは分割ではなく同時にするのが良い．    
 すなわち`method/split_read`は`false`を推奨する．
 
-複数のアドレスからデータを読み込みたいとき，分割して読み込む場合はシリアル通信の処理時間が，アドレス数分だけ長くなる．
-100Hz以上で回そうと思うと，present_current, present_velocity, present_positionという基本の3つを取り出すだけでもきつい．
-自分の環境では，前述の3つくらいの同時読み込みであれば，120-180Hzくらいでる．200Hzは場合によって出るか出ないかというところ．
+複数のアドレスからデータを読み込みたいとき，分割して読み込む場合はシリアル通信の処理時間が，アドレス数分だけ長くなる．    
+100Hz以上で回そうと思うと，present_current, present_velocity, present_positionという基本の3つを取り出すだけでもきつい．    
+自分の環境では，前述の3つくらいの同時読み込みであれば，120-180Hzくらいでる．200Hzは場合によって出るか出ないかというところ．    
 分割読み込みでは60-80Hzくらいで頭打ちとなってしまった．
 present系の8つのアドレスすべてから読み込んでも，同時読み込みなら100Hzくらいはでる．
 分割読み込みだと30Hzも怪しい．
@@ -778,12 +982,12 @@ present系の8つのアドレスすべてから読み込んでも，同時読み
 （上記は全て， 14サーボ直列，lib_dynamixel側のLATENCY_TIMER=2ms, デバイス側のlatency timer=2ms, baudrate=1M での結果）
 
 ### 複数アドレスの同時書き込み(`method/split_write`パラメータ)
-書き込みに関しては，同時ではなく分割するのが良いだろう．
-すなわち`method/split_write`は`true`を推奨する．
+書き込みに関しては，同時ではなく分割するのが良いだろう．    
+すなわち`method/split_write`は`true`を推奨する．    
 
-自分の環境では，`method/split_write`を`false`の状態で，12サーボに goal_current, goal_velocity, profile_acc, profile_vel, goal_position を同時にSync Writeしようとしたら，書き込みが失敗してうまく動かなかった． 
-書き込むサーボが少なければ動く．
-また，`use_split_write`を`true`にして，分割で書き込み，1度に書き込むアドレスを減らしても動く．
+自分の環境では，`method/split_write`を`false`の状態で，12サーボに goal_current, goal_velocity, profile_acc, profile_vel, goal_position を同時にSync Writeしようとしたら，書き込みが失敗してうまく動かなかった．    
+書き込むサーボが少なければ動く．     
+また，`use_split_write`を`true`にして，分割で書き込み，1度に書き込むアドレスを減らしても動く．    
 書き込みに関しては，分割して行っても処理時間はほぼ変わらない(1ms未満しか遅くならない)ので，基本は`true`としておくべき．
 
 
@@ -814,7 +1018,7 @@ source ~/.bashrc
 1. laytency timer の確認    
    `$ cat /sys/bus/usb-serial/devices/{your device name}/latency_timer` を実行して出てきたデバイス側の latency timer の数値が，ros parameter の `latency_timer` と一致しているかどうかを確認する．  
    ros parameter 側の値を変えたい場合は config ファイルを修正すればよい．   
-   デバイス側値を変えたい場合は [LatencyTimer](#latencytimer) を参照．
+   デバイス側値を変えたい場合は [Latency Timer](#latency-timer) を参照．
 3. 通信状態が悪すぎる場合   
    根本的にはケーブルやノイズ等を改善すべきだが，対症療法的に`dyn_comm/retry_num` を大きくすることでも改善する可能性がある．
    [Parameters](#parameters) の該当パラメータを参照
