@@ -10,7 +10,7 @@ static constexpr double DEG = M_PI/180.0; // degを単位に持つ数字に掛�
 // 各シリーズのDynamixelを検出する．
 uint8_t DynamixelHandler::ScanDynamixels(id_t id_min, id_t id_max, uint32_t num_expected, uint32_t times_retry) {
     for (int id = id_min; id <= id_max; id++){
-        ROS_INFO("  Scanning ID: %d%c[999D%c[1A", id, 0x1b, 0x1b);
+        ROS_INFO("  Scanning ID: %d\x1b[999D\x1b[1A", id);
         AddDynamixel(id);
         if ( !rclcpp::ok() ) return 0;
     } 
