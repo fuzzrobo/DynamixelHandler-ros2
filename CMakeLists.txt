@@ -11,7 +11,7 @@ find_package(rclcpp REQUIRED)
 find_package(rosidl_default_generators REQUIRED) # 自作msgの作成のために必要
 find_package(std_msgs REQUIRED) # 自作msgのHeaderのために必要
 
-# 以下の部分は自作ｍｓｇの定義のために必要
+# 以下の部分は自作msgの定義のために必要
 set(msg_files
   "msg/DxlStates.msg"
   "msg/DxlCommandsX.msg"
@@ -58,16 +58,15 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   DEPENDENCIES std_msgs
 )
 ament_export_dependencies(rosidl_default_runtime)
-## ここまで
 
+# インクルードディレクトリの設定
 include_directories(
   include/mylib_dynamixel/src
-  ${catkin_INCLUDE_DIRS}
 )
 
 # ===============================dynamixel_unify_baudrate_node===============================
 
-# ノードの定義
+# =============================== dynamixel_unify_baudrate_node =========================
 add_executable(
   dynamixel_unify_baudrate_node 
 	include/mylib_dynamixel/download/port_handler_linux_fix.cpp
@@ -84,12 +83,14 @@ target_include_directories(
   )
 target_compile_features(
   dynamixel_unify_baudrate_node 
-  PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+  PUBLIC c_std_99 cxx_std_17
+)
 
 ament_target_dependencies(
 	dynamixel_unify_baudrate_node
-  "rclcpp"
-  "rosidl_default_generators"
+  rclcpp
+  std_msgs
+  rosidl_default_runtime
 )
 
 install(
@@ -102,9 +103,9 @@ rosidl_get_typesupport_target(cpp_typesupport_target
   ${PROJECT_NAME} rosidl_typesupport_cpp)
 target_link_libraries(dynamixel_unify_baudrate_node "${cpp_typesupport_target}")
 
-# ============================dynamixel_handler==================================
+# ============================ dynamixel_handler_node ================================
 
-# ノードの定義
+# 実行可能ファイルの名前を変更
 add_executable(
   dynamixel_handler_node 
 	include/mylib_dynamixel/download/port_handler_linux_fix.cpp
@@ -128,12 +129,14 @@ target_include_directories(
   )
 target_compile_features(
   dynamixel_handler_node 
-  PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+  PUBLIC c_std_99 cxx_std_17
+)
 
 ament_target_dependencies(
 	dynamixel_handler_node
-  "rclcpp"
-  "rosidl_default_generators"
+  rclcpp
+  std_msgs
+  rosidl_default_runtime
 )
 
 install(
@@ -147,9 +150,6 @@ rosidl_get_typesupport_target(cpp_typesupport_target
 target_link_libraries(dynamixel_handler_node "${cpp_typesupport_target}")
 # ==================================================================================
 
-
-
-## ここまで
 
 install(DIRECTORY
   launch
