@@ -16,20 +16,23 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     bool is_debug; get_parameter_or("debug", is_debug, false);
     bool no_use_command_line; get_parameter_or("no_use_command_line", no_use_command_line, false);
     vector<int64_t> dummy_id_list; this->get_parameter("dummy_servo_id_list", dummy_id_list); //int64_t で受けないといけない．
-    // 通信の開始
+    // Serial通信の設定
     int baudrate      ; this->get_parameter_or("baudrate"     , baudrate     ,           57600);
     int latency_timer ; this->get_parameter_or("latency_timer", latency_timer,              16);
     string device_name; this->get_parameter_or("device_name"  , device_name  , "/dev/ttyUSB0"s);
-
     dyn_comm_ = DynamixelCommunicator(device_name.c_str(), baudrate, latency_timer);
+    // serial通信のverbose設定
+    bool serial_verbose; get_parameter_or("dyn_comm/verbose", serial_verbose, false);
+    dyn_comm_.set_verbose(serial_verbose);
+    // serial通信の開始
     if ( !dyn_comm_.OpenPort() ) { fflush(stdout); // printfのバッファを吐き出す． これがないと printfの表示が遅延する
         ROS_ERROR("Failed to open USB device [%s]", dyn_comm_.port_name().c_str()); 
         if ( !is_debug && dummy_id_list.empty() ) ROS_STOP("Initialization failed (device open)");
-    } 
-    // serial通信のverbose設定
-    bool serial_verbose; get_parameter_or("dyn_comm/verbose", serial_verbose, false);
-    dyn_comm_.set_verbose(serial_verbose); fflush(stdout);
-
+    } else { fflush(stdout);
+        ROS_INFO("Succeeded to open USB device [%s]", dyn_comm_.port_name().c_str());
+        ROS_INFO("                    baudrate [%d]", baudrate);
+        ROS_INFO("               latency_timer [%d]", latency_timer);
+    }
     // serial通信のretry設定
     int num_try      ; get_parameter_or("dyn_comm/retry_num"   , num_try      ,  5);
     int msec_interval; get_parameter_or("dyn_comm/inerval_msec", msec_interval, 10);

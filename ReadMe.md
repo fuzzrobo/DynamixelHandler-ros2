@@ -138,9 +138,9 @@ ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 # 出力例
 # ... 略 ...
 [dynamixel_handler_node-1] 00000.00000: Initializing DynamixelHandler ..... 
-[dynamixel_handler_node-1] Succeeded to open the port : /dev/ttyUSB0!
-[dynamixel_handler_node-1] Succeeded to change the latency timer : 16!
-[dynamixel_handler_node-1] Succeeded to change the baudrate : 57000!
+[dynamixel_handler_node-1] 00000.00000: Succeeded to open USB device [/dev/ttyUSB0] 
+[dynamixel_handler_node-1] 00000.00000:                     baudrate [57600]
+[dynamixel_handler_node-1] 00000.00000:                latency_timer [16]
 [dynamixel_handler_node-1] 00000.00000: Expected number of Dynamixel is not set. 
 [dynamixel_handler_node-1] 00000.00000: Free number of Dynamixel is allowed.
 [dynamixel_handler_node-1] 00000.00000:  Auto scanning Dynamixel (id range [0] to [30]) ...
