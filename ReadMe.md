@@ -636,13 +636,14 @@ Subscribe時にデータが一時保存され，直後のメインループ内�
   dyn_comm/verbose: false # 通信失敗時の詳細をエラーとして出すか
 # サーボの初期設定
   init/expected_servo_num: 0 # 期待するサーボの数，0ならいくつでもOK
-  init/auto_search:
+  init/servo_auto_search:
       min_id: 0      # 探索するサーボのIDの最小値
       max_id: 30     # 探索するサーボのIDの最大値
       retry_times: 4 # 探索のリトライ回数
   init/hardware_error_auto_clean: true # 初期化時に Hardware error を自動でクリアするかどうか
   init/torque_auto_enable: true # 初期化時に Torque を自動でONにするかどうか
   term/torque_auto_disable: true # 終了時に Torque を自動でOFFにするかどうか
+  term/servo_auto_stop: true # 終了時に電流・速度制御のサーボを停止するかどうか
 # デフォルト値の設定
   default/profile_acc: 600.0 # deg/s^2
   default/profile_vel: 100.0 # deg/s
@@ -652,7 +653,7 @@ Subscribe時にデータが一時保存され，直後のメインループ内�
 
 `init/expected_servo_num` が `0`の時は，1つ以上servoが見つかるまでスキャンを繰り返す．  
 `init/expected_servo_num` が `0` でない場合は，その数だけservoが見つかるまでスキャンを繰り返す．  
-`init/auto_search.retry_times`の回数分のスキャンが失敗した場合，初期化失敗でノードは落ちる．
+`init/servo_auto_search.retry_times`の回数分のスキャンが失敗した場合，初期化失敗でノードは落ちる．
 
 `default/profile_acc`と`default/profile_vel`は位置制御時の最大加速度と最大速度を決める．
 この値が大きければキビキビとした動作になり，小さければ滑らかな動作になる．

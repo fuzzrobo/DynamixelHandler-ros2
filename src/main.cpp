@@ -85,9 +85,9 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     this->get_parameter_or("default/profile_vel", default_profile_vel_deg_s_, 100.0);
     this->get_parameter_or("default/profile_acc", default_profile_acc_deg_ss_, 600.0);
     int num_expected; this->get_parameter_or("init/expected_servo_num"     , num_expected, 0);
-    int times_retry ; this->get_parameter_or("init/auto_search.retry_times", times_retry , 5);
-    int id_min      ; this->get_parameter_or("init/auto_search.min_id"     , id_min      , 1);
-    int id_max      ; this->get_parameter_or("init/auto_search.max_id"     , id_max      , 35);
+    int times_retry ; this->get_parameter_or("init/servo_auto_search.retry_times", times_retry , 5);
+    int id_min      ; this->get_parameter_or("init/servo_auto_search.min_id"     , id_min      , 1);
+    int id_max      ; this->get_parameter_or("init/servo_auto_search.max_id"     , id_max      , 35);
                       this->get_parameter_or("init/hardware_error_auto_clean", do_clean_hwerr_, true);
                       this->get_parameter_or("init/torque_auto_enable"       , do_torque_on_  , true);
     if ( num_expected>0 ) ROS_INFO(" '%d' servo(s) are expected", num_expected);
@@ -261,7 +261,8 @@ DynamixelHandler::~DynamixelHandler(){
     ROS_INFO( "Terminating DynamixelHandler ...");
     bool do_torque_off; get_parameter_or("term/torque_auto_disable", do_torque_off, true);
     if ( do_torque_off ) for ( auto id : id_set_ ) TorqueOff(id);
-    StopDynamixels();
+    bool do_stop; get_parameter_or("term/servo_auto_stop", do_stop, true);
+    if ( do_stop ) StopDynamixels();
     ROS_INFO( "  ... DynamixelHandler is terminated");
 }
 
