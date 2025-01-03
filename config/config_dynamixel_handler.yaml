@@ -14,6 +14,7 @@
         dyn_comm/inerval_msec: 4
         dyn_comm/verbose: false
     # サーボの設定
+        init/baudrate_auto_set: false # 探索前に，全てのサーボと全てのBaudrateに対して，baudrateの書き込みをするかどうか
         init/expected_servo_num: 0
         init/auto_search:
             min_id: 0

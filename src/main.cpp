@@ -26,13 +26,18 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     dyn_comm_.set_verbose(serial_verbose);
     // serial通信の開始
     if ( !dyn_comm_.OpenPort() ) { fflush(stdout); // printfのバッファを吐き出す． これがないと printfの表示が遅延する
-        ROS_ERROR("Failed to open USB device [%s]", dyn_comm_.port_name().c_str()); 
+        ROS_ERROR(" Failed to open USB device [%s]", dyn_comm_.port_name().c_str()); 
         if ( !is_debug && dummy_id_list.empty() ) ROS_STOP("Initialization failed (device open)");
-    } else { fflush(stdout);
-        ROS_INFO("Succeeded to open USB device [%s]", dyn_comm_.port_name().c_str());
-        ROS_INFO("                    baudrate [%d]", baudrate);
-        ROS_INFO("               latency_timer [%d]", latency_timer);
+    } fflush(stdout);
+    ROS_INFO(" Succeeded to open device [%s]", dyn_comm_.port_name().c_str());
+    ROS_INFO("  -------------- baudrate [%d]", baudrate);
+    ROS_INFO("  --------- latency_timer [%d]", latency_timer);
+    bool auto_unify_baudrate; this->get_parameter_or("init/baudrate_auto_set", auto_unify_baudrate, false);
+    if ( auto_unify_baudrate ) {
+        ROS_INFO(" Unifying all Dynamixels' baudrate");
+        UnifyBaudrate(static_cast<uint64_t>(baudrate));
     }
+
     // serial通信のretry設定
     int num_try      ; get_parameter_or("dyn_comm/retry_num"   , num_try      ,  5);
     int msec_interval; get_parameter_or("dyn_comm/inerval_msec", msec_interval, 10);
@@ -85,20 +90,20 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     int id_max      ; this->get_parameter_or("init/auto_search.max_id"     , id_max      , 35);
                       this->get_parameter_or("init/hardware_error_auto_clean", do_clean_hwerr_, true);
                       this->get_parameter_or("init/torque_auto_enable"       , do_torque_on_  , true);
-    if ( num_expected>0 ) ROS_INFO("'%d' servo(s) are expected", num_expected);
-    else                 {ROS_WARN("Expected servo number is not set."); ROS_WARN("Free number of Dynamixel is allowed");}
+    if ( num_expected>0 ) ROS_INFO(" '%d' servo(s) are expected", num_expected);
+    else                 {ROS_WARN(" Expected servo number is not set."); ROS_WARN(" Free number of Dynamixel is allowed");}
     ROS_INFO(" Auto scanning Dynamixel (id range '%d' to '%d') ...", id_min, id_max);
     /* *********************** dynamixelを探索し，初期化する ***********************************/
     /* */for (const auto id : dummy_id_list) DummyUpDynamixel(id);
     /* */auto num_found = ScanDynamixels(id_min, id_max, num_expected, times_retry);
     /* ***********************************************************************************/
     if( num_found==0 ) { // 見つからなかった場合は初期化失敗で終了
-        ROS_ERROR("Dynamixel is not found in USB device [%s]", dyn_comm_.port_name().c_str());
+        ROS_ERROR(" Dynamixel is not found in USB device [%s]", dyn_comm_.port_name().c_str());
         if ( !is_debug ) ROS_STOP("Initialization failed (no dynamixel found)");
     }
     if( num_expected>0 && num_expected!=num_found ) { // 期待数が設定されているときに、見つかった数が期待数と異なる場合は初期化失敗で終了
-        ROS_ERROR("Number of Dynamixel is not matched."); 
-        ROS_ERROR("Expected '%d', but found '%d'. please check & retry", num_expected, num_found);
+        ROS_ERROR(" Number of Dynamixel is not matched."); 
+        ROS_ERROR(" Expected '%d', but found '%d'. please check & retry", num_expected, num_found);
         if ( !is_debug ) ROS_STOP("Initialization failed (number of dynamixel is not matched)");
     }
     ROS_INFO("  ... Finish scanning Dynamixel");

@@ -251,6 +251,7 @@ class DynamixelHandler : public rclcpp::Node {
         bool TorqueOn(id_t servo_id);
         bool TorqueOff(id_t servo_id);
         bool is_dummy(id_t servo_id);
+        bool UnifyBaudrate(uint64_t baudrate);
         //* Dynamixel単体との通信による下位機能
         uint8_t ReadHardwareError(id_t servo_id);
         bool    ReadTorqueEnable(id_t servo_id);

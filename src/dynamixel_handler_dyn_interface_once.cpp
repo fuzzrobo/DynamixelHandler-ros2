@@ -6,7 +6,6 @@ static void rsleep(int millisec) { std::this_thread::sleep_for(std::chrono::mill
 static constexpr double DEG = M_PI/180.0; // degを単位に持つ数字に掛けるとradになる
 
 //* 基本機能をまとめた関数たち
-
 // 各シリーズのDynamixelを検出する．
 uint8_t DynamixelHandler::ScanDynamixels(id_t id_min, id_t id_max, uint32_t num_expected, uint32_t times_retry) {
     for (int id = id_min; id <= id_max; id++){
@@ -206,6 +205,39 @@ bool DynamixelHandler::TorqueOff(id_t id){
     if ( tq_mode_[id] != TORQUE_DISABLE ) ROS_ERROR("   ID [%d] failed to disable torque", id);
                                      else ROS_INFO( "   ID [%d] is disabled torque"      , id); 
     return tq_mode_[id];
+}
+
+bool DynamixelHandler::UnifyBaudrate(uint64_t baudrate) {
+    constexpr static uint8_t BROADCAST_ID = 0xFE;
+    const static map<uint64_t, DynamixelBaudrateIndex> baudrate_map = {
+        {9600,    BAUDRATE_INDEX_9600},
+        {57600,   BAUDRATE_INDEX_57600},
+        {115200,  BAUDRATE_INDEX_115200},
+        {1000000, BAUDRATE_INDEX_1M},
+        {2000000, BAUDRATE_INDEX_2M},
+        {3000000, BAUDRATE_INDEX_3M},
+        {4000000, BAUDRATE_INDEX_4M},
+        // {4500000, BAUDRATE_INDEX_4M5},
+        // {6000000, BAUDRATE_INDEX_6M},
+        // {10500000,BAUDRATE_INDEX_10M5}
+    };
+    // check baudrate
+    if ( !baudrate_map.count(baudrate) ) {
+        ROS_WARN("  === Valid baudrate list ===" );
+        for ( const auto& [br, _] : baudrate_map ) ROS_WARN("    - %ld", br);
+        ROS_STOP("  Invalid baudrate %ld for Dynamixel", baudrate);
+    } // もうここはしゃーない．
+    /// make id_list
+    for ( const auto& [br, _] : baudrate_map ) {
+        if ( br == baudrate ) continue;
+        ROS_INFO("  Try to set baudrate: %ld to %ld", br, baudrate);
+        dyn_comm_.set_baudrate(br);
+        if ( !dyn_comm_.OpenPort() ) ROS_ERROR("  Failed to open port at baudrate %ld", br);
+        else  dyn_comm_.Write(AddrCommon::baudrate, BROADCAST_ID, baudrate_map.at(baudrate));
+        rsleep(16);
+    }
+    dyn_comm_.set_baudrate(baudrate);
+    return dyn_comm_.OpenPort();
 }
 
 //* 基本機能たち Read
