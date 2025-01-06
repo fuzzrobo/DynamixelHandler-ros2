@@ -7,16 +7,16 @@ static constexpr double DEG = M_PI/180.0; // degを単位に持つ数字に掛�
 
 //* 基本機能をまとめた関数たち
 // 各シリーズのDynamixelを検出する．
-uint8_t DynamixelHandler::ScanDynamixels(id_t id_min, id_t id_max, uint32_t num_expected, uint32_t times_retry) {
+bool DynamixelHandler::ScanDynamixels(id_t id_min, id_t id_max, uint32_t num_expected, uint32_t times_retry) {
     for (int id = id_min; id <= id_max; id++){
         ROS_INFO("  Scanning ID: %d\x1b[999D\x1b[1A", id);
         AddDynamixel(id);
-        if ( !rclcpp::ok() ) return 0;
+        if ( !rclcpp::ok() ) return false;
     } 
     auto num_found = id_set_.size();
     // 再帰から脱する条件
-    if ( times_retry <= 0 ) return num_found;
-    if ( num_found != 0 && num_found >= num_expected ) return num_found;
+    if ( times_retry <= 0 ) return false;
+    if ( num_found != 0 && num_found >= num_expected ) return true;
     // 再帰処理
     if ( num_found < num_expected ) ROS_WARN("  '%ld' dynamixels are not found yet", num_expected-num_found );
     if ( num_expected == 0 )        ROS_WARN("  No dynamixels are found yet" );
@@ -65,8 +65,7 @@ bool DynamixelHandler::AddDynamixel(id_t id){
             return false;
     }
 
-    WriteBusWatchdog (id, 0.0 );
-    WriteHomingOffset(id, 0.0 );
+    WriteBusWatchdog (id, 0.0/*ms*/); // 最初にBusWatchdogを無効化することで，全てのGoal値の書き込みを許可する
     WriteProfileAcc(id, default_profile_acc_deg_ss_*DEG ); 
     WriteProfileVel(id, default_profile_vel_deg_s_*DEG );
 
@@ -144,9 +143,6 @@ bool DynamixelHandler::ChangeOperatingMode(id_t id, DynamixelOperatingMode mode)
     WriteProfileVel  (id, goal_w_[id][PROFILE_VEL  ]);
     WriteGoalPosition(id, goal_w_[id][GOAL_POSITION]);
     // WriteGains(id, gain_r_[id]);　// ** Gain値のデフォルトも変わる．面倒な．．．
-    double bus_watchdog = mode==OPERATING_MODE_CURRENT  ? 2500 :
-                          mode==OPERATING_MODE_VELOCITY ? 2500 : 0;
-    WriteBusWatchdog(id, bus_watchdog); // Dynamixel側のバグで書き込んでもうまくいかないことがある．
     WriteTorqueEnable(id, prev_torque == TORQUE_ENABLE );
     // 結果を確認
     bool is_changed = (ReadOperatingMode(id) == mode);
@@ -181,9 +177,6 @@ bool DynamixelHandler::TorqueOn(id_t id){
         WriteProfileVel  (id, goal_w_[id][PROFILE_VEL  ]);
         WriteGoalPosition(id, goal_w_[id][GOAL_POSITION]);
         // WriteGains(id, gain_r_[id]); 　// その他電源喪失時に消えるデータを念のため書き込む
-        double bus_watchdog = op_mode_[id]==OPERATING_MODE_CURRENT  ? 1000 :
-                              op_mode_[id]==OPERATING_MODE_VELOCITY ? 1000 : 0; /*ms*/
-        WriteBusWatchdog(id, bus_watchdog); // Dynamixel側のバグで書き込んでもうまくいかないことがある．
         /*トルクを入れる*/WriteTorqueEnable(id, true);
     }
     // 結果を確認

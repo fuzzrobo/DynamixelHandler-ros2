@@ -57,13 +57,13 @@ void DynamixelHandler::CallbackShortcut(const DynamixelShortcut& msg) {
     else if (cmd==msg.ADD_ID      || cmd=="ADID") CallbackCmd_Status(st.set__id_list(id_list).set__ping  ( trues(id_list.size())));
     else if (cmd==msg.REMOVE_ID   || cmd=="RMID") CallbackCmd_Status(st.set__id_list(id_list).set__ping  (falses(id_list.size())));
     else if (cmd==msg.RESET_OFFSET ) for(auto id: id_list){ // 開発者用で頻繁には使われないので if(verbose_)は付けない
-                                        WriteHomingOffset(id, 0);              ROS_INFO("  - set: offset zero, ID [%d]"   , id);}
+                                    TorqueOff(id); WriteHomingOffset(id, 0);  ROS_INFO("  - set: offset zero, ID [%d]"   , id);}
     else if (cmd==msg.ENABLE       ) for(auto id: id_list){ // 開発者用で頻繁には使われないので if(verbose_)は付けない
-                                        WriteTorqueEnable(id, TORQUE_ENABLE);  ROS_INFO("  - set: torque enable, ID [%d]" , id);}
+                                    WriteTorqueEnable(id, TORQUE_ENABLE);     ROS_INFO("  - set: torque enable, ID [%d]" , id);}
     else if (cmd==msg.DISABLE      ) for(auto id: id_list){ // 開発者用で頻繁には使われないので if(verbose_)は付けない
-                                        WriteTorqueEnable(id, TORQUE_DISABLE); ROS_INFO("  - set: torque disable, ID [%d]", id);}
+                                    WriteTorqueEnable(id, TORQUE_DISABLE);    ROS_INFO("  - set: torque disable, ID [%d]", id);}
     else if (cmd==msg.REBOOT       ) for(auto id: id_list){ // Reboot()はdummyでも送信をしてしまうので，事前にis_dummy()で確認する
-                                        if( !is_dummy(id) ) dyn_comm_.Reboot(id);; ROS_INFO("  - reboot: ID [%d]", id); }
+                                    if( !is_dummy(id) ) dyn_comm_.Reboot(id); ROS_INFO("  - reboot: ID [%d]", id); }
     else ROS_WARN("  Invalid command [%s]", cmd.c_str());
 }
 

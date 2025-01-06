@@ -492,17 +492,29 @@ template <> void DynamixelHandler::StopDynamixels(const set<id_t>& id_set){
     StopDynamixels<AddrP>(id_set);
 } 
 template <typename Addr> void DynamixelHandler::StopDynamixels(const set<id_t>& id_set){
-    vector<uint8_t> id_list; 
-    for (auto id : id_set) if ( series_[id]==Addr::series() ) id_list.push_back(id);
-    if ( id_list.empty() ) return; // 動作停止するモータがない場合は即時return
-    auto offset_pulse_now = dyn_comm_.SyncRead(Addr::homing_offset, id_list);
-    vector<int64_t> offset_pulse(id_list.size(), 0);
-    dyn_comm_.SyncWrite(Addr::homing_offset, id_list, offset_pulse); // マジで謎だが，BusWatchdogを設定するとHomingOffset分だけ回転してしまう...多分ファームrウェアのバグ
-    vector<int64_t> bus_watchtime_pulse(id_list.size(), 1);
-    dyn_comm_.SyncWrite(Addr::bus_watchdog, id_list, bus_watchtime_pulse);
-    dyn_comm_.SyncWrite(Addr::homing_offset, offset_pulse_now);
-    ROS_INFO("  %s servo will be stopped", Addr::series()==SERIES_X ? "X series" 
+    vector<id_t> target_id_list;
+    for (int id : id_set) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
+    if ( target_id_list.empty() ) return; // 読み込むデータがない場合は即時return
+
+    ROS_INFO(" %s servo will be stopped", Addr::series()==SERIES_X ? "X series" 
                                          : Addr::series()==SERIES_P ? "P series" : "Unknown");
+    if ( do_torque_off_ ) { // ノード停止時の挙動して， do_torque_off_ は do_stop_end_ を包含する．
+        dyn_comm_.SyncWrite(AddrX::torque_enable, target_id_list, vector<int64_t>(target_id_list.size(), TORQUE_DISABLE));
+        ROS_INFO("  Torque of all servo are disabled");
+    } else if ( do_stop_end_ ) { // ノード停止時に， サーボの動作を止める．
+        // 1. PWM，電流，位置制御につては, bus_watchdogによって自動的に停止するため何もしない．
+        // 2. 位置制御系ついては，現在値を書き込むことで停止させる( bus_watchdogによる位置制御の停止にはバグが多いため，利用しない． )
+        dyn_comm_.SyncWrite(Addr::goal_position,  // エラーチェックはせず，読み込めたものだけ書き込む．
+            dyn_comm_.SyncRead(Addr::present_position, target_id_list));
+        ROS_INFO("  Reset goal position for stopping");
+        // 3. さらに念のため， トルクを瞬間的にオンオフすることでも停止させる．
+        vector<id_t> tq_on_list;
+        for (auto id : target_id_list) if ( tq_mode_[id] ) tq_on_list.push_back(id);
+        dyn_comm_.SyncWrite(AddrX::torque_enable, tq_on_list, vector<int64_t>(tq_on_list.size(), TORQUE_DISABLE));
+        dyn_comm_.SyncWrite(AddrX::torque_enable, tq_on_list, vector<int64_t>(tq_on_list.size(), TORQUE_ENABLE ));
+        ROS_INFO("  Reset torque enable for stopping");
+    }
+
 }
 
 template <> void DynamixelHandler::CheckDynamixels(const set<id_t>& id_set){
@@ -514,9 +526,22 @@ template <> void DynamixelHandler::CheckDynamixels(const set<id_t>& id_set){
     if ( has_any_hardware_error_ ) ROS_WARN( "Hardware Error are detected");
 }
 template <typename Addr> void DynamixelHandler::CheckDynamixels(const set<id_t>& id_set){
-    vector<uint8_t> target_id_list;
+    vector<id_t> target_id_list;
     for (int id : id_set) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
     if ( target_id_list.empty() ) return; // 読み込むデータがない場合は即時return
+
+    // bus_watchdogの書き込み．
+    dyn_comm_.SyncWrite(Addr::bus_watchdog, target_id_list, vector<int64_t>(target_id_list.size(), 0/*OFF*/));
+    if ( do_stop_end_ ) { //　恒常的に動くモードの場合はbus_watchdogを有効にし，通信断絶で止まるようにする．
+        map<id_t, int64_t> bus_watchdog_map;
+        for (auto id : target_id_list) switch (op_mode_[id]){ 
+            case OPERATING_MODE_VELOCITY: [[fallthrough]];
+            case OPERATING_MODE_CURRENT : [[fallthrough]];
+            case OPERATING_MODE_PWM     : 
+                bus_watchdog_map[id] = Addr::bus_watchdog.val2pulse(500/*ms*/, model_[id]);
+        } // position系のモードもセットしたいが， homing_offsetのバグがあるので，一旦保留
+        dyn_comm_.SyncWrite(Addr::bus_watchdog, bus_watchdog_map);
+    }
 
     // トルクの確認
     auto id_torque_map = dyn_comm_.SyncRead( Addr::torque_enable, target_id_list );
@@ -531,7 +556,7 @@ template <typename Addr> void DynamixelHandler::CheckDynamixels(const set<id_t>&
     const bool has_comm_err = dyn_comm_.comm_error_last_read();
     if ( !is_timeout && !has_comm_err ) { ping_err_.clear(); return; } // 通信エラーがない場合は即時return
 
-    vector<uint8_t> alive_id_list;
+    vector<id_t> alive_id_list;
     for (auto id : target_id_list) if ( dyn_comm_.Ping(id) ) alive_id_list.push_back(id);
     // すべてのモータが死んでいる場合は，ping_err_=1で固定とする, おそらく根本で電源が切断されているため．
     // 生き残ったモータのping_err_をリセット

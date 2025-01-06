@@ -143,6 +143,8 @@ class DynamixelHandler : public rclcpp::Node {
         bool do_clean_hwerr_ = false;
         bool do_torque_on_   = false;
         bool do_pub_pre_all_ = true;
+        bool do_torque_off_  = true;
+        bool do_stop_end_    = true;
 
         //* Dynamixelとの通信
         DynamixelCommunicator dyn_comm_;
@@ -242,7 +244,7 @@ class DynamixelHandler : public rclcpp::Node {
         static inline array<unsigned int, _num_present> pub_ratio_present_;
 
         //* 単体通信を組み合わせた上位機能
-        uint8_t ScanDynamixels(id_t id_min, id_t id_max, uint32_t num_expected, uint32_t time_retry_ms);
+        bool ScanDynamixels(id_t id_min, id_t id_max, uint32_t num_expected, uint32_t time_retry_ms);
         bool DummyUpDynamixel(id_t servo_id);
         bool RemoveDynamixel(id_t servo_id);
         bool AddDynamixel(id_t servo_id);

@@ -863,12 +863,12 @@ Xシリーズの場合，`/dynamixel/commands/x`の`limit`フィールド or `/d
 ### その他 (extra)
  - drive_mode             : 
  - return_delay_time      : 
- - homing_offset          : ユーザーは使用不可，初期化時に0に設定され，reboot時の角度補正に用いられる．
+ - homing_offset          : reboot時の角度補正に用いられる．
  - moving_threshold       : 
  - startup_configuration  : not support, buckupがあるときPIDゲインやprofile系の値を自動で復元してくれるが，PIDのデフォルト値がモードによって異なる問題があるので使わない．
  - shutdown               : 
  - status_return_level    : not support, 常に2を前提とする
- - bus_watchbdog          : node kill時にサーボを自動停止させる機能に用いられる．   
+ - bus_watchbdog          : node kill時と通信断絶時にサーボを自動停止させる機能に用いられる．   
  - led                    : 
  - registered_instruction : 
  - realtime_tick          : 
@@ -878,7 +878,10 @@ Xシリーズの場合，`/dynamixel/commands/x`の`limit`フィールド or `/d
 読み書きは未実装
 
 > [!note] 
-> (bus_watchdog の設定値が1以上の時) bus_watchdogの設定値 × 20ms 通信がないと自動で動作停止処理が実行される．homing_offset が設定されている状態でこの動作停止処理が走るとなぜか homing_offsetだけ回転する．
+> (bus_watchdog の設定値が1以上の時) bus_watchdogの設定値 × 20ms 通信がないと自動で動作停止処理が実行される．
+> 位置制御系のモードかつ，homing_offset が設定されている状態でこの動作停止処理が走るとなぜか homing_offsetだけ回転する．
+> firmwareのバグの模様，バージョンによってはこの問題が解消されているかもしれないが，危険なので位置制御系のモードでbus_watchdogを使うのは避けるべき．
+> ということで `term/servo_auto_stop` が `true` かつ，PWM・電流・速度制御モードの場合のみ，500msで停止するようにbus_watchdogを設定し，それ以外のモードではbus_watchdogは 0 として利用しないようにしている．
 
 ### External Ports
  - external_port_data_{1,2,...} : 外部ポートのデータ，末尾の数字がポート番号に対応(Xシリーズは1,2,3，Pシリーズは1,2,3,4).
