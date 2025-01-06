@@ -84,10 +84,10 @@ bool DynamixelHandler::AddDynamixel(id_t id){
     gain_w_[id] = gain_r_[id];
     goal_w_[id] = goal_r_[id];
 
-    if ( abs(default_profile_acc_deg_ss_*DEG - goal_r_[id][PROFILE_ACC]) > 0.1 ) 
-        ROS_WARN("\nProfile acceleration is not set correctly [%d],\n your setting [%f], but [%f]", id, default_profile_acc_deg_ss_*DEG, goal_r_[id][PROFILE_ACC]);
-    if ( abs(default_profile_vel_deg_s_*DEG - goal_r_[id][PROFILE_VEL]) > 0.1 ) 
-        ROS_WARN("\nProfile velocity is not set correctly [%d],\n your setting [%f], but [%f]", id, default_profile_vel_deg_s_*DEG, goal_r_[id][PROFILE_VEL]);
+    if ( abs(default_profile_acc_deg_ss_ - goal_r_[id][PROFILE_ACC]/DEG) > 3 ) 
+        ROS_WARN("Profile acc. '%2.1f' is too small (now '%2.1f')", default_profile_acc_deg_ss_, goal_r_[id][PROFILE_ACC]/DEG);
+    if ( abs(default_profile_vel_deg_s_ - goal_r_[id][PROFILE_VEL]/DEG) > 1 ) 
+        ROS_WARN("Profile vel. '%2.1f' is too small (now '%2.1f')", default_profile_vel_deg_s_, goal_r_[id][PROFILE_VEL]/DEG);
 
     if ( do_clean_hwerr_ ) ClearHardwareError(id); // 現在の状態を変えない
     if ( do_torque_on_ )   TorqueOn(id);           // 現在の状態を変えない
@@ -230,7 +230,7 @@ bool DynamixelHandler::UnifyBaudrate(uint64_t baudrate) {
     /// make id_list
     for ( const auto& [br, _] : baudrate_map ) {
         if ( br == baudrate ) continue;
-        ROS_INFO("  Try to set baudrate: %ld to %ld", br, baudrate);
+        ROS_INFO("  Try to change baudrate %8ld to %ld", br, baudrate);
         dyn_comm_.set_baudrate(br);
         if ( !dyn_comm_.OpenPort() ) ROS_ERROR("  Failed to open port at baudrate %ld", br);
         else  dyn_comm_.Write(AddrCommon::baudrate, BROADCAST_ID, baudrate_map.at(baudrate));

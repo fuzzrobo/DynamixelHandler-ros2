@@ -11,7 +11,7 @@ dynamixel_handler/DynamixelExtraShutdown shutdown
 dynamixel_handler/DynamixelExtraRestureconfig restore_configuration 
 float64[] homing_offset_deg
 float64[] return_delay_time_us
-float64[] bus_watchbdog_ms          
+float64[] bus_watchdog_ms          
 
 #　機能
 dynamixel_handler/DynamixelExtraLed led                    

@@ -28,14 +28,15 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     if ( !dyn_comm_.OpenPort() ) { fflush(stdout); // printfのバッファを吐き出す． これがないと printfの表示が遅延する
         ROS_ERROR(" Failed to open USB device [%s]", dyn_comm_.port_name().c_str()); 
         if ( !is_debug && dummy_id_list.empty() ) ROS_STOP("Initialization failed (device open)");
-    } fflush(stdout);
+    } else { fflush(stdout);
     ROS_INFO(" Succeeded to open device [%s]", dyn_comm_.port_name().c_str());
-    ROS_INFO("  -------------- baudrate [%d]", baudrate);
-    ROS_INFO("  --------- latency_timer [%d]", latency_timer);
+        ROS_INFO("  -------------- baudrate '%d'", baudrate);
+        ROS_INFO("  --------- latency_timer '%d'", latency_timer);
     bool auto_unify_baudrate; this->get_parameter_or("init/baudrate_auto_set", auto_unify_baudrate, false);
     if ( auto_unify_baudrate ) {
         ROS_INFO(" Unifying all Dynamixels' baudrate");
         UnifyBaudrate(static_cast<uint64_t>(baudrate));
+        }
     }
 
     // serial通信のretry設定
@@ -258,12 +259,12 @@ void DynamixelHandler::MainLoop(){
 }
 
 DynamixelHandler::~DynamixelHandler(){
-    ROS_INFO( "Terminating DynamixelHandler ...");
+    ROS_INFO( "Terminating DynamixelHandler .....");
     bool do_torque_off; get_parameter_or("term/torque_auto_disable", do_torque_off, true);
     if ( do_torque_off ) for ( auto id : id_set_ ) TorqueOff(id);
     bool do_stop; get_parameter_or("term/servo_auto_stop", do_stop, true);
     if ( do_stop ) StopDynamixels();
-    ROS_INFO( "  ... DynamixelHandler is terminated");
+    ROS_INFO( "..... DynamixelHandler is terminated");
 }
 
 #include <chrono>

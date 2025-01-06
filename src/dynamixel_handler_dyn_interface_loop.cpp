@@ -100,15 +100,17 @@ template <typename Addr> void DynamixelHandler::SyncWriteGain(set<GainIndex> gai
  * @param limit_indice_write 書き込む制限値のEnumのset
  */
 template <> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> limit_indice_write, const unordered_set<uint8_t>& updated_id_limit){
-    map<uint8_t, int64_t> id_torque_map_x, id_torque_map_p;
+    pair<map<uint8_t, int64_t>, map<uint8_t, int64_t>> id_tq_map_x, id_tq_map_p;
     for (auto id : updated_id_limit) {
-        if ( series_[id]==AddrX::series() ) id_torque_map_x[id] = TORQUE_DISABLE;
-        if ( series_[id]==AddrP::series() ) id_torque_map_p[id] = TORQUE_DISABLE;
+        if ( series_[id]==AddrX::series() ) {id_tq_map_x.first[id] = TORQUE_DISABLE; id_tq_map_x.second[id] = tq_mode_[id];}
+        if ( series_[id]==AddrP::series() ) {id_tq_map_p.first[id] = TORQUE_DISABLE; id_tq_map_p.second[id] = tq_mode_[id];}
     }
-    if ( !id_torque_map_x.empty() ) dyn_comm_.SyncWrite(AddrX::torque_enable, id_torque_map_x);
-    if ( !id_torque_map_p.empty() ) dyn_comm_.SyncWrite(AddrP::torque_enable, id_torque_map_p);
+    if ( !id_tq_map_x.first.empty() ) dyn_comm_.SyncWrite(AddrX::torque_enable, id_tq_map_x.first);
+    if ( !id_tq_map_p.first.empty() ) dyn_comm_.SyncWrite(AddrP::torque_enable, id_tq_map_p.first);
     SyncWriteLimit<AddrX>(limit_indice_write, updated_id_limit);
     SyncWriteLimit<AddrP>(limit_indice_write, updated_id_limit);
+    if ( !id_tq_map_x.second.empty() ) dyn_comm_.SyncWrite(AddrX::torque_enable, id_tq_map_x.second);
+    if ( !id_tq_map_p.second.empty() ) dyn_comm_.SyncWrite(AddrP::torque_enable, id_tq_map_p.second);
 }
 template <typename Addr> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> limit_indice_write, const unordered_set<uint8_t>& updated_id_limit){
     if ( limit_indice_write.empty() ) return; // 空なら即時return
@@ -492,14 +494,15 @@ template <> void DynamixelHandler::StopDynamixels(const set<id_t>& id_set){
 template <typename Addr> void DynamixelHandler::StopDynamixels(const set<id_t>& id_set){
     vector<uint8_t> id_list; 
     for (auto id : id_set) if ( series_[id]==Addr::series() ) id_list.push_back(id);
+    if ( id_list.empty() ) return; // 動作停止するモータがない場合は即時return
     auto offset_pulse_now = dyn_comm_.SyncRead(Addr::homing_offset, id_list);
     vector<int64_t> offset_pulse(id_list.size(), 0);
     dyn_comm_.SyncWrite(Addr::homing_offset, id_list, offset_pulse); // マジで謎だが，BusWatchdogを設定するとHomingOffset分だけ回転してしまう...多分ファームrウェアのバグ
     vector<int64_t> bus_watchtime_pulse(id_list.size(), 1);
     dyn_comm_.SyncWrite(Addr::bus_watchdog, id_list, bus_watchtime_pulse);
     dyn_comm_.SyncWrite(Addr::homing_offset, offset_pulse_now);
-    ROS_INFO("%s servo will be stopped", Addr::series()==SERIES_X ? "X series" 
-                                       : Addr::series()==SERIES_P ? "P series" : "Unknown");
+    ROS_INFO("  %s servo will be stopped", Addr::series()==SERIES_X ? "X series" 
+                                         : Addr::series()==SERIES_P ? "P series" : "Unknown");
 }
 
 template <> void DynamixelHandler::CheckDynamixels(const set<id_t>& id_set){
