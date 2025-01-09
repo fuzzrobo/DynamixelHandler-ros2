@@ -283,6 +283,10 @@ class DynamixelHandler : public rclcpp::Node {
         bool WriteBusWatchdog(id_t servo_id, double time);
         bool WriteGains(id_t servo_id, array<uint16_t, _num_gain> gains);
         //* 連結しているDynamixelに一括で読み書きするloopで使用する機能
+        void SyncWrite_log(const vector<DynamixelAddress>& addr_list, const map<id_t, vector<int64_t>>& id_data_map, bool verbose);
+        void SyncWrite_log(const        DynamixelAddress&  addr,      const vector<id_t>& id_list, const vector<int64_t>& data_list, bool verbose);
+        map<id_t, vector<int64_t>> SyncRead_log(const vector<DynamixelAddress>& addr_list, const vector<id_t>& id_list, bool verbose, bool verbose_err);
+        map<id_t,        int64_t > SyncRead_log(const        DynamixelAddress&  addr,      const vector<id_t>& id_list, bool verbose, bool verbose_err);
         template <typename Addr=AddrCommon> void SyncWriteGoal (set<GoalIndex>   goal_indice_write, const unordered_set<id_t>&  updated_id_goal);
         template <typename Addr=AddrCommon> void SyncWriteGain (set<GainIndex>   gain_indice_write, const unordered_set<id_t>&  updated_id_gain);
         template <typename Addr=AddrCommon> void SyncWriteLimit(set<LimitIndex> limit_indice_write, const unordered_set<id_t>& updated_id_limit);

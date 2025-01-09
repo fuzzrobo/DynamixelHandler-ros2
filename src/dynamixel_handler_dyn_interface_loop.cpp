@@ -3,6 +3,53 @@
 #include "myUtils/logging_like_ros1.hpp"
 #include "myUtils/make_iterator_convenient.hpp" // enum のインクリメントと， is_in 関数の実装
 
+void DynamixelHandler::SyncWrite_log(
+    const DynamixelAddress& addr, const vector<id_t>& id_list, const vector<int64_t>& data_list, bool verbose
+){
+    if (id_list.size() != data_list.size()) ROS_STOP("id_list.size() != data_list.size()");
+    map <id_t, vector<int64_t>> id_data_vec_map;
+    for (size_t i=0; i<id_list.size(); i++) id_data_vec_map[id_list[i]].push_back(data_list[i]);
+    SyncWrite_log({addr}, id_data_vec_map, verbose);
+}
+void DynamixelHandler::SyncWrite_log(
+    const vector<DynamixelAddress>& addr_list, const map<id_t, vector<int64_t>>& id_data_vec_map, bool verbose
+){
+    if ( verbose ) ROS_INFO_STREAM( "'" << id_data_vec_map.size() << "' servo(s) will be written"
+                                    << control_table_layout(width_log_, id_data_vec_map, addr_list) );
+    dyn_comm_.SyncWrite(addr_list, id_data_vec_map); fflush(stdout);
+}
+
+map<uint8_t, int64_t> DynamixelHandler::SyncRead_log(
+    const DynamixelAddress & addr, const vector<id_t>& id_list, bool verbose, bool verbose_err
+){ 
+    auto id_data_vec_map = SyncRead_log(vector<DynamixelAddress>({addr}), id_list, verbose, verbose_err);
+    map<id_t, int64_t> id_data_map;
+    for (const auto& [id, data_vec] : id_data_vec_map) id_data_map[id] = data_vec[0];
+    return id_data_map;
+}
+map<uint8_t, vector<int64_t>> DynamixelHandler::SyncRead_log(
+    const vector<DynamixelAddress>& addr_list, const vector<id_t>& id_list, bool verbose, bool verbose_err
+){
+    const auto id_data_vec_map = ( use_fast_read_ ) // fast read を使うかどうか． 途中で切り替えるとtimeout後に来るデータによってSyncReadが何度も失敗するので注意
+        ? dyn_comm_.SyncRead_fast(addr_list, id_list)
+        : dyn_comm_.SyncRead     (addr_list, id_list); fflush(stdout);
+    const bool is_timeout_  = dyn_comm_.timeout_last_read();
+    const bool is_comm_err_ = dyn_comm_.comm_error_last_read();
+    //* 通信エラーの表示
+    if ( verbose_err ) if ( is_timeout_ || is_comm_err_ ) {
+        vector<id_t> failed_id_list;
+        for ( auto id : id_list ) if ( id_data_vec_map.count(id) ) failed_id_list.push_back(id);
+        ROS_WARN_STREAM( "'" << id_list.size() - id_data_vec_map.size() << "' servo(s) failed to read" 
+                        << (is_timeout_ ? " (time out)" : " (some kind packet error)")
+                        << id_list_layout(failed_id_list) );
+    }
+    //* id_data_vec_mapの中身を確認
+    if ( verbose ) if ( id_data_vec_map.size()>0 )
+        ROS_INFO_STREAM( "'" << id_data_vec_map.size() << "' servo(s) are read"
+                        << control_table_layout(width_log_, id_data_vec_map, addr_list) );
+    return id_data_vec_map;
+}
+
 //* Main loop 内で使う全モータへの一括読み書き関数たち
 
 /**
@@ -10,18 +57,18 @@
  * @brief 指定した範囲のコマンド値を書き込む
  * @param goal_indice_write 書き込むコマンドのEnumのリスト
 */
-template <> void DynamixelHandler::SyncWriteGoal(set<GoalIndex> goal_indice_write, const unordered_set<uint8_t>& updated_id_goal){
+template <> void DynamixelHandler::SyncWriteGoal(set<GoalIndex> goal_indice_write, const unordered_set<id_t>& updated_id_goal){
     SyncWriteGoal<AddrX>(goal_indice_write, updated_id_goal);
     SyncWriteGoal<AddrP>(goal_indice_write, updated_id_goal);
 }
-template <typename Addr> void DynamixelHandler::SyncWriteGoal(set<GoalIndex> goal_indice_write, const unordered_set<uint8_t>& updated_id_goal){
+template <typename Addr> void DynamixelHandler::SyncWriteGoal(set<GoalIndex> goal_indice_write, const unordered_set<id_t>& updated_id_goal){
     if ( goal_indice_write.empty() ) return; // 空なら即時return
     //* 書き込む範囲のイテレータを取得, 分割書き込みが有効な場合書き込む範囲を1つ目のみに制限,残りは再帰的に処理する．
     auto [start,end] = minmax_element(goal_indice_write.begin(), goal_indice_write.end()); 
     if ( use_split_write_ ) end = start; // 分割書き込みが有効な場合は書き込む範囲を1つ目のみに制限
     //* 書き込みに必要な変数を用意
     vector<DynamixelAddress> goal_addr_list;  // 書き込むコマンドのアドレスのベクタ
-    map<uint8_t, vector<int64_t>> id_goal_vec_map; // id と 書き込むデータのベクタのマップ
+    map<id_t, vector<int64_t>> id_goal_vec_map; // id と 書き込むデータのベクタのマップ
     for (GoalIndex goal = *start; goal <= *end; goal++) { // アドレスのベクタと，データのベクタの並びは対応している必要があるので，同一のループで作成する．
         switch (goal) {
             case GOAL_PWM      : goal_addr_list.push_back(Addr::goal_pwm            ); break;
@@ -37,14 +84,8 @@ template <typename Addr> void DynamixelHandler::SyncWriteGoal(set<GoalIndex> goa
             id_goal_vec_map[id].push_back( addr.val2pulse( goal_w_[id][goal], model_[id] ) );
     }
     if ( id_goal_vec_map.empty() ) return; // 書き込むデータがない場合は即時return
-    //* id_goal_vec_mapの中身を確認
-    if ( verbose_["w_goal"] ) {
-        char header[100]; sprintf(header, "'%zu' servo(s) will be written", id_goal_vec_map.size());
-        auto ss = control_table_layout(width_log_, id_goal_vec_map, goal_addr_list, string(header));
-        ROS_INFO_STREAM(ss);
-    }
     //*SyncWriteでまとめて書き込み
-    dyn_comm_.SyncWrite(goal_addr_list, id_goal_vec_map);
+    SyncWrite_log(goal_addr_list, id_goal_vec_map, verbose_["w_goal"] );
     //*再帰的に処理, use_split_write_=falseの場合は全て削除されるので,再帰しない
     goal_indice_write.erase(start, ++end);  // 今回書き込んだ範囲を消去
     SyncWriteGoal<Addr>(goal_indice_write, updated_id_goal);
@@ -53,18 +94,18 @@ template <typename Addr> void DynamixelHandler::SyncWriteGoal(set<GoalIndex> goa
 /** 
  * @func SyncWriteGain
  */
-template <> void DynamixelHandler::SyncWriteGain(set<GainIndex> gain_indice_write, const unordered_set<uint8_t>& updated_id_gain){
+template <> void DynamixelHandler::SyncWriteGain(set<GainIndex> gain_indice_write, const unordered_set<id_t>& updated_id_gain){
     SyncWriteGain<AddrX>(gain_indice_write, updated_id_gain);
     SyncWriteGain<AddrP>(gain_indice_write, updated_id_gain);
 }
-template <typename Addr> void DynamixelHandler::SyncWriteGain(set<GainIndex> gain_indice_write, const unordered_set<uint8_t>& updated_id_gain){
+template <typename Addr> void DynamixelHandler::SyncWriteGain(set<GainIndex> gain_indice_write, const unordered_set<id_t>& updated_id_gain){
     if ( gain_indice_write.empty() ) return; // 空なら即時return
     //* 書き込む範囲のイテレータを取得, 分割書き込みが有効な場合書き込む範囲を1つ目のみに制限,残りは再帰的に処理する．
     auto [start,end] = minmax_element(gain_indice_write.begin(), gain_indice_write.end());
     if ( use_split_write_ || updated_id_gain.size()>5  ) end = start; // 分割書き込みを常に有効にする．
     //* 書き込みに必要な変数を用意
     vector<DynamixelAddress> gain_addr_list;  // 書き込むコマンドのアドレスのベクタ
-    map<uint8_t, vector<int64_t>> id_gain_vec_map; // id と 書き込むデータのベクタのマップ
+    map<id_t, vector<int64_t>> id_gain_vec_map; // id と 書き込むデータのベクタのマップ
     for (GainIndex gain = *start; gain <= *end; gain++) { // アドレスのベクタと，データのベクタの並びは対応している必要があるので，同一のループで作成する．
         switch (gain) {
             case VELOCITY_I_GAIN     : gain_addr_list.push_back(Addr::velocity_i_gain     ); break;
@@ -81,14 +122,8 @@ template <typename Addr> void DynamixelHandler::SyncWriteGain(set<GainIndex> gai
             id_gain_vec_map[id].push_back( addr.val2pulse( gain_w_[id][gain], model_[id] ) );
     }
     if ( id_gain_vec_map.empty() ) return; // 書き込むデータがない場合は即時return
-    //* id_gain_vec_mapの中身を確認
-    if ( verbose_["w_gain"] ) {
-        char header[100]; sprintf(header, "'%zu' servo(s) will be written", id_gain_vec_map.size());
-        auto ss = control_table_layout(width_log_, id_gain_vec_map, gain_addr_list, string(header));
-        ROS_INFO_STREAM(ss);
-    }
     //*SyncWriteでまとめて書き込み
-    dyn_comm_.SyncWrite(gain_addr_list, id_gain_vec_map);
+    SyncWrite_log(gain_addr_list, id_gain_vec_map, verbose_["w_gain"]);
     //*再帰的に処理
     gain_indice_write.erase(start, ++end);  // 今回書き込んだ範囲を消去
     SyncWriteGain<Addr>(gain_indice_write, updated_id_gain);
@@ -99,27 +134,27 @@ template <typename Addr> void DynamixelHandler::SyncWriteGain(set<GainIndex> gai
  * @brief 制限値をすべて書き込む, ROMに書き込むのでトルクをOFFにする
  * @param limit_indice_write 書き込む制限値のEnumのset
  */
-template <> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> limit_indice_write, const unordered_set<uint8_t>& updated_id_limit){
-    pair<map<uint8_t, int64_t>, map<uint8_t, int64_t>> id_tq_map_x, id_tq_map_p;
-    for (auto id : updated_id_limit) {
-        if ( series_[id]==AddrX::series() ) {id_tq_map_x.first[id] = TORQUE_DISABLE; id_tq_map_x.second[id] = tq_mode_[id];}
-        if ( series_[id]==AddrP::series() ) {id_tq_map_p.first[id] = TORQUE_DISABLE; id_tq_map_p.second[id] = tq_mode_[id];}
+template <> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> limit_indice_write, const unordered_set<id_t>& updated_id_limit){
+    vector<id_t> id_list_x, id_list_p;
+    for (auto id : updated_id_limit) if ( tq_mode_[id] ) {
+        if ( series_[id]==AddrX::series() ) id_list_x.push_back(id);
+        if ( series_[id]==AddrP::series() ) id_list_p.push_back(id);
     }
-    if ( !id_tq_map_x.first.empty() ) dyn_comm_.SyncWrite(AddrX::torque_enable, id_tq_map_x.first);
-    if ( !id_tq_map_p.first.empty() ) dyn_comm_.SyncWrite(AddrP::torque_enable, id_tq_map_p.first);
+    if ( !id_list_x.empty() ) SyncWrite_log(AddrX::torque_enable, id_list_x, vector<int64_t>(id_list_x.size(), TORQUE_DISABLE), verbose_["w_limit"]);
+    if ( !id_list_p.empty() ) SyncWrite_log(AddrP::torque_enable, id_list_p, vector<int64_t>(id_list_p.size(), TORQUE_DISABLE), verbose_["w_limit"]);
     SyncWriteLimit<AddrX>(limit_indice_write, updated_id_limit);
     SyncWriteLimit<AddrP>(limit_indice_write, updated_id_limit);
-    if ( !id_tq_map_x.second.empty() ) dyn_comm_.SyncWrite(AddrX::torque_enable, id_tq_map_x.second);
-    if ( !id_tq_map_p.second.empty() ) dyn_comm_.SyncWrite(AddrP::torque_enable, id_tq_map_p.second);
+    if ( !id_list_x.empty() ) SyncWrite_log(AddrX::torque_enable, id_list_x, vector<int64_t>(id_list_x.size(), TORQUE_ENABLE), verbose_["w_limit"]);
+    if ( !id_list_p.empty() ) SyncWrite_log(AddrP::torque_enable, id_list_p, vector<int64_t>(id_list_p.size(), TORQUE_ENABLE), verbose_["w_limit"]);
 }
-template <typename Addr> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> limit_indice_write, const unordered_set<uint8_t>& updated_id_limit){
+template <typename Addr> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> limit_indice_write, const unordered_set<id_t>& updated_id_limit){
     if ( limit_indice_write.empty() ) return; // 空なら即時return
     //* 書き込む範囲のイテレータを取得, 分割書き込みが有効な場合書き込む範囲を1つ目のみに制限,残りは再帰的に処理する．
     auto [start,end] = minmax_element(limit_indice_write.begin(), limit_indice_write.end()); 
     if ( use_split_write_ || updated_id_limit.size()>5  ) end = start; // 分割書き込みを常に有効にする．
     //* 書き込みに必要な変数を用意
     vector<DynamixelAddress> limit_addr_list;  // 書き込むコマンドのアドレスのベクタ
-    map<uint8_t, vector<int64_t>> id_limit_vec_map; // id と 書き込むデータのベクタのマップ
+    map<id_t, vector<int64_t>> id_limit_vec_map; // id と 書き込むデータのベクタのマップ
     for (LimitIndex limit = *start; limit <= *end; limit++) { // アドレスのベクタと，データのベクタの並びは対応している必要があるので，同一のループで作成する．
         switch (limit) {
             case TEMPERATURE_LIMIT : limit_addr_list.push_back(Addr::temperature_limit ); break;
@@ -138,14 +173,8 @@ template <typename Addr> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> l
             id_limit_vec_map[id].push_back( addr.val2pulse( limit_w_[id][limit], model_[id] ) );
     }
     if ( id_limit_vec_map.empty() ) return; // 書き込むデータがない場合は即時return
-    //* id_limit_vec_mapの中身を確認
-    if ( verbose_["w_limit"] ) {
-        char header[100]; sprintf(header, "'%zu' servo(s) will be written", id_limit_vec_map.size());
-        auto ss = control_table_layout(width_log_, id_limit_vec_map, limit_addr_list, string(header));
-        ROS_INFO_STREAM(ss);
-    }
     //*SyncWriteでまとめて書き込み
-    dyn_comm_.SyncWrite(limit_addr_list, id_limit_vec_map);
+    SyncWrite_log(limit_addr_list, id_limit_vec_map, verbose_["w_limit"]);
     //*再帰的に処理, use_split_write_=falseの場合は全て削除されるので,再帰しない
     limit_indice_write.erase(start, ++end);  // 今回書き込んだ範囲を消去
     SyncWriteLimit<Addr>(limit_indice_write, updated_id_limit);
@@ -192,30 +221,13 @@ template <typename Addr> double DynamixelHandler::SyncReadPresent(set<PresentInd
         case PRESENT_TEMPERATURE  : state_addr_list.push_back(Addr::present_temperture   ); break;
         default: /*ここに来たらエラ-*/ ROS_STOP("Unknown PresentIndex");
     }
-    vector<uint8_t> target_id_list;
+    vector<id_t> target_id_list;
     for (auto id : id_set) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
     if ( target_id_list.empty() ) return 1.0; // 読み込むデータがない場合は即時return
     // SyncReadでまとめて読み込み
-    const auto id_st_vec_map = ( use_fast_read_ ) // fast read を使うかどうか． 途中で切り替えるとtimeout後に来るデータによってSyncReadが何度も失敗するので注意
-        ? dyn_comm_.SyncRead_fast(state_addr_list, target_id_list)
-        : dyn_comm_.SyncRead     (state_addr_list, target_id_list); fflush(stdout);
+    const auto id_st_vec_map = SyncRead_log(state_addr_list, target_id_list, verbose_["r_present"], verbose_["r_present_err"]);
     const int N_total = target_id_list.size();
     const int N_suc   = id_st_vec_map.size();
-    const bool is_timeout_  = dyn_comm_.timeout_last_read();
-    const bool is_comm_err_ = dyn_comm_.comm_error_last_read();
-    //* 通信エラーの表示
-    if ( verbose_["r_present_err"] ) if ( is_timeout_ || is_comm_err_ ) {
-        vector<uint8_t> failed_id_list;
-        for ( auto id : target_id_list ) if ( id_st_vec_map.find(id) == id_st_vec_map.end() ) failed_id_list.push_back(id);
-        ROS_WARN("'%d' servo(s) failed to read %s", N_total - N_suc, is_timeout_ ? " (time out)" : " (some kind packet error)");
-        ROS_WARN_STREAM(id_list_layout(failed_id_list));
-    }
-    //* id_st_vec_mapの中身を確認
-    if ( verbose_["r_present"] ) if ( N_suc>0 ) {
-        char header[99]; sprintf(header, "'%d' servo(s) are read", N_suc);
-        auto ss = control_table_layout(width_log_, id_st_vec_map, state_addr_list, string(header));
-        ROS_INFO_STREAM(ss);
-    }
     //* present_r_に反映
     const unsigned int num_state_now  = *end-*start+1;
     for ( size_t i = 0; i < num_state_now; i++ ) {
@@ -244,14 +256,11 @@ template <> double DynamixelHandler::SyncReadHardwareErrors(const set<id_t>& id_
 template <typename Addr> double DynamixelHandler::SyncReadHardwareErrors(const set<id_t>& id_set){
     if ( !has_any_hardware_error_ ) { hardware_err_.clear(); return 1.0; } // 事前にエラーが検出できていない場合は省略
 
-    vector<uint8_t> target_id_list;
+    vector<id_t> target_id_list;
     for (int id : id_set) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
     if ( target_id_list.empty() ) return 1.0; // 読み込むデータがない場合は即時return
     
-    auto id_error_map =  ( use_fast_read_ ) 
-        ? dyn_comm_.SyncRead_fast(Addr::hardware_error_status, target_id_list)
-        : dyn_comm_.SyncRead     (Addr::hardware_error_status, target_id_list); fflush(stdout);
-
+    auto id_error_map = SyncRead_log(Addr::hardware_error_status, target_id_list, false, false);
     if ( dyn_comm_.timeout_last_read() ) return 0.0; // 読み込み失敗
 
     //  hardware_error_に反映
@@ -311,30 +320,13 @@ template <typename Addr> double DynamixelHandler::SyncReadGain(set<GainIndex> ga
         default: /*ここに来たらエラ-*/ ROS_STOP("Unknown GainIndex");
     }
 
-    vector<uint8_t> target_id_list;
+    vector<id_t> target_id_list;
     for (int id : id_set) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
     if ( target_id_list.empty() ) return 1.0; // 読み込むデータがない場合は即時return
 
-    auto id_gain_vec_map = ( use_fast_read_ )
-        ? dyn_comm_.SyncRead_fast(gain_addr_list, target_id_list)
-        : dyn_comm_.SyncRead     (gain_addr_list, target_id_list);  fflush(stdout);
+    auto id_gain_vec_map = SyncRead_log(gain_addr_list, target_id_list, verbose_["r_gain"], verbose_["r_gain_err"]);
     const int N_total = target_id_list.size();
     const int N_suc   = id_gain_vec_map.size();
-    const bool is_timeout   = dyn_comm_.timeout_last_read();
-    const bool has_comm_err = dyn_comm_.comm_error_last_read();
-    // 通信エラーの表示
-    if ( verbose_["r_gain_err"] ) if ( has_comm_err || is_timeout ) {
-        vector<uint8_t> failed_id_list;
-        for ( auto id : target_id_list ) if ( id_gain_vec_map.find(id) == id_gain_vec_map.end() ) failed_id_list.push_back(id);
-        ROS_WARN("'%d' servo(s) failed to read %s", N_total - N_suc, is_timeout ? " (time out)" : " (some kind packet error)");
-        ROS_WARN_STREAM(id_list_layout(failed_id_list));
-    }
-    // id_gain_vec_mapの中身を確認
-    if ( verbose_["r_gain"] ) if ( N_suc>0 ) {
-        char header[100]; sprintf(header, "'%d' servo(s) are read", N_suc);
-        auto ss = control_table_layout(width_log_, id_gain_vec_map, gain_addr_list, string(header));
-        ROS_INFO_STREAM(ss);
-    }
     // gain_r_に反映
     const unsigned int num_gain_now  = *end-*start+1;
     for ( size_t i = 0; i < num_gain_now; i++ ) { 
@@ -381,30 +373,13 @@ template <typename Addr> double DynamixelHandler::SyncReadLimit(set<LimitIndex> 
         default: /*ここに来たらエラ-*/ ROS_STOP("Unknown LimitIndex");
     }
 
-    vector<uint8_t> target_id_list;
+    vector<id_t> target_id_list;
     for (int id : id_set) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
     if ( target_id_list.empty() ) return 1.0; // 読み込むデータがない場合は即時return
 
-    auto id_limit_vec_map = ( use_fast_read_ )
-        ? dyn_comm_.SyncRead_fast(limit_addr_list, target_id_list)
-        : dyn_comm_.SyncRead     (limit_addr_list, target_id_list); fflush(stdout);
+    auto id_limit_vec_map = SyncRead_log(limit_addr_list, target_id_list, verbose_["r_limit"], verbose_["r_limit_err"]);
     const int N_total = target_id_list.size();
     const int N_suc   = id_limit_vec_map.size();
-    const bool is_timeout   = dyn_comm_.timeout_last_read();
-    const bool has_comm_err = dyn_comm_.comm_error_last_read();
-    // 通信エラーの表示
-    if ( verbose_["r_limit_err"] ) if ( has_comm_err || is_timeout ) {
-        vector<uint8_t> failed_id_list;
-        for ( auto id : target_id_list ) if ( id_limit_vec_map.find(id) == id_limit_vec_map.end() ) failed_id_list.push_back(id);
-        ROS_WARN("'%d' servo(s) failed to read %s", N_total - N_suc, is_timeout ? " (time out)" : " (some kind packet error)");
-        ROS_WARN_STREAM(id_list_layout(failed_id_list));
-    }
-    // id_limit_vec_mapの中身を確認
-    if ( verbose_["r_limit"] ) if ( N_suc>0 ) {
-        char header[100]; sprintf(header, "'%d' servo(s) are read", N_suc);
-        auto ss = control_table_layout(width_log_, id_limit_vec_map, limit_addr_list, string(header));
-        ROS_INFO_STREAM(ss);
-    }
     // limit_r_に反映
     const unsigned int num_limit_now  = *end-*start+1;
     for ( size_t i = 0; i < num_limit_now; i++ ) {
@@ -448,29 +423,13 @@ template <typename Addr> double DynamixelHandler::SyncReadGoal(set<GoalIndex> go
         default: /*ここに来たらエラ-*/ ROS_STOP("Unknown GoalIndex");
     }
 
-    vector<uint8_t> target_id_list;
+    vector<id_t> target_id_list;
     for (int id : id_set) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
     if ( target_id_list.empty() ) return 1.0; // 読み込むデータがない場合は即時return
 
-    auto id_goal_vec_map = ( use_fast_read_ )
-        ? dyn_comm_.SyncRead_fast(goal_addr_list, target_id_list)
-        : dyn_comm_.SyncRead     (goal_addr_list, target_id_list);  fflush(stdout);
+    auto id_goal_vec_map = SyncRead_log(goal_addr_list, target_id_list, verbose_["r_goal"], verbose_["r_goal_err"]);
     const int N_total = target_id_list.size();
     const int N_suc   = id_goal_vec_map.size();
-    const bool is_timeout   = dyn_comm_.timeout_last_read();
-    const bool has_comm_err = dyn_comm_.comm_error_last_read();
-    // 通信エラーの表示
-    if ( verbose_["r_goal_err"] ) if ( has_comm_err || is_timeout ) {
-        vector<uint8_t> failed_id_list;
-        for ( auto id : target_id_list ) if ( id_goal_vec_map.find(id) == id_goal_vec_map.end() ) failed_id_list.push_back(id);
-        ROS_WARN("'%d' servo(s) failed to read %s", N_total - N_suc, is_timeout ? " (time out)" : " (some kind packet error)");
-        ROS_WARN_STREAM(id_list_layout(failed_id_list));
-    }
-    if ( verbose_["r_goal"] ) if ( N_suc>0 ) {
-        char header[100]; sprintf(header, "'%d' servo(s) are read", N_suc);
-        auto ss = control_table_layout(width_log_, id_goal_vec_map, goal_addr_list, string(header));
-        ROS_INFO_STREAM(ss);
-    }
     // goal_r_に反映
     const unsigned int  num_goal_now  = *end-*start+1;
     for ( size_t i = 0; i < num_goal_now; i++) {
@@ -496,7 +455,7 @@ template <typename Addr> void DynamixelHandler::StopDynamixels(const set<id_t>& 
     for (int id : id_set) if ( series_[id]==Addr::series() ) target_id_list.push_back(id);
     if ( target_id_list.empty() ) return; // 読み込むデータがない場合は即時return
 
-    ROS_INFO(" %s servo will be stopped", Addr::series()==SERIES_X ? "X series" 
+    ROS_INFO(" %s servo will be stopped",  Addr::series()==SERIES_X ? "X series" 
                                          : Addr::series()==SERIES_P ? "P series" : "Unknown");
     if ( do_torque_off_ ) { // ノード停止時の挙動して， do_torque_off_ は do_stop_end_ を包含する．
         dyn_comm_.SyncWrite(AddrX::torque_enable, target_id_list, vector<int64_t>(target_id_list.size(), TORQUE_DISABLE));
@@ -531,20 +490,20 @@ template <typename Addr> void DynamixelHandler::CheckDynamixels(const set<id_t>&
     if ( target_id_list.empty() ) return; // 読み込むデータがない場合は即時return
 
     // bus_watchdogの書き込み．
-    dyn_comm_.SyncWrite(Addr::bus_watchdog, target_id_list, vector<int64_t>(target_id_list.size(), 0/*OFF*/));
+    SyncWrite_log(Addr::bus_watchdog, target_id_list, vector<int64_t>(target_id_list.size(), 0/*OFF*/), verbose_["w_status"]);
     if ( do_stop_end_ ) { //　恒常的に動くモードの場合はbus_watchdogを有効にし，通信断絶で止まるようにする．
-        map<id_t, int64_t> bus_watchdog_map;
+        map<id_t, vector<int64_t>> bus_watchdog_map;
         for (auto id : target_id_list) switch (op_mode_[id]){ 
             case OPERATING_MODE_VELOCITY: [[fallthrough]];
             case OPERATING_MODE_CURRENT : [[fallthrough]];
             case OPERATING_MODE_PWM     : 
-                bus_watchdog_map[id] = Addr::bus_watchdog.val2pulse(500/*ms*/, model_[id]);
+                bus_watchdog_map[id].push_back(Addr::bus_watchdog.val2pulse(500/*ms*/, model_[id]));
         } // position系のモードもセットしたいが， homing_offsetのバグがあるので，一旦保留
-        dyn_comm_.SyncWrite(Addr::bus_watchdog, bus_watchdog_map);
+        if ( !bus_watchdog_map.empty() ) SyncWrite_log({Addr::bus_watchdog}, bus_watchdog_map, verbose_["w_status"]);
     }
 
     // トルクの確認
-    auto id_torque_map = dyn_comm_.SyncRead( Addr::torque_enable, target_id_list );
+    auto id_torque_map = SyncRead_log(Addr::torque_enable, target_id_list, verbose_["r_status"], verbose_["r_status_err"]);
     for ( const auto& [id, torque] : id_torque_map ) tq_mode_[id] = torque;
 
     // ハードウェアエラーの確認

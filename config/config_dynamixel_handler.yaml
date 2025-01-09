@@ -52,6 +52,7 @@
     # デバッグ用
         max_log_width: 6
         verbose/callback: true
+        verbose/write_status: false
         verbose/write_goal: false
         verbose/write_gain: false
         verbose/write_limit: false

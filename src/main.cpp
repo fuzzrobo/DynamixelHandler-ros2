@@ -66,6 +66,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     this->get_parameter_or("method/split_read"     , use_split_read_     , false);
     this->get_parameter_or("method/fast_read"      , use_fast_read_      , true);
     this->get_parameter_or("verbose/callback"           , verbose_callback_, false);
+    this->get_parameter_or("verbose/write_status"       , verbose_["w_status"], false);
     this->get_parameter_or("verbose/write_goal"         , verbose_["w_goal"  ], false);
     this->get_parameter_or("verbose/write_gain"         , verbose_["w_gain"  ], false);
     this->get_parameter_or("verbose/write_limit"        , verbose_["w_limit" ], false);
