@@ -140,6 +140,7 @@ class DynamixelHandler : public rclcpp::Node {
                     bool  verbose_callback_ = false;
         double default_profile_vel_deg_s_ = 0.0;
         double default_profile_acc_deg_ss_ = 0.0;
+        double default_return_delay_time_us_ = 0.0;
         bool do_clean_hwerr_ = false;
         bool do_torque_on_   = false;
         bool do_pub_pre_all_ = true;
@@ -269,6 +270,7 @@ class DynamixelHandler : public rclcpp::Node {
         double  ReadProfileVel(id_t servo_id);
         double  ReadHomingOffset(id_t servo_id);
         double  ReadBusWatchdog(id_t servo_id);
+        double  ReadReturnDelayTime(id_t servo_id);
         uint8_t ReadOperatingMode(id_t servo_id);
         uint8_t ReadDriveMode(id_t servo_id);
         bool WriteTorqueEnable(id_t servo_id, bool enable);
@@ -280,6 +282,7 @@ class DynamixelHandler : public rclcpp::Node {
         bool WriteProfileVel(id_t servo_id, double velocity);
         bool WriteHomingOffset(id_t servo_id, double offset);
         bool WriteOperatingMode(id_t servo_id, uint8_t mode);
+        bool WriteReturnDelayTime(id_t servo_id, double time);
         bool WriteBusWatchdog(id_t servo_id, double time);
         bool WriteGains(id_t servo_id, array<uint16_t, _num_gain> gains);
         //* 連結しているDynamixelに一括で読み書きするloopで使用する機能

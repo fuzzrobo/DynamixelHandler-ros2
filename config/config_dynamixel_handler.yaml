@@ -27,6 +27,7 @@
     # デフォルト値の設定
         default/profile_acc: 600.0 # deg/s^2
         default/profile_vel: 100.0 # deg/s
+        default/return_delay_time: 0.0 # us [double]
     # ループの設定
         loop_rate: 100 # メインループの周期
         verbose_ratio: 300 # メインループのlog出力の割合(処理時間，通信の成功率), ex 100なら100回に1回出力
@@ -70,5 +71,9 @@
     # Optonal機能
         option/external_port:
             use : false # External Portの機能を使うかどうか
-            pub_ratio/data : 2   # この回数に一回 Data を読み取る.
+            pub_ratio/data : 10  # この回数に一回 Data を読み取る.
             pub_ratio/mode : 100 # この回数に一回 Mode を読み取る, ROM値なので大きくても問題ない．
+            verbose/callback : false
+            verbose/write    : false
+            verbose/read/raw : false
+            verbose/read/err : false

@@ -647,6 +647,7 @@ Subscribe時にデータが一時保存され，直後のメインループ内�
 # デフォルト値の設定
   default/profile_acc: 600.0 # deg/s^2
   default/profile_vel: 100.0 # deg/s
+  default/return_delay_time: 0.0 # us [double]
 ```
 `dyn_comm/...`は初期化処理における ping 通信失敗時の挙動を決める．    
 基本的に数字が小さい方が初期化が早くなるが，サーボを発見できない可能性が高くなる．(デフォルト値は大きめに設定している)
@@ -658,6 +659,8 @@ Subscribe時にデータが一時保存され，直後のメインループ内�
 `default/profile_acc`と`default/profile_vel`は位置制御時の最大加速度と最大速度を決める．
 この値が大きければキビキビとした動作になり，小さければ滑らかな動作になる．
 `{~}_control`系トピックで動的に指定することも可能．
+
+`default/return_delay_time`はサーボの応答遅延時間を設定する．基本的に0でいいはず．
 
 ### 実行時の動作設定
 ```yml

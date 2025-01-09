@@ -84,9 +84,13 @@ bool DynamixelHandler::AddDynamixel(id_t id){
     goal_w_[id] = goal_r_[id];
 
     if ( abs(default_profile_acc_deg_ss_ - goal_r_[id][PROFILE_ACC]/DEG) > 3 ) 
-        ROS_WARN("Profile acc. '%2.1f' is too small (now '%2.1f')", default_profile_acc_deg_ss_, goal_r_[id][PROFILE_ACC]/DEG);
+        ROS_WARN("    profile acc. '%2.1f' is too small (now '%2.1f')", default_profile_acc_deg_ss_, goal_r_[id][PROFILE_ACC]/DEG);
     if ( abs(default_profile_vel_deg_s_ - goal_r_[id][PROFILE_VEL]/DEG) > 1 ) 
-        ROS_WARN("Profile vel. '%2.1f' is too small (now '%2.1f')", default_profile_vel_deg_s_, goal_r_[id][PROFILE_VEL]/DEG);
+        ROS_WARN("    profile vel. '%2.1f' is too small (now '%2.1f')", default_profile_vel_deg_s_, goal_r_[id][PROFILE_VEL]/DEG);
+
+    WriteReturnDelayTime(id, default_return_delay_time_us_);
+    if ( abs(ReadReturnDelayTime(id) - default_return_delay_time_us_) > 0.1 ) 
+        ROS_WARN("    return delay time '%2.1f' could not set (now '%2.1f')", default_return_delay_time_us_, ReadReturnDelayTime(id));
 
     if ( do_clean_hwerr_ ) ClearHardwareError(id); // 現在の状態を変えない
     if ( do_torque_on_ )   TorqueOn(id);           // 現在の状態を変えない
@@ -329,6 +333,11 @@ uint8_t DynamixelHandler::ReadDriveMode(id_t id){
           :series_[id]==SERIES_P ? dyn_comm_.tryRead(AddrCommon::drive_mode, id) 
           :/* SERIES_UNKNOWN */    0;
 }
+double DynamixelHandler::ReadReturnDelayTime(id_t id){
+    return series_[id]==SERIES_X ? AddrCommon::return_delay_time.pulse2val(dyn_comm_.tryRead(AddrCommon::return_delay_time, id), model_[id])
+          :series_[id]==SERIES_P ? AddrCommon::return_delay_time.pulse2val(dyn_comm_.tryRead(AddrCommon::return_delay_time, id), model_[id]) 
+          :/* SERIES_UNKNOWN */    0.0;
+}
 
 //* 基本機能たち Write
 
@@ -410,5 +419,11 @@ bool DynamixelHandler::WriteGains(id_t id, array<uint16_t, _num_gain> gains){
 bool DynamixelHandler::WriteOperatingMode(id_t id, uint8_t mode){ 
     return series_[id]==SERIES_X ? dyn_comm_.tryWrite(AddrCommon::operating_mode, id, mode)
           :series_[id]==SERIES_P ? dyn_comm_.tryWrite(AddrCommon::operating_mode, id, mode) 
+          :/* SERIES_UNKNOWN */    false;
+}
+
+bool DynamixelHandler::WriteReturnDelayTime(id_t id, double time){
+    return series_[id]==SERIES_X ? dyn_comm_.tryWrite(AddrCommon::return_delay_time, id, AddrCommon::return_delay_time.val2pulse(time, model_[id]))
+          :series_[id]==SERIES_P ? dyn_comm_.tryWrite(AddrCommon::return_delay_time, id, AddrCommon::return_delay_time.val2pulse(time, model_[id])) 
           :/* SERIES_UNKNOWN */    false;
 }

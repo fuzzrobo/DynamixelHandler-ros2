@@ -87,9 +87,10 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     this->get_parameter_or("init/torque_auto_enable"       , do_torque_on_  , true);
     this->get_parameter_or("term/torque_auto_disable"      , do_torque_off_ , true);
     this->get_parameter_or("term/servo_auto_stop"          , do_stop_end_   , true);
-    // id_set_の作成に関連するもの
     this->get_parameter_or("default/profile_vel", default_profile_vel_deg_s_, 100.0);
     this->get_parameter_or("default/profile_acc", default_profile_acc_deg_ss_, 600.0);
+    this->get_parameter_or("default/return_delay_time", default_return_delay_time_us_, 0.0);
+    // id_set_の作成に関連するもの    
     int num_expected; this->get_parameter_or("init/expected_servo_num"     , num_expected, 0);
     int times_retry ; this->get_parameter_or("init/servo_auto_search.retry_times", times_retry , 5);
     int id_min      ; this->get_parameter_or("init/servo_auto_search.min_id"     , id_min      , 1);
