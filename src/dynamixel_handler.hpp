@@ -49,13 +49,13 @@ using std::array;
 using std::set;
 #include <unordered_set>
 using std::unordered_set;
-#include <utility>
-using std::pair;
 #include <algorithm>
 using std::minmax_element;
 using std::clamp;
 using std::min;
 using std::max;
+#include <tuple>
+using std::tuple;
 
 /**
  * DynamixelをROSで動かすためのクラス．本pkgのメインクラス． 
@@ -210,7 +210,6 @@ class DynamixelHandler : public rclcpp::Node {
         static inline set<id_t> id_set_; // chained dynamixel id list // 順序を保持する必要があうのでset
         static inline unordered_map<id_t    , model_t > model_; // 各dynamixelの id と model のマップ
         static inline unordered_map<id_t    , series_t> series_; // 各dynamixelの id と series のマップ
-        static inline unordered_map<series_t, size_t  > num_;  // 各dynamixelの series と　個数のマップ 無くても何とかなるけど, 効率を考えて保存する
         static inline unordered_map<id_t    , uint64_t> ping_err_; // 各dynamixelの id と 連続でpingに応答しなかった回数のマップ
         // 連結しているサーボの個々の状態を保持するunordered_map
         static inline unordered_map<id_t, bool> tq_mode_;    // 各dynamixelの id と トルクON/OFF のマップ
@@ -253,7 +252,6 @@ class DynamixelHandler : public rclcpp::Node {
         bool ChangeOperatingMode(id_t servo_id, DynamixelOperatingMode mode);
         bool TorqueOn(id_t servo_id);
         bool TorqueOff(id_t servo_id);
-        bool is_dummy(id_t servo_id);
         bool UnifyBaudrate(uint64_t baudrate);
         //* Dynamixel単体との通信による下位機能
         uint8_t ReadHardwareError(id_t servo_id);
@@ -286,6 +284,7 @@ class DynamixelHandler : public rclcpp::Node {
         bool WriteBusWatchdog(id_t servo_id, double time);
         bool WriteGains(id_t servo_id, array<uint16_t, _num_gain> gains);
         //* 連結しているDynamixelに一括で読み書きするloopで使用する機能
+        template <typename Container> vector<id_t> id_filter(const Container& id_set, series_t series);
         void SyncWrite_log(const vector<DynamixelAddress>& addr_list, const map<id_t, vector<int64_t>>& id_data_map, bool verbose);
         void SyncWrite_log(const        DynamixelAddress&  addr,      const vector<id_t>& id_list, const vector<int64_t>& data_list, bool verbose);
         map<id_t, vector<int64_t>> SyncRead_log(const vector<DynamixelAddress>& addr_list, const vector<id_t>& id_list, bool verbose, bool verbose_err);
@@ -293,11 +292,11 @@ class DynamixelHandler : public rclcpp::Node {
         template <typename Addr=AddrCommon> void SyncWriteGoal (set<GoalIndex>   goal_indice_write, const unordered_set<id_t>&  updated_id_goal);
         template <typename Addr=AddrCommon> void SyncWriteGain (set<GainIndex>   gain_indice_write, const unordered_set<id_t>&  updated_id_gain);
         template <typename Addr=AddrCommon> void SyncWriteLimit(set<LimitIndex> limit_indice_write, const unordered_set<id_t>& updated_id_limit);
-        template <typename Addr=AddrCommon> double SyncReadPresent(set<PresentIndex> present_indice_read, const set<id_t>& id_set=id_set_);
-        template <typename Addr=AddrCommon> double SyncReadGoal   (set<GoalIndex>       goal_indice_read, const set<id_t>& id_set=id_set_);
-        template <typename Addr=AddrCommon> double SyncReadGain   (set<GainIndex>       gain_indice_read, const set<id_t>& id_set=id_set_); 
-        template <typename Addr=AddrCommon> double SyncReadLimit  (set<LimitIndex>     limit_indice_read, const set<id_t>& id_set=id_set_);
-        template <typename Addr=AddrCommon> double SyncReadHardwareErrors(const set<id_t>& id_set=id_set_);
+        template <typename Addr=AddrCommon> tuple<double, uint8_t> SyncReadPresent(set<PresentIndex> present_indice_read, const set<id_t>& id_set=id_set_);
+        template <typename Addr=AddrCommon> tuple<double, uint8_t> SyncReadGoal   (set<GoalIndex>       goal_indice_read, const set<id_t>& id_set=id_set_);
+        template <typename Addr=AddrCommon> tuple<double, uint8_t> SyncReadGain   (set<GainIndex>       gain_indice_read, const set<id_t>& id_set=id_set_); 
+        template <typename Addr=AddrCommon> tuple<double, uint8_t> SyncReadLimit  (set<LimitIndex>     limit_indice_read, const set<id_t>& id_set=id_set_);
+        template <typename Addr=AddrCommon> tuple<double, uint8_t> SyncReadHardwareErrors(const set<id_t>& id_set=id_set_);
         template <typename Addr=AddrCommon> void StopDynamixels (const set<id_t>& id_set=id_set_);
         template <typename Addr=AddrCommon> void CheckDynamixels(const set<id_t>& id_set=id_set_);
 

@@ -62,8 +62,8 @@ void DynamixelHandler::CallbackShortcut(const DynamixelShortcut& msg) {
                                     WriteTorqueEnable(id, TORQUE_ENABLE);     ROS_INFO("  - set: torque enable, ID [%d]" , id);}
     else if (cmd==msg.DISABLE      ) for(auto id: id_list){ // 開発者用で頻繁には使われないので if(verbose_)は付けない
                                     WriteTorqueEnable(id, TORQUE_DISABLE);    ROS_INFO("  - set: torque disable, ID [%d]", id);}
-    else if (cmd==msg.REBOOT       ) for(auto id: id_list){ // Reboot()はdummyでも送信をしてしまうので，事前にis_dummy()で確認する
-                                    if( !is_dummy(id) ) dyn_comm_.Reboot(id); ROS_INFO("  - reboot: ID [%d]", id); }
+    else if (cmd==msg.REBOOT       ) for(auto id: id_list){ // Reboot()はdummyでも送信をしてしまうので，事前に確認する．
+                                 if( series_[id] != SERIES_UNKNOWN ) {dyn_comm_.Reboot(id); ROS_INFO("  - reboot: ID [%d]", id);} }
     else ROS_WARN("  Invalid command [%s]", cmd.c_str());
 }
 

@@ -25,14 +25,12 @@ bool DynamixelHandler::ScanDynamixels(id_t id_min, id_t id_max, uint32_t num_exp
     return ScanDynamixels(id_min, id_max, num_expected, times_retry-1);
 }
 
-bool DynamixelHandler::is_dummy(id_t id) { return is_in(id, id_set_) && series_[id] == SERIES_UNKNOWN;}
 bool DynamixelHandler::DummyUpDynamixel(id_t id){
     if ( is_in(id, id_set_) ) return false; // すでに登録されている場合は失敗
     ROS_INFO("   *   Dummy  servo ID [%d] is added", id);
     model_[id] = 0;
     series_[id] = SERIES_UNKNOWN;
     id_set_.insert(id);
-    num_[SERIES_UNKNOWN]++;
     // limitのみgoal値の制限に用いられるので，動作に必要なもののみ仮の値を入れておく
     limit_w_[id][PWM_LIMIT         ] = 100; // 最大
     limit_w_[id][CURRENT_LIMIT     ] = 20000; // 適当に20A
@@ -54,13 +52,11 @@ bool DynamixelHandler::AddDynamixel(id_t id){
         case SERIES_X: ROS_INFO("   * X series servo ID [%d] is found", id);
             model_[id] = dyn_model;
             series_[id] = SERIES_X;
-            id_set_.insert(id);
-            num_[SERIES_X]++; break;
+            id_set_.insert(id); break;
         case SERIES_P: ROS_INFO("   * P series servo ID [%d] is found", id);
             model_[id] = dyn_model;
             series_[id] = SERIES_P;
-            id_set_.insert(id);
-            num_[SERIES_P]++; break;
+            id_set_.insert(id); break;
         default: ROS_WARN("   * Unkwon model [%d] servo ID [%d] is found", (int)dyn_model, id);
             return false;
     }
@@ -70,11 +66,12 @@ bool DynamixelHandler::AddDynamixel(id_t id){
     WriteProfileVel(id, default_profile_vel_deg_s_*DEG );
 
     set<uint8_t> tmp = {id};
-    while ( rclcpp::ok() && SyncReadPresent( present_indice_read_, tmp) < 1.0-1e-6 ) rsleep(50);
-    while ( rclcpp::ok() && SyncReadGoal   ( goal_indice_read_ , tmp) < 1.0-1e-6 ) rsleep(50); 
-    while ( rclcpp::ok() && SyncReadGain   ( gain_indice_read_ , tmp) < 1.0-1e-6 ) rsleep(50); 
-    while ( rclcpp::ok() && SyncReadLimit  ( limit_indice_read_, tmp) < 1.0-1e-6 ) rsleep(50); 
-    while ( rclcpp::ok() && SyncReadHardwareErrors(tmp) < 1.0-1e-6 ) rsleep(50);
+    static constexpr tuple<double, uint8_t> complete = {1.0-1e-6, 1};
+    while ( rclcpp::ok() && SyncReadPresent( present_indice_read_, tmp) < complete ) rsleep(50);
+    while ( rclcpp::ok() && SyncReadGoal   ( goal_indice_read_ , tmp) < complete ) rsleep(50); 
+    while ( rclcpp::ok() && SyncReadGain   ( gain_indice_read_ , tmp) < complete ) rsleep(50); 
+    while ( rclcpp::ok() && SyncReadLimit  ( limit_indice_read_, tmp) < complete ) rsleep(50); 
+    while ( rclcpp::ok() && SyncReadHardwareErrors(tmp) < complete ) rsleep(50);
 
     tq_mode_[id] = ReadTorqueEnable(id);
     op_mode_[id] = ReadOperatingMode(id);
@@ -100,7 +97,6 @@ bool DynamixelHandler::AddDynamixel(id_t id){
 bool DynamixelHandler::RemoveDynamixel(id_t id){
     if ( !is_in(id, id_set_) ) return true;
     id_set_.erase(id);
-    num_[series_[id]]--;
     ROS_INFO("   ID [%d] is removed", id);
     return true;
 }
@@ -133,7 +129,7 @@ bool DynamixelHandler::ClearHardwareError(id_t id){
 bool DynamixelHandler::ChangeOperatingMode(id_t id, DynamixelOperatingMode mode){
     if ( !is_in(id, id_set_) ) return false;
     if ( op_mode_[id] == mode ) return true; // 既に同じモードの場合は何もしない
-    if ( is_dummy(id) ) { op_mode_[id] = mode; return true;} // ダミーの場合は即時反映
+    if ( series_[id] == SERIES_UNKNOWN ) { op_mode_[id] = mode; return true;} // ダミーの場合は即時反映
     if ( get_clock()->now().seconds() - when_op_mode_updated_[id] < 1.0 ) rsleep(1000); // 1秒以内に変更した場合は1秒待つ
     // 変更前のトルク状態を確認
     const bool prev_torque = ReadTorqueEnable(id); // read失敗しても0が返ってくるので問題ない
@@ -164,7 +160,7 @@ bool DynamixelHandler::ChangeOperatingMode(id_t id, DynamixelOperatingMode mode)
 bool DynamixelHandler::TorqueOn(id_t id){
     if ( !is_in(id, id_set_) ) return false;
     if ( tq_mode_[id] == TORQUE_ENABLE ) return true; // 既にトルクが入っている場合は何もしない
-    if ( is_dummy(id) ) { tq_mode_[id] = TORQUE_ENABLE; return true;} // ダミーの場合は即時反映
+    if ( series_[id] == SERIES_UNKNOWN ) { tq_mode_[id] = TORQUE_ENABLE; return true;} // ダミーの場合は即時反映
     // dynamixel内のgoal値とこのプログラム内のgoal_w_を一致させる．
     const auto now_pos = ReadPresentPosition(id); // 失敗すると0が返って危ないので確認する
     if ( !( dyn_comm_.timeout_last_read() || dyn_comm_.comm_error_last_read() )){
@@ -194,7 +190,7 @@ bool DynamixelHandler::TorqueOn(id_t id){
 bool DynamixelHandler::TorqueOff(id_t id){
     if ( !is_in(id, id_set_) ) return false;
     if ( tq_mode_[id] == TORQUE_DISABLE ) return true; // 既にトルクが切られている場合は何もしない
-    if ( is_dummy(id) ) { tq_mode_[id] = TORQUE_DISABLE; return true;} // ダミーの場合は即時反映
+    if ( series_[id] == SERIES_UNKNOWN ) { tq_mode_[id] = TORQUE_DISABLE; return true;} // ダミーの場合は即時反映
     // トルクを切る
     WriteTorqueEnable(id, false);
     // 結果を確認

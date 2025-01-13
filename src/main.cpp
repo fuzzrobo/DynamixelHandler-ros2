@@ -171,6 +171,8 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
 using std::chrono::system_clock;
 using std::chrono::duration_cast;
 using std::chrono::microseconds;
+using std::tie; 
+using std::ignore;
 
 enum state { STATUS, PRESENT, GOAL, GAIN, LIMIT, ERROR, _num_state };
 
@@ -219,26 +221,26 @@ void DynamixelHandler::MainLoop(){
         if ( success_rate[STATUS] ) msg.status = BroadcastState_Status();
     }
     if ( !present_indice_read_.empty() ){
-        success_rate[PRESENT] = SyncReadPresent(present_indice_read_, target_id_set);
+        tie(success_rate[PRESENT], ignore) = SyncReadPresent(present_indice_read_, target_id_set);
         n_present_read++;
         n_present_suc_p += !target_id_set.empty()  && success_rate[PRESENT] > 0.0;
         n_present_suc_f +=  target_id_set==id_set_ && success_rate[PRESENT] > 1.0-1e-6;
         if ( success_rate[PRESENT]>0.0 ) msg.present = BroadcastState_Present();
     }
     if ( pub_ratio_["goal"] && cnt % pub_ratio_["goal"] == 0 ) {
-        success_rate[GOAL] = SyncReadGoal(goal_indice_read_, target_id_set);
+        tie(success_rate[GOAL], ignore) = SyncReadGoal(goal_indice_read_, target_id_set);
         if ( success_rate[GOAL   ]>0.0 ) msg.goal = BroadcastState_Goal();
     }
     if ( pub_ratio_["gain"] && cnt % pub_ratio_["gain"] == 0 ) {
-        success_rate[GAIN] = SyncReadGain(gain_indice_read_, target_id_set);
+        tie(success_rate[GAIN], ignore) = SyncReadGain(gain_indice_read_, target_id_set);
         if ( success_rate[GAIN   ]>0.0 ) msg.gain = BroadcastState_Gain();
     }
     if ( pub_ratio_["limit"] && cnt % pub_ratio_["limit"] == 0 ) {
-        success_rate[LIMIT] = SyncReadLimit(limit_indice_read_, target_id_set);
+        tie(success_rate[LIMIT], ignore) = SyncReadLimit(limit_indice_read_, target_id_set);
         if ( success_rate[LIMIT  ]>0.0 ) msg.limit = BroadcastState_Limit();
     }
     if ( pub_ratio_["error"] && cnt % pub_ratio_["error"] == 0 ) {
-        success_rate[ERROR] = SyncReadHardwareErrors(target_id_set);
+        tie(success_rate[ERROR], ignore) = SyncReadHardwareErrors(target_id_set);
         if ( success_rate[ERROR  ]>0.0 ) msg.error = BroadcastState_Error();
     }
     bool is_any_read = std::any_of( success_rate.begin(), success_rate.end(), [](auto& x){ return x > 0.0; });
