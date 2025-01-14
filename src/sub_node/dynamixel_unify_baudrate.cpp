@@ -35,17 +35,9 @@ int main(int argc, char **argv) {
     baudrate_target = nh->get_parameter("target_baudrate").as_int();
     latency_timer = nh->get_parameter("latency_timer").as_int();
 
-    // if (!nh->get_parameter("min_id", id_min )) id_min =  0;
-    // if (!nh->get_parameter("max_id", id_max )) id_max =  50;
-    // if (!nh->get_parameter("device_name", device_name    )) device_name = "/dev/ttyUSB0";
-    // if (!nh->get_parameter("min_search_baudrate", baudrate_min)) baudrate_min = 57600;
-    // if (!nh->get_parameter("max_search_baudrate", baudrate_max)) baudrate_max = 4000000;
-    // if (!nh->get_parameter("target_baudrate",baudrate_target)) baudrate_target = 1000000;
-    // if (!nh->get_parameter("latency_timer", latency_timer)) latency_timer = 16;
-
-    auto dyn_comm = DynamixelCommunicator(); fflush(stdout);
-    dyn_comm.GetPortHandler(device_name.c_str()); fflush(stdout);
-    dyn_comm.set_retry_config(5, 20);  fflush(stdout); // printfのバッファを吐き出す． これがないと printfの表示が遅延する
+    auto dyn_comm = DynamixelCommunicator();
+    dyn_comm.GetPortHandler(device_name.c_str());
+    dyn_comm.set_retry_config(2, 5); 
 
     uint64_t dyn_baudrate;
     switch (baudrate_target) {
@@ -59,7 +51,8 @@ int main(int argc, char **argv) {
         case 4500000: dyn_baudrate = BAUDRATE_INDEX_4M5;    break;
         case 6000000: dyn_baudrate = BAUDRATE_INDEX_6M;     break;
         case 10500000:dyn_baudrate = BAUDRATE_INDEX_10M5;   break;
-        default: RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Invalid baudrate %d", baudrate_target); return false;
+        default: RCLCPP_ERROR(nh->get_logger(), "Invalid baudrate %d", baudrate_target); 
+            rclcpp::shutdown(); std::exit(EXIT_SUCCESS);
     }
 
     vector<int> baudrate_list = {
@@ -78,15 +71,23 @@ int main(int argc, char **argv) {
     vector<int> found_ids;
     for ( auto br : baudrate_list ) {
         if ( br < baudrate_min || br > baudrate_max) continue;
-        dyn_comm.set_baudrate(br); fflush(stdout);
-        dyn_comm.set_latency_timer( (br<=57600) ? 16 : latency_timer); fflush(stdout);
-        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Searching Dynamixel baudrate [%d] ...", br);
-        if ( !dyn_comm.OpenPort() ) { RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to open"); continue; }
-        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), " ...");
-        for (int i=id_min; i<=id_max; i++) {
+        RCLCPP_INFO(nh->get_logger(), "                                              ");
+        RCLCPP_INFO(nh->get_logger(), "=== Searching, baudrate:'%d', id:[%d]~[%d] ===", br, id_min, id_max);
+
+        dyn_comm.set_baudrate(br);
+        dyn_comm.set_latency_timer( (br<=57600) ? 16 : latency_timer);
+        if ( !dyn_comm.OpenPort() ) { fflush(stdout);
+            RCLCPP_ERROR(nh->get_logger(), "Failed to open"); 
+            continue; 
+        } fflush(stdout);
+
+        for (int i=id_min; i<=id_max; i++) { 
+            if ( !rclcpp::ok() ) {rclcpp::shutdown(); std::exit(EXIT_SUCCESS);}
+
+            RCLCPP_INFO(nh->get_logger(),"  Scanning ID: %d\x1b[999D\x1b[1A", i);
             if ( std::find(found_ids.begin(), found_ids.end(), i) != found_ids.end() ) continue;
             if ( !dyn_comm.tryPing(i) ) continue;
-            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ID [%d] is found, try change baudrate %d", i, baudrate_target);
+            RCLCPP_INFO(nh->get_logger(), "  ID [%d] is found, try change baudrate %d", i, baudrate_target);
             auto dyn_model = dyn_comm.tryRead(AddrCommon::model_number, i);
             switch ( dynamixel_series(dyn_model) ) {
                 case SERIES_X: 
@@ -98,27 +99,33 @@ int main(int argc, char **argv) {
                     dyn_comm.tryWrite(AddrP::baudrate, i, dyn_baudrate);
                     break;
                 default:
-                    RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Unknown series %ld", dyn_model);
+                    RCLCPP_ERROR(nh->get_logger(), "  Unknown series %ld", dyn_model);
                     continue;
             } 
             found_ids.push_back(i);
         }
         dyn_comm.ClosePort(); fflush(stdout);
     }
+    RCLCPP_INFO(nh->get_logger(), "                                              ");
+    RCLCPP_INFO(nh->get_logger(), "=== ============ Finish scanning ============ ===\n");
 
-    dyn_comm.set_baudrate(baudrate_target); fflush(stdout);
-    dyn_comm.set_latency_timer( (baudrate_target<=57600) ? 16 : latency_timer); fflush(stdout);
-    if ( !dyn_comm.OpenPort() ) {
-        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to open USB device [%s]", dyn_comm.port_name().c_str()); 
-        return false;
-    }
-
+    RCLCPP_INFO(nh->get_logger(), "=== Checking,  baudrate:'%d', id:[%d]~[%d] ===", baudrate_target, id_min, id_max);
+    dyn_comm.set_baudrate(baudrate_target);
+    dyn_comm.set_latency_timer( (baudrate_target<=57600) ? 16 : latency_timer);
+    if ( !dyn_comm.OpenPort() ) { fflush(stdout);
+        RCLCPP_ERROR(nh->get_logger(), "Failed to open USB device [%s]", dyn_comm.port_name().c_str()); 
+        rclcpp::shutdown(); std::exit(EXIT_SUCCESS);
+    } fflush(stdout);
     for ( auto i : found_ids ) {
         if ( dyn_comm.tryPing(i) )
-            RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "ID [%d] is succeded to change baudrate %d", i, baudrate_target);
+            RCLCPP_INFO(nh->get_logger(), "  ID [%d] is succeded to change baudrate %d", i, baudrate_target);
         else
-            RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "ID [%d] is failed to change baudrate", i);
+            RCLCPP_ERROR(nh->get_logger(), "  ID [%d] is failed to change baudrate", i);
     }
+    dyn_comm.ClosePort(); fflush(stdout);
+    RCLCPP_INFO(nh->get_logger(), "                                              ");
+    RCLCPP_INFO(nh->get_logger(), "=== ============ Finish checking ============ ===\n");
 
     rclcpp::shutdown();
+    return 0;
 }

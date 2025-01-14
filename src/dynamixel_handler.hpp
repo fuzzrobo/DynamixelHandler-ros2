@@ -49,13 +49,13 @@ using std::array;
 using std::set;
 #include <unordered_set>
 using std::unordered_set;
-#include <utility>
-using std::pair;
 #include <algorithm>
 using std::minmax_element;
 using std::clamp;
 using std::min;
 using std::max;
+#include <tuple>
+using std::tuple;
 
 /**
  * DynamixelをROSで動かすためのクラス．本pkgのメインクラス． 
@@ -140,9 +140,12 @@ class DynamixelHandler : public rclcpp::Node {
                     bool  verbose_callback_ = false;
         double default_profile_vel_deg_s_ = 0.0;
         double default_profile_acc_deg_ss_ = 0.0;
+        double default_return_delay_time_us_ = 0.0;
         bool do_clean_hwerr_ = false;
         bool do_torque_on_   = false;
         bool do_pub_pre_all_ = true;
+        bool do_torque_off_  = true;
+        bool do_stop_end_    = true;
 
         //* Dynamixelとの通信
         DynamixelCommunicator dyn_comm_;
@@ -204,13 +207,13 @@ class DynamixelHandler : public rclcpp::Node {
         using id_t     = uint8_t;
         using model_t  = uint16_t; // DynamixelModelNumber 型を使うと, read(model_number) の結果をそのまま使えないので，uint16_t にしている
         using series_t = DynamixelSeries;
+        using torque_t = DynamixelTorquePermission;
         static inline set<id_t> id_set_; // chained dynamixel id list // 順序を保持する必要があうのでset
-        static inline unordered_map<id_t    , model_t > model_; // 各dynamixelの id と model のマップ
-        static inline unordered_map<id_t    , series_t> series_; // 各dynamixelの id と series のマップ
-        static inline unordered_map<series_t, size_t  > num_;  // 各dynamixelの series と　個数のマップ 無くても何とかなるけど, 効率を考えて保存する
-        static inline unordered_map<id_t    , uint64_t> ping_err_; // 各dynamixelの id と 連続でpingに応答しなかった回数のマップ
         // 連結しているサーボの個々の状態を保持するunordered_map
-        static inline unordered_map<id_t, bool> tq_mode_;    // 各dynamixelの id と トルクON/OFF のマップ
+        static inline unordered_map<id_t, model_t > model_;  // 各dynamixelの id と model のマップ
+        static inline unordered_map<id_t, series_t> series_; // 各dynamixelの id と series のマップ
+        static inline unordered_map<id_t, uint64_t> ping_err_; // 各dynamixelの id と 連続でpingに応答しなかった回数のマップ
+        static inline unordered_map<id_t, torque_t> tq_mode_;  // 各dynamixelの id と トルクON/OFF のマップ
         static inline unordered_map<id_t, uint8_t> op_mode_; // 各dynamixelの id と 制御モード のマップ
         static inline unordered_map<id_t, uint8_t> dv_mode_; // 各dynamixelの id と ドライブモード のマップ
         static inline unordered_map<id_t, array<bool,   _num_hw_err >> hardware_err_; // 各dynamixelの id と サーボが起こしたハードウェアエラーのマップ, 中身の並びはHWErrIndexに対応する
@@ -228,7 +231,6 @@ class DynamixelHandler : public rclcpp::Node {
         static inline unordered_set<id_t> updated_id_gain_;    // topicのcallbackによって，limit_w_が更新されたidの集合
         static inline unordered_set<id_t> updated_id_limit_;   // topicのcallbackによって，limit_w_が更新されたidの集合
         static inline unordered_map<id_t, bool> has_hardware_error_;    // ハードウェアエラーを起こしているかどうか
-        static inline bool has_any_hardware_error_ = false; // 連結しているDynamixelのうち，どれか一つでもハードウェアエラーを起こしているかどうか
         // 各周期で実行するserial通信の内容を決めるためのset, 順序が必要なのでset
         static inline set<GoalIndex   > goal_indice_write_;
         static inline set<GainIndex   > gain_indice_write_;
@@ -242,7 +244,7 @@ class DynamixelHandler : public rclcpp::Node {
         static inline array<unsigned int, _num_present> pub_ratio_present_;
 
         //* 単体通信を組み合わせた上位機能
-        uint8_t ScanDynamixels(id_t id_min, id_t id_max, uint32_t num_expected, uint32_t time_retry_ms);
+        bool ScanDynamixels(id_t id_min, id_t id_max, uint32_t num_expected, uint32_t time_retry_ms);
         bool DummyUpDynamixel(id_t servo_id);
         bool RemoveDynamixel(id_t servo_id);
         bool AddDynamixel(id_t servo_id);
@@ -250,10 +252,10 @@ class DynamixelHandler : public rclcpp::Node {
         bool ChangeOperatingMode(id_t servo_id, DynamixelOperatingMode mode);
         bool TorqueOn(id_t servo_id);
         bool TorqueOff(id_t servo_id);
-        bool is_dummy(id_t servo_id);
+        bool UnifyBaudrate(uint64_t baudrate);
         //* Dynamixel単体との通信による下位機能
         uint8_t ReadHardwareError(id_t servo_id);
-        bool    ReadTorqueEnable(id_t servo_id);
+        bool ReadTorqueEnable(id_t servo_id);
         double  ReadPresentPWM(id_t servo_id);
         double  ReadPresentCurrent(id_t servo_id);
         double  ReadPresentVelocity(id_t servo_id);
@@ -266,6 +268,7 @@ class DynamixelHandler : public rclcpp::Node {
         double  ReadProfileVel(id_t servo_id);
         double  ReadHomingOffset(id_t servo_id);
         double  ReadBusWatchdog(id_t servo_id);
+        double  ReadReturnDelayTime(id_t servo_id);
         uint8_t ReadOperatingMode(id_t servo_id);
         uint8_t ReadDriveMode(id_t servo_id);
         bool WriteTorqueEnable(id_t servo_id, bool enable);
@@ -277,17 +280,23 @@ class DynamixelHandler : public rclcpp::Node {
         bool WriteProfileVel(id_t servo_id, double velocity);
         bool WriteHomingOffset(id_t servo_id, double offset);
         bool WriteOperatingMode(id_t servo_id, uint8_t mode);
+        bool WriteReturnDelayTime(id_t servo_id, double time);
         bool WriteBusWatchdog(id_t servo_id, double time);
         bool WriteGains(id_t servo_id, array<uint16_t, _num_gain> gains);
         //* 連結しているDynamixelに一括で読み書きするloopで使用する機能
+        template <typename Container> vector<id_t> id_filter(const Container& id_set, series_t series);
+        void SyncWrite_log(const vector<DynamixelAddress>& addr_list, const map<id_t, vector<int64_t>>& id_data_map, bool verbose);
+        void SyncWrite_log(const        DynamixelAddress&  addr,      const vector<id_t>& id_list, const vector<int64_t>& data_list, bool verbose);
+        map<id_t, vector<int64_t>> SyncRead_log(const vector<DynamixelAddress>& addr_list, const vector<id_t>& id_list, bool verbose, bool verbose_err);
+        map<id_t,        int64_t > SyncRead_log(const        DynamixelAddress&  addr,      const vector<id_t>& id_list, bool verbose, bool verbose_err);
         template <typename Addr=AddrCommon> void SyncWriteGoal (set<GoalIndex>   goal_indice_write, const unordered_set<id_t>&  updated_id_goal);
         template <typename Addr=AddrCommon> void SyncWriteGain (set<GainIndex>   gain_indice_write, const unordered_set<id_t>&  updated_id_gain);
         template <typename Addr=AddrCommon> void SyncWriteLimit(set<LimitIndex> limit_indice_write, const unordered_set<id_t>& updated_id_limit);
-        template <typename Addr=AddrCommon> double SyncReadPresent(set<PresentIndex> present_indice_read, const set<id_t>& id_set=id_set_);
-        template <typename Addr=AddrCommon> double SyncReadGoal   (set<GoalIndex>       goal_indice_read, const set<id_t>& id_set=id_set_);
-        template <typename Addr=AddrCommon> double SyncReadGain   (set<GainIndex>       gain_indice_read, const set<id_t>& id_set=id_set_); 
-        template <typename Addr=AddrCommon> double SyncReadLimit  (set<LimitIndex>     limit_indice_read, const set<id_t>& id_set=id_set_);
-        template <typename Addr=AddrCommon> double SyncReadHardwareErrors(const set<id_t>& id_set=id_set_);
+        template <typename Addr=AddrCommon> tuple<double, uint8_t> SyncReadPresent(set<PresentIndex> present_indice_read, const set<id_t>& id_set=id_set_);
+        template <typename Addr=AddrCommon> tuple<double, uint8_t> SyncReadGoal   (set<GoalIndex>       goal_indice_read, const set<id_t>& id_set=id_set_);
+        template <typename Addr=AddrCommon> tuple<double, uint8_t> SyncReadGain   (set<GainIndex>       gain_indice_read, const set<id_t>& id_set=id_set_); 
+        template <typename Addr=AddrCommon> tuple<double, uint8_t> SyncReadLimit  (set<LimitIndex>     limit_indice_read, const set<id_t>& id_set=id_set_);
+        template <typename Addr=AddrCommon> tuple<double, uint8_t> SyncReadHardwareErrors(const set<id_t>& id_set=id_set_);
         template <typename Addr=AddrCommon> void StopDynamixels (const set<id_t>& id_set=id_set_);
         template <typename Addr=AddrCommon> void CheckDynamixels(const set<id_t>& id_set=id_set_);
 

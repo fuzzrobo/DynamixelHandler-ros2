@@ -6,18 +6,17 @@ static void rsleep(int millisec) { std::this_thread::sleep_for(std::chrono::mill
 static constexpr double DEG = M_PI/180.0; // degを単位に持つ数字に掛けるとradになる
 
 //* 基本機能をまとめた関数たち
-
 // 各シリーズのDynamixelを検出する．
-uint8_t DynamixelHandler::ScanDynamixels(id_t id_min, id_t id_max, uint32_t num_expected, uint32_t times_retry) {
+bool DynamixelHandler::ScanDynamixels(id_t id_min, id_t id_max, uint32_t num_expected, uint32_t times_retry) {
     for (int id = id_min; id <= id_max; id++){
-        ROS_INFO("  Scanning ID: %d%c[999D%c[1A", id, 0x1b, 0x1b);
+        ROS_INFO("  Scanning ID: %d\x1b[999D\x1b[1A", id);
         AddDynamixel(id);
-        if ( !rclcpp::ok() ) return 0;
+        if ( !rclcpp::ok() ) return false;
     } 
     auto num_found = id_set_.size();
     // 再帰から脱する条件
-    if ( times_retry <= 0 ) return num_found;
-    if ( num_found != 0 && num_found >= num_expected ) return num_found;
+    if ( times_retry <= 0 ) return false;
+    if ( num_found != 0 && num_found >= num_expected ) return true;
     // 再帰処理
     if ( num_found < num_expected ) ROS_WARN("  '%ld' dynamixels are not found yet", num_expected-num_found );
     if ( num_expected == 0 )        ROS_WARN("  No dynamixels are found yet" );
@@ -26,14 +25,12 @@ uint8_t DynamixelHandler::ScanDynamixels(id_t id_min, id_t id_max, uint32_t num_
     return ScanDynamixels(id_min, id_max, num_expected, times_retry-1);
 }
 
-bool DynamixelHandler::is_dummy(id_t id) { return is_in(id, id_set_) && series_[id] == SERIES_UNKNOWN;}
 bool DynamixelHandler::DummyUpDynamixel(id_t id){
     if ( is_in(id, id_set_) ) return false; // すでに登録されている場合は失敗
     ROS_INFO("   *   Dummy  servo ID [%d] is added", id);
     model_[id] = 0;
     series_[id] = SERIES_UNKNOWN;
     id_set_.insert(id);
-    num_[SERIES_UNKNOWN]++;
     // limitのみgoal値の制限に用いられるので，動作に必要なもののみ仮の値を入れておく
     limit_w_[id][PWM_LIMIT         ] = 100; // 最大
     limit_w_[id][CURRENT_LIMIT     ] = 20000; // 適当に20A
@@ -55,40 +52,42 @@ bool DynamixelHandler::AddDynamixel(id_t id){
         case SERIES_X: ROS_INFO("   * X series servo ID [%d] is found", id);
             model_[id] = dyn_model;
             series_[id] = SERIES_X;
-            id_set_.insert(id);
-            num_[SERIES_X]++; break;
+            id_set_.insert(id); break;
         case SERIES_P: ROS_INFO("   * P series servo ID [%d] is found", id);
             model_[id] = dyn_model;
             series_[id] = SERIES_P;
-            id_set_.insert(id);
-            num_[SERIES_P]++; break;
+            id_set_.insert(id); break;
         default: ROS_WARN("   * Unkwon model [%d] servo ID [%d] is found", (int)dyn_model, id);
             return false;
     }
 
-    WriteBusWatchdog (id, 0.0 );
-    WriteHomingOffset(id, 0.0 );
+    WriteBusWatchdog (id, 0.0/*ms*/); // 最初にBusWatchdogを無効化することで，全てのGoal値の書き込みを許可する
     WriteProfileAcc(id, default_profile_acc_deg_ss_*DEG ); 
     WriteProfileVel(id, default_profile_vel_deg_s_*DEG );
 
     set<uint8_t> tmp = {id};
-    while ( rclcpp::ok() && SyncReadPresent( present_indice_read_, tmp) < 1.0-1e-6 ) rsleep(50);
-    while ( rclcpp::ok() && SyncReadGoal   ( goal_indice_read_ , tmp) < 1.0-1e-6 ) rsleep(50); 
-    while ( rclcpp::ok() && SyncReadGain   ( gain_indice_read_ , tmp) < 1.0-1e-6 ) rsleep(50); 
-    while ( rclcpp::ok() && SyncReadLimit  ( limit_indice_read_, tmp) < 1.0-1e-6 ) rsleep(50); 
-    while ( rclcpp::ok() && SyncReadHardwareErrors(tmp) < 1.0-1e-6 ) rsleep(50);
+    static constexpr tuple<double, uint8_t> complete = {1.0-1e-6, 1};
+    while ( rclcpp::ok() && SyncReadPresent( present_indice_read_, tmp) < complete ) rsleep(50);
+    while ( rclcpp::ok() && SyncReadGoal   ( goal_indice_read_ , tmp) < complete ) rsleep(50); 
+    while ( rclcpp::ok() && SyncReadGain   ( gain_indice_read_ , tmp) < complete ) rsleep(50); 
+    while ( rclcpp::ok() && SyncReadLimit  ( limit_indice_read_, tmp) < complete ) rsleep(50); 
+    while ( rclcpp::ok() && SyncReadHardwareErrors(tmp) < complete ) rsleep(50);
 
-    tq_mode_[id] = ReadTorqueEnable(id);
+    tq_mode_[id] = ReadTorqueEnable(id) ? TORQUE_ENABLE : TORQUE_DISABLE;
     op_mode_[id] = ReadOperatingMode(id);
     dv_mode_[id] = ReadDriveMode(id);
     limit_w_[id] = limit_r_[id];
     gain_w_[id] = gain_r_[id];
     goal_w_[id] = goal_r_[id];
 
-    if ( abs(default_profile_acc_deg_ss_*DEG - goal_r_[id][PROFILE_ACC]) > 0.1 ) 
-        ROS_WARN("\nProfile acceleration is not set correctly [%d],\n your setting [%f], but [%f]", id, default_profile_acc_deg_ss_*DEG, goal_r_[id][PROFILE_ACC]);
-    if ( abs(default_profile_vel_deg_s_*DEG - goal_r_[id][PROFILE_VEL]) > 0.1 ) 
-        ROS_WARN("\nProfile velocity is not set correctly [%d],\n your setting [%f], but [%f]", id, default_profile_vel_deg_s_*DEG, goal_r_[id][PROFILE_VEL]);
+    if ( abs(default_profile_acc_deg_ss_ - goal_r_[id][PROFILE_ACC]/DEG) > 3 ) 
+        ROS_WARN("    profile acc. '%2.1f' is too small (now '%2.1f')", default_profile_acc_deg_ss_, goal_r_[id][PROFILE_ACC]/DEG);
+    if ( abs(default_profile_vel_deg_s_ - goal_r_[id][PROFILE_VEL]/DEG) > 1 ) 
+        ROS_WARN("    profile vel. '%2.1f' is too small (now '%2.1f')", default_profile_vel_deg_s_, goal_r_[id][PROFILE_VEL]/DEG);
+
+    WriteReturnDelayTime(id, default_return_delay_time_us_);
+    if ( abs(ReadReturnDelayTime(id) - default_return_delay_time_us_) > 0.1 ) 
+        ROS_WARN("    return delay time '%2.1f' could not set (now '%2.1f')", default_return_delay_time_us_, ReadReturnDelayTime(id));
 
     if ( do_clean_hwerr_ ) ClearHardwareError(id); // 現在の状態を変えない
     if ( do_torque_on_ )   TorqueOn(id);           // 現在の状態を変えない
@@ -98,7 +97,6 @@ bool DynamixelHandler::AddDynamixel(id_t id){
 bool DynamixelHandler::RemoveDynamixel(id_t id){
     if ( !is_in(id, id_set_) ) return true;
     id_set_.erase(id);
-    num_[series_[id]]--;
     ROS_INFO("   ID [%d] is removed", id);
     return true;
 }
@@ -131,7 +129,7 @@ bool DynamixelHandler::ClearHardwareError(id_t id){
 bool DynamixelHandler::ChangeOperatingMode(id_t id, DynamixelOperatingMode mode){
     if ( !is_in(id, id_set_) ) return false;
     if ( op_mode_[id] == mode ) return true; // 既に同じモードの場合は何もしない
-    if ( is_dummy(id) ) { op_mode_[id] = mode; return true;} // ダミーの場合は即時反映
+    if ( series_[id] == SERIES_UNKNOWN ) { op_mode_[id] = mode; return true;} // ダミーの場合は即時反映
     if ( get_clock()->now().seconds() - when_op_mode_updated_[id] < 1.0 ) rsleep(1000); // 1秒以内に変更した場合は1秒待つ
     // 変更前のトルク状態を確認
     const bool prev_torque = ReadTorqueEnable(id); // read失敗しても0が返ってくるので問題ない
@@ -145,10 +143,7 @@ bool DynamixelHandler::ChangeOperatingMode(id_t id, DynamixelOperatingMode mode)
     WriteProfileVel  (id, goal_w_[id][PROFILE_VEL  ]);
     WriteGoalPosition(id, goal_w_[id][GOAL_POSITION]);
     // WriteGains(id, gain_r_[id]);　// ** Gain値のデフォルトも変わる．面倒な．．．
-    double bus_watchdog = mode==OPERATING_MODE_CURRENT  ? 2500 :
-                          mode==OPERATING_MODE_VELOCITY ? 2500 : 0;
-    WriteBusWatchdog(id, bus_watchdog); // Dynamixel側のバグで書き込んでもうまくいかないことがある．
-    WriteTorqueEnable(id, prev_torque == TORQUE_ENABLE );
+    WriteTorqueEnable(id, prev_torque );
     // 結果を確認
     bool is_changed = (ReadOperatingMode(id) == mode);
     if ( is_changed ) {
@@ -165,7 +160,7 @@ bool DynamixelHandler::ChangeOperatingMode(id_t id, DynamixelOperatingMode mode)
 bool DynamixelHandler::TorqueOn(id_t id){
     if ( !is_in(id, id_set_) ) return false;
     if ( tq_mode_[id] == TORQUE_ENABLE ) return true; // 既にトルクが入っている場合は何もしない
-    if ( is_dummy(id) ) { tq_mode_[id] = TORQUE_ENABLE; return true;} // ダミーの場合は即時反映
+    if ( series_[id] == SERIES_UNKNOWN ) { tq_mode_[id] = TORQUE_ENABLE; return true;} // ダミーの場合は即時反映
     // dynamixel内のgoal値とこのプログラム内のgoal_w_を一致させる．
     const auto now_pos = ReadPresentPosition(id); // 失敗すると0が返って危ないので確認する
     if ( !( dyn_comm_.timeout_last_read() || dyn_comm_.comm_error_last_read() )){
@@ -182,13 +177,10 @@ bool DynamixelHandler::TorqueOn(id_t id){
         WriteProfileVel  (id, goal_w_[id][PROFILE_VEL  ]);
         WriteGoalPosition(id, goal_w_[id][GOAL_POSITION]);
         // WriteGains(id, gain_r_[id]); 　// その他電源喪失時に消えるデータを念のため書き込む
-        double bus_watchdog = op_mode_[id]==OPERATING_MODE_CURRENT  ? 2500 :
-                              op_mode_[id]==OPERATING_MODE_VELOCITY ? 2500 : 0;
-        WriteBusWatchdog(id, bus_watchdog); // Dynamixel側のバグで書き込んでもうまくいかないことがある．
         /*トルクを入れる*/WriteTorqueEnable(id, true);
     }
     // 結果を確認
-    tq_mode_[id] = ReadTorqueEnable(id);
+    tq_mode_[id] = ReadTorqueEnable(id) ? TORQUE_ENABLE : TORQUE_DISABLE;
     if ( tq_mode_[id] != TORQUE_ENABLE ) ROS_ERROR("   ID [%d] failed to enable torque", id);
                                     else ROS_INFO( "   ID [%d] is enabled torque"      , id);
     return tq_mode_[id];
@@ -198,14 +190,47 @@ bool DynamixelHandler::TorqueOn(id_t id){
 bool DynamixelHandler::TorqueOff(id_t id){
     if ( !is_in(id, id_set_) ) return false;
     if ( tq_mode_[id] == TORQUE_DISABLE ) return true; // 既にトルクが切られている場合は何もしない
-    if ( is_dummy(id) ) { tq_mode_[id] = TORQUE_DISABLE; return true;} // ダミーの場合は即時反映
+    if ( series_[id] == SERIES_UNKNOWN ) { tq_mode_[id] = TORQUE_DISABLE; return true;} // ダミーの場合は即時反映
     // トルクを切る
     WriteTorqueEnable(id, false);
     // 結果を確認
-    tq_mode_[id] = ReadTorqueEnable(id);
+    tq_mode_[id] = ReadTorqueEnable(id) ? TORQUE_ENABLE : TORQUE_DISABLE;
     if ( tq_mode_[id] != TORQUE_DISABLE ) ROS_ERROR("   ID [%d] failed to disable torque", id);
                                      else ROS_INFO( "   ID [%d] is disabled torque"      , id); 
     return tq_mode_[id];
+}
+
+bool DynamixelHandler::UnifyBaudrate(uint64_t baudrate) {
+    constexpr static uint8_t BROADCAST_ID = 0xFE;
+    const static map<uint64_t, DynamixelBaudrateIndex> baudrate_map = {
+        {9600,    BAUDRATE_INDEX_9600},
+        {57600,   BAUDRATE_INDEX_57600},
+        {115200,  BAUDRATE_INDEX_115200},
+        {1000000, BAUDRATE_INDEX_1M},
+        {2000000, BAUDRATE_INDEX_2M},
+        {3000000, BAUDRATE_INDEX_3M},
+        {4000000, BAUDRATE_INDEX_4M},
+        // {4500000, BAUDRATE_INDEX_4M5},
+        // {6000000, BAUDRATE_INDEX_6M},
+        // {10500000,BAUDRATE_INDEX_10M5}
+    };
+    // check baudrate
+    if ( !baudrate_map.count(baudrate) ) {
+        ROS_WARN("  === Valid baudrate list ===" );
+        for ( const auto& [br, _] : baudrate_map ) ROS_WARN("    - %ld", br);
+        ROS_STOP("  Invalid baudrate %ld for Dynamixel", baudrate);
+    } // もうここはしゃーない．
+    /// make id_list
+    for ( const auto& [br, _] : baudrate_map ) {
+        if ( br == baudrate ) continue;
+        ROS_INFO("  Try to change baudrate %8ld to %ld", br, baudrate);
+        dyn_comm_.set_baudrate(br);
+        if ( !dyn_comm_.OpenPort() ) ROS_ERROR("  Failed to open port at baudrate %ld", br);
+        else  dyn_comm_.Write(AddrCommon::baudrate, BROADCAST_ID, baudrate_map.at(baudrate));
+        rsleep(16);
+    }
+    dyn_comm_.set_baudrate(baudrate);
+    return dyn_comm_.OpenPort();
 }
 
 //* 基本機能たち Read
@@ -216,8 +241,8 @@ uint8_t DynamixelHandler::ReadHardwareError(id_t id){
 }
 
 bool DynamixelHandler::ReadTorqueEnable(id_t id){
-    return series_[id]==SERIES_X ? dyn_comm_.tryRead(AddrX::torque_enable, id) 
-          :series_[id]==SERIES_P ? dyn_comm_.tryRead(AddrP::torque_enable, id) 
+    return series_[id]==SERIES_X ? dyn_comm_.tryRead(AddrX::torque_enable, id) == TORQUE_ENABLE
+          :series_[id]==SERIES_P ? dyn_comm_.tryRead(AddrP::torque_enable, id) == TORQUE_ENABLE
           :/* SERIES_UNKNOWN */    false;
 }
 
@@ -304,6 +329,11 @@ uint8_t DynamixelHandler::ReadDriveMode(id_t id){
           :series_[id]==SERIES_P ? dyn_comm_.tryRead(AddrCommon::drive_mode, id) 
           :/* SERIES_UNKNOWN */    0;
 }
+double DynamixelHandler::ReadReturnDelayTime(id_t id){
+    return series_[id]==SERIES_X ? AddrCommon::return_delay_time.pulse2val(dyn_comm_.tryRead(AddrCommon::return_delay_time, id), model_[id])
+          :series_[id]==SERIES_P ? AddrCommon::return_delay_time.pulse2val(dyn_comm_.tryRead(AddrCommon::return_delay_time, id), model_[id]) 
+          :/* SERIES_UNKNOWN */    0.0;
+}
 
 //* 基本機能たち Write
 
@@ -385,5 +415,11 @@ bool DynamixelHandler::WriteGains(id_t id, array<uint16_t, _num_gain> gains){
 bool DynamixelHandler::WriteOperatingMode(id_t id, uint8_t mode){ 
     return series_[id]==SERIES_X ? dyn_comm_.tryWrite(AddrCommon::operating_mode, id, mode)
           :series_[id]==SERIES_P ? dyn_comm_.tryWrite(AddrCommon::operating_mode, id, mode) 
+          :/* SERIES_UNKNOWN */    false;
+}
+
+bool DynamixelHandler::WriteReturnDelayTime(id_t id, double time){
+    return series_[id]==SERIES_X ? dyn_comm_.tryWrite(AddrCommon::return_delay_time, id, AddrCommon::return_delay_time.val2pulse(time, model_[id]))
+          :series_[id]==SERIES_P ? dyn_comm_.tryWrite(AddrCommon::return_delay_time, id, AddrCommon::return_delay_time.val2pulse(time, model_[id])) 
           :/* SERIES_UNKNOWN */    false;
 }

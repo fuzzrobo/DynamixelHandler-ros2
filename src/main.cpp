@@ -16,19 +16,28 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     bool is_debug; get_parameter_or("debug", is_debug, false);
     bool no_use_command_line; get_parameter_or("no_use_command_line", no_use_command_line, false);
     vector<int64_t> dummy_id_list; this->get_parameter("dummy_servo_id_list", dummy_id_list); //int64_t で受けないといけない．
-    // 通信の開始
+    // Serial通信の設定
     int baudrate      ; this->get_parameter_or("baudrate"     , baudrate     ,           57600);
     int latency_timer ; this->get_parameter_or("latency_timer", latency_timer,              16);
     string device_name; this->get_parameter_or("device_name"  , device_name  , "/dev/ttyUSB0"s);
-
     dyn_comm_ = DynamixelCommunicator(device_name.c_str(), baudrate, latency_timer);
-    if ( !dyn_comm_.OpenPort() ) { fflush(stdout); // printfのバッファを吐き出す． これがないと printfの表示が遅延する
-        ROS_ERROR("Failed to open USB device [%s]", dyn_comm_.port_name().c_str()); 
-        if ( !is_debug && dummy_id_list.empty() ) ROS_STOP("Initialization failed (device open)");
-    } 
     // serial通信のverbose設定
     bool serial_verbose; get_parameter_or("dyn_comm/verbose", serial_verbose, false);
-    dyn_comm_.set_verbose(serial_verbose); fflush(stdout);
+    dyn_comm_.set_verbose(serial_verbose);
+    // serial通信の開始
+    if ( !dyn_comm_.OpenPort() ) { fflush(stdout); // printfのバッファを吐き出す． これがないと printfの表示が遅延する
+        ROS_ERROR(" Failed to open USB device [%s]", dyn_comm_.port_name().c_str()); 
+        if ( !is_debug && dummy_id_list.empty() ) ROS_STOP("Initialization failed (device open)");
+    } else { fflush(stdout);
+    ROS_INFO(" Succeeded to open device [%s]", dyn_comm_.port_name().c_str());
+        ROS_INFO("  -------------- baudrate '%d'", baudrate);
+        ROS_INFO("  --------- latency_timer '%d'", latency_timer);
+    bool auto_unify_baudrate; this->get_parameter_or("init/baudrate_auto_set", auto_unify_baudrate, false);
+    if ( auto_unify_baudrate ) {
+        ROS_INFO(" Unifying all Dynamixels' baudrate");
+        UnifyBaudrate(static_cast<uint64_t>(baudrate));
+        }
+    }
 
     // serial通信のretry設定
     int num_try      ; get_parameter_or("dyn_comm/retry_num"   , num_try      ,  5);
@@ -57,6 +66,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     this->get_parameter_or("method/split_read"     , use_split_read_     , false);
     this->get_parameter_or("method/fast_read"      , use_fast_read_      , true);
     this->get_parameter_or("verbose/callback"           , verbose_callback_, false);
+    this->get_parameter_or("verbose/write_status"       , verbose_["w_status"], false);
     this->get_parameter_or("verbose/write_goal"         , verbose_["w_goal"  ], false);
     this->get_parameter_or("verbose/write_gain"         , verbose_["w_gain"  ], false);
     this->get_parameter_or("verbose/write_limit"        , verbose_["w_limit" ], false);
@@ -72,30 +82,34 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     this->get_parameter_or("verbose/read_limit/err"     , verbose_["r_limit_err"], false);
     this->get_parameter_or("verbose/read_hardware_error", verbose_["r_hwerr" ], false);
     this->get_parameter_or("no_response_id_auto_remove_count", auto_remove_count_   , 0u);
-
-    // id_set_の作成
+    // 初期化・終了時
+    this->get_parameter_or("init/hardware_error_auto_clean", do_clean_hwerr_, true);
+    this->get_parameter_or("init/torque_auto_enable"       , do_torque_on_  , true);
+    this->get_parameter_or("term/torque_auto_disable"      , do_torque_off_ , true);
+    this->get_parameter_or("term/servo_auto_stop"          , do_stop_end_   , true);
     this->get_parameter_or("default/profile_vel", default_profile_vel_deg_s_, 100.0);
     this->get_parameter_or("default/profile_acc", default_profile_acc_deg_ss_, 600.0);
+    this->get_parameter_or("default/return_delay_time", default_return_delay_time_us_, 0.0);
+    // id_set_の作成に関連するもの    
     int num_expected; this->get_parameter_or("init/expected_servo_num"     , num_expected, 0);
-    int times_retry ; this->get_parameter_or("init/auto_search.retry_times", times_retry , 5);
-    int id_min      ; this->get_parameter_or("init/auto_search.min_id"     , id_min      , 1);
-    int id_max      ; this->get_parameter_or("init/auto_search.max_id"     , id_max      , 35);
-                      this->get_parameter_or("init/hardware_error_auto_clean", do_clean_hwerr_, true);
-                      this->get_parameter_or("init/torque_auto_enable"       , do_torque_on_  , true);
-    if ( num_expected>0 ) ROS_INFO("'%d' servo(s) are expected", num_expected);
-    else                 {ROS_WARN("Expected servo number is not set."); ROS_WARN("Free number of Dynamixel is allowed");}
+    int times_retry ; this->get_parameter_or("init/servo_auto_search.retry_times", times_retry , 5);
+    int id_min      ; this->get_parameter_or("init/servo_auto_search.min_id"     , id_min      , 1);
+    int id_max      ; this->get_parameter_or("init/servo_auto_search.max_id"     , id_max      , 35);
+    // id_set_の作成
+    if ( num_expected>0 ) ROS_INFO(" '%d' servo(s) are expected", num_expected);
+    else                 {ROS_WARN(" Expected servo number is not set."); ROS_WARN(" Free number of Dynamixel is allowed");}
     ROS_INFO(" Auto scanning Dynamixel (id range '%d' to '%d') ...", id_min, id_max);
     /* *********************** dynamixelを探索し，初期化する ***********************************/
     /* */for (const auto id : dummy_id_list) DummyUpDynamixel(id);
-    /* */auto num_found = ScanDynamixels(id_min, id_max, num_expected, times_retry);
+    /* */ScanDynamixels(id_min, id_max, num_expected, times_retry);
     /* ***********************************************************************************/
-    if( num_found==0 ) { // 見つからなかった場合は初期化失敗で終了
-        ROS_ERROR("Dynamixel is not found in USB device [%s]", dyn_comm_.port_name().c_str());
+    if( id_set_.size()==0 ) { // 見つからなかった場合は初期化失敗で終了
+        ROS_ERROR(" Dynamixel is not found in USB device [%s]", dyn_comm_.port_name().c_str());
         if ( !is_debug ) ROS_STOP("Initialization failed (no dynamixel found)");
     }
-    if( num_expected>0 && num_expected!=num_found ) { // 期待数が設定されているときに、見つかった数が期待数と異なる場合は初期化失敗で終了
-        ROS_ERROR("Number of Dynamixel is not matched."); 
-        ROS_ERROR("Expected '%d', but found '%d'. please check & retry", num_expected, num_found);
+    if( num_expected>0 && num_expected!=static_cast<int>(id_set_.size()) ) { // 期待数が設定されているときに、見つかった数が期待数と異なる場合は初期化失敗で終了
+        ROS_ERROR(" Number of Dynamixel is not matched."); 
+        ROS_ERROR(" Expected '%d', but found '%ld'. please check & retry", num_expected, id_set_.size());
         if ( !is_debug ) ROS_STOP("Initialization failed (number of dynamixel is not matched)");
     }
     ROS_INFO("  ... Finish scanning Dynamixel");
@@ -157,6 +171,8 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
 using std::chrono::system_clock;
 using std::chrono::duration_cast;
 using std::chrono::microseconds;
+using std::tie; 
+using std::ignore;
 
 enum state { STATUS, PRESENT, GOAL, GAIN, LIMIT, ERROR, _num_state };
 
@@ -205,26 +221,26 @@ void DynamixelHandler::MainLoop(){
         if ( success_rate[STATUS] ) msg.status = BroadcastState_Status();
     }
     if ( !present_indice_read_.empty() ){
-        success_rate[PRESENT] = SyncReadPresent(present_indice_read_, target_id_set);
+        tie(success_rate[PRESENT], ignore) = SyncReadPresent(present_indice_read_, target_id_set);
         n_present_read++;
         n_present_suc_p += !target_id_set.empty()  && success_rate[PRESENT] > 0.0;
         n_present_suc_f +=  target_id_set==id_set_ && success_rate[PRESENT] > 1.0-1e-6;
         if ( success_rate[PRESENT]>0.0 ) msg.present = BroadcastState_Present();
     }
     if ( pub_ratio_["goal"] && cnt % pub_ratio_["goal"] == 0 ) {
-        success_rate[GOAL] = SyncReadGoal(goal_indice_read_, target_id_set);
+        tie(success_rate[GOAL], ignore) = SyncReadGoal(goal_indice_read_, target_id_set);
         if ( success_rate[GOAL   ]>0.0 ) msg.goal = BroadcastState_Goal();
     }
     if ( pub_ratio_["gain"] && cnt % pub_ratio_["gain"] == 0 ) {
-        success_rate[GAIN] = SyncReadGain(gain_indice_read_, target_id_set);
+        tie(success_rate[GAIN], ignore) = SyncReadGain(gain_indice_read_, target_id_set);
         if ( success_rate[GAIN   ]>0.0 ) msg.gain = BroadcastState_Gain();
     }
     if ( pub_ratio_["limit"] && cnt % pub_ratio_["limit"] == 0 ) {
-        success_rate[LIMIT] = SyncReadLimit(limit_indice_read_, target_id_set);
+        tie(success_rate[LIMIT], ignore) = SyncReadLimit(limit_indice_read_, target_id_set);
         if ( success_rate[LIMIT  ]>0.0 ) msg.limit = BroadcastState_Limit();
     }
     if ( pub_ratio_["error"] && cnt % pub_ratio_["error"] == 0 ) {
-        success_rate[ERROR] = SyncReadHardwareErrors(target_id_set);
+        tie(success_rate[ERROR], ignore) = SyncReadHardwareErrors(target_id_set);
         if ( success_rate[ERROR  ]>0.0 ) msg.error = BroadcastState_Error();
     }
     bool is_any_read = std::any_of( success_rate.begin(), success_rate.end(), [](auto& x){ return x > 0.0; });
@@ -250,11 +266,9 @@ void DynamixelHandler::MainLoop(){
 }
 
 DynamixelHandler::~DynamixelHandler(){
-    ROS_INFO( "Terminating DynamixelHandler ...");
-    bool do_torque_off; get_parameter_or("term/torque_auto_disable", do_torque_off, true);
-    if ( do_torque_off ) for ( auto id : id_set_ ) TorqueOff(id);
-    StopDynamixels();
-    ROS_INFO( "  ... DynamixelHandler is terminated");
+    ROS_INFO( "Terminating DynamixelHandler .....");
+    StopDynamixels(id_set_);
+    ROS_INFO( "..... DynamixelHandler is terminated");
 }
 
 #include <chrono>
