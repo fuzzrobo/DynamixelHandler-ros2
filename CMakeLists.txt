@@ -10,6 +10,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rosidl_default_generators REQUIRED) # 自作msgの作成のために必要
 find_package(std_msgs REQUIRED) # 自作msgのHeaderのために必要
+find_package(sensor_msgs REQUIRED) # IMUをPublishするために必要
 
 # 以下の部分は自作ｍｓｇの定義のために必要
 set(msg_files
@@ -134,6 +135,7 @@ ament_target_dependencies(
 	dynamixel_handler_node
   "rclcpp"
   "rosidl_default_generators"
+  "sensor_msgs"
 )
 
 install(
