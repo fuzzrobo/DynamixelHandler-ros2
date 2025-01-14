@@ -1,3 +1,4 @@
+# 高速で通信するための設定ファイル
 # /ns/dyn_handler:
 /**:
     ros__parameters:

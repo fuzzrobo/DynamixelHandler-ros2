@@ -245,8 +245,10 @@ position_deg: # 現在の角度と目標角度
 ## How to use by program
 
 以下ではプログラムから本パッケージを利用する方法を説明する．      
-ここでは最低限の使い方を紹介し，細かい情報・機能については述べない．
-ゲインや制限値などの変更については，[各種情報の分類と Control Table との対応](#各種情報の分類と-control-table-との対応)や[Topic](#subscribed-topics)の章を参照．
+ここでは最低限のコードの書き方を紹介し，ノードの作り方やコンパイル方法については述べない．   
+(ただ，コピペで動く完全なコードであることは保証する．)
+
+CMakeList.txtやpackage.xmlの書き方などのパッケージ全体については， [こちらのリポジトリ](https://github.com/michikawa07/Exmples_DynamixelHandler-ros2)　を参照．
 
 ### 1. Dynamixel の接続
 
@@ -258,11 +260,15 @@ position_deg: # 現在の角度と目標角度
 
 ### 3. Dynamixelの動作を制御 & 情報を取得
 
-プログラムから動作制御する用の topic として `/dynamixel/commands/x` (`DxlCommandsX`型) が用意されている．    
-(Pシリーズを制御する場合は `/dynamixel/commands/p` を利用, 両方を併用する場合は `/dynamixel/commands/all` を利用)   
+`dynamiexl_handler` pkg が提供する msg 型を用いて，Dynamixelの動作制御や情報取得をするプログラムの例を示す．
 
-プログラムから情報取得する用の topic として `/dynamxiel/states` (`DxlStates`型) が用意されている．
-(シリーズ問わず全ての情報を利用できる)
+> プログラムから動作制御するための topic として `/dynamixel/commands/x` (`DxlCommandsX`型) が用意されている．     
+> (Pシリーズを制御する場合は `/dynamixel/commands/p` を利用, 両方を併用する場合は `/dynamixel/commands/all` を利用)   
+>
+> また，プログラムから情報取得するための topic として `/dynamxiel/states` (`DxlStates`型) が用意されている．    
+> (シリーズ問わず全ての情報を利用できる)
+> 
+> 個別の topic を使うことも可能だが，publisher, subscriber の数が増えて coding の手間が増えるので非推奨．
 
 ここでは，最低限の使い方として
   - トルクのオンオフ
@@ -270,8 +276,12 @@ position_deg: # 現在の角度と目標角度
   - トルクなどの状態を表示
   - 現在値の保存と表示
 
-を行う簡単なプログラムを示す．おそらくだいたいのやりたいことはこれを見ればわかるはず．       
-<!-- CMakeList.txtやpackage.xmlの書き方などのパッケージ全体については， [あとでURLはる]()　を参照． -->
+を行う簡単なプログラムの一例を示す．       
+ゲインや制限値などの変更については，[各種情報の分類と Control Table との対応](#各種情報の分類と-control-table-との対応)や[Topic](#subscribed-topics)の章を参照．
+
+以下のコードを何らかの独立ノードして実行することで，上記のような動作制御・情報取得が可能．  
+example pkg として独立させたものが[こちら](https://github.com/michikawa07/Exmples_DynamixelHandler-ros2). nodeとしての起動の仕方などの詳細を知りたい場合はそちらを参照．
+
 
 <details>
 <summary>コード全体</summary>
@@ -325,15 +335,15 @@ int main() {
 
         auto cmd = DxlCommandsX();
         for (const auto& [id, pos] : dxl_pos) {
-            // トルクをオンに．
+            // トルクをオンに (毎回送る必要はないが，すでにONの場合はスキップされるので問題ない)
             cmd.status.id_list.push_back(id);
             cmd.status.torque.push_back(true);
             // 電流を300mAに制限しつつ， +-45degで往復運動させる．
-            auto target = (pos < -40) ? 45 : (pos > 40) ? -45 : 0;
-            auto& cmd_cpos = cmd.current_base_position_control;
-            cmd_cpos.id_list.push_back(id);
-            cmd_cpos.position_deg.push_back(target/*deg*/);
-            cmd_cpos.current_ma.push_back(300/*mA*/);
+            auto target = (pos < 0) ? 45 : -45;
+            auto& cmd_ctrl = cmd.current_base_position_control; // 長いので参照を用いて省略
+            cmd_ctrl.id_list.push_back(id);
+            cmd_ctrl.current_ma.push_back(300/*mA*/);       // 目標電流，この値を超えないように制御される
+            cmd_ctrl.position_deg.push_back(target/*deg*/); // 目標角度
         }
         if (!cmd.status.id_list.empty()) pub_cmd->publish(cmd);
     });
@@ -366,18 +376,21 @@ auto pub_cmd = node->create_publisher<DxlCommandsX>("dynamixel/commands/x", 10);
 ```cpp
 auto cmd = DxlCommandsX(); // 空のメッセージを作成
 for (const auto& [id, pos] : dxl_pos) {
-    // トルクをオンに (毎回送る必要はないが，簡易サンプルなので毎回送るようにないいている)
+    // トルクをオンに (毎回送る必要はないが，すでにONの場合はスキップされるので問題ない)
     cmd.status.id_list.push_back(id);
     cmd.status.torque.push_back(true); // true でトルクオン, false でトルクオフ
     // 電流を300mAに制限しつつ， +-45degで往復運動させる．
-    auto target = (pos < -40) ? 45 : (pos > 40) ? -45 : 0;
-    auto& cmd_cpos = cmd.current_base_position_control; // 長いので参照を用いて省略
-    cmd_cpos.id_list.push_back(id);
-    cmd_cpos.position_deg.push_back(target/*deg*/); // 目標角度
-    cmd_cpos.current_ma.push_back(300/*mA*/);       // 目標電流値，この値を超えないように制御される
+    auto target = (pos < 0) ? 45 : -45;
+    auto& cmd_ctrl = cmd.current_base_position_control; // 長いので参照を用いて省略
+    cmd_ctrl.id_list.push_back(id);
+    cmd_ctrl.current_ma.push_back(300/*mA*/);       // 目標電流，この値を超えないように制御される
+    cmd_ctrl.position_deg.push_back(target/*deg*/); // 目標角度
 }
 if (!cmd.status.id_list.empty()) pub_cmd->publish(cmd);
 ```
+
+`auto& cmd_ctrl = cmd.current_base_position_control;`を`auto& cmd_ctrl = cmd.position_control;`に変更すると，`cmd_ctrl.current_ma.push_back(300/*mA*/);`の行でコンパイルエラーが発生する．   
+すなわち，各制御モードごとにどの目標値が有効なのか暗記しなくても，コンパイラが教えてくれる．
 
 #### 3-2. 情報取得部分について
 
@@ -635,6 +648,7 @@ Subscribe時にデータが一時保存され，直後のメインループ内�
   dyn_comm/inerval_msec: 5 # 通信失敗時のインターバル時間
   dyn_comm/verbose: false # 通信失敗時の詳細をエラーとして出すか
 # サーボの初期設定
+  init/baudrate_auto_set: true # 探索前に，全てのサーボと全てのBaudrateに対して，baudrateの書き込みをするかどうか
   init/expected_servo_num: 0 # 期待するサーボの数，0ならいくつでもOK
   init/servo_auto_search:
       min_id: 0      # 探索するサーボのIDの最小値
@@ -651,6 +665,9 @@ Subscribe時にデータが一時保存され，直後のメインループ内�
 ```
 `dyn_comm/...`は初期化処理における ping 通信失敗時の挙動を決める．    
 基本的に数字が小さい方が初期化が早くなるが，サーボを発見できない可能性が高くなる．(デフォルト値は大きめに設定している)
+
+`init/baudrate_auto_set` が `true`の時は，全てのサーボと全てのBaudrateに対して，事前に `baudrate` の書き込みを行う．   
+したがって，ノード起動時にBaudrateが `baudrate` と異なるサーボがあっても自動的に `baudrate` に統一される．
 
 `init/expected_servo_num` が `0`の時は，1つ以上servoが見つかるまでスキャンを繰り返す．  
 `init/expected_servo_num` が `0` でない場合は，その数だけservoが見つかるまでスキャンを繰り返す．  
