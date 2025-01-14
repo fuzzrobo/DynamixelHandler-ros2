@@ -73,7 +73,7 @@ bool DynamixelHandler::AddDynamixel(id_t id){
     while ( rclcpp::ok() && SyncReadLimit  ( limit_indice_read_, tmp) < complete ) rsleep(50); 
     while ( rclcpp::ok() && SyncReadHardwareErrors(tmp) < complete ) rsleep(50);
 
-    tq_mode_[id] = ReadTorqueEnable(id);
+    tq_mode_[id] = ReadTorqueEnable(id) ? TORQUE_ENABLE : TORQUE_DISABLE;
     op_mode_[id] = ReadOperatingMode(id);
     dv_mode_[id] = ReadDriveMode(id);
     limit_w_[id] = limit_r_[id];
@@ -143,7 +143,7 @@ bool DynamixelHandler::ChangeOperatingMode(id_t id, DynamixelOperatingMode mode)
     WriteProfileVel  (id, goal_w_[id][PROFILE_VEL  ]);
     WriteGoalPosition(id, goal_w_[id][GOAL_POSITION]);
     // WriteGains(id, gain_r_[id]);　// ** Gain値のデフォルトも変わる．面倒な．．．
-    WriteTorqueEnable(id, prev_torque == TORQUE_ENABLE );
+    WriteTorqueEnable(id, prev_torque );
     // 結果を確認
     bool is_changed = (ReadOperatingMode(id) == mode);
     if ( is_changed ) {
@@ -180,7 +180,7 @@ bool DynamixelHandler::TorqueOn(id_t id){
         /*トルクを入れる*/WriteTorqueEnable(id, true);
     }
     // 結果を確認
-    tq_mode_[id] = ReadTorqueEnable(id);
+    tq_mode_[id] = ReadTorqueEnable(id) ? TORQUE_ENABLE : TORQUE_DISABLE;
     if ( tq_mode_[id] != TORQUE_ENABLE ) ROS_ERROR("   ID [%d] failed to enable torque", id);
                                     else ROS_INFO( "   ID [%d] is enabled torque"      , id);
     return tq_mode_[id];
@@ -194,7 +194,7 @@ bool DynamixelHandler::TorqueOff(id_t id){
     // トルクを切る
     WriteTorqueEnable(id, false);
     // 結果を確認
-    tq_mode_[id] = ReadTorqueEnable(id);
+    tq_mode_[id] = ReadTorqueEnable(id) ? TORQUE_ENABLE : TORQUE_DISABLE;
     if ( tq_mode_[id] != TORQUE_DISABLE ) ROS_ERROR("   ID [%d] failed to disable torque", id);
                                      else ROS_INFO( "   ID [%d] is disabled torque"      , id); 
     return tq_mode_[id];
@@ -241,8 +241,8 @@ uint8_t DynamixelHandler::ReadHardwareError(id_t id){
 }
 
 bool DynamixelHandler::ReadTorqueEnable(id_t id){
-    return series_[id]==SERIES_X ? dyn_comm_.tryRead(AddrX::torque_enable, id) 
-          :series_[id]==SERIES_P ? dyn_comm_.tryRead(AddrP::torque_enable, id) 
+    return series_[id]==SERIES_X ? dyn_comm_.tryRead(AddrX::torque_enable, id) == TORQUE_ENABLE
+          :series_[id]==SERIES_P ? dyn_comm_.tryRead(AddrP::torque_enable, id) == TORQUE_ENABLE
           :/* SERIES_UNKNOWN */    false;
 }
 

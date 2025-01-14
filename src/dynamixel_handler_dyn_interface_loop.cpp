@@ -45,10 +45,10 @@ map<uint8_t, vector<int64_t>> DynamixelHandler::SyncRead_log(
     //* 通信エラーの表示
     if ( verbose_err ) if ( is_timeout_ || is_comm_err_ ) {
         vector<id_t> failed_id_list;
-        for ( auto id : id_list ) if ( id_data_vec_map.count(id) ) failed_id_list.push_back(id);
+        for ( auto id : id_list ) if ( !id_data_vec_map.count(id) ) failed_id_list.push_back(id);
         ROS_WARN_STREAM( "'" << id_list.size() - id_data_vec_map.size() << "' servo(s) failed to read" 
-                        << (is_timeout_ ? " (time out)" : " (some kind packet error)")
-                        << id_list_layout(failed_id_list) );
+                        << (is_timeout_ ? " (time out)" : " (some kind packet error)") << "\n"
+                        << id_list_layout(failed_id_list) << "\n");
     }
     //* id_data_vec_mapの中身を確認
     if ( verbose ) if ( id_data_vec_map.size()>0 )
@@ -259,15 +259,13 @@ template <> tuple<double, uint8_t> DynamixelHandler::SyncReadHardwareErrors(cons
     return {(num_x+num_p)==0 ? 1.0 : (suc_rate_X*num_x + suc_rate_P*num_p) / (num_x+num_p), num_x+num_p};
 }
 template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadHardwareErrors(const set<id_t>& id_set){
-    if ( !has_any_hardware_error_ ) { hardware_err_.clear(); return {1.0, 1}; } // 事前にエラーが検出できていない場合は省略
-
     vector<id_t> target_id_list = id_filter(id_set, Addr::series());
     if ( target_id_list.empty() ) return {1.0, 0}; // 読み込むデータがない場合は即時return
     
     auto id_error_map = SyncRead_log(Addr::hardware_error_status, target_id_list, false, false);
     if ( dyn_comm_.timeout_last_read() ) return {0.0, target_id_list.size() }; // 読み込み失敗
 
-    //  hardware_error_に反映
+    //  hardware_error_とhas_hardware_error_に反映
     for (const auto& [id, error] : id_error_map ){
         hardware_err_[id].fill(false);
         if ((error >> HARDWARE_ERROR_INPUT_VOLTAGE     )& 0b1 ) hardware_err_[id][INPUT_VOLTAGE     ] = true;
@@ -276,6 +274,7 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadHardwa
         if ((error >> HARDWARE_ERROR_MOTOR_ENCODER     )& 0b1 ) hardware_err_[id][MOTOR_ENCODER     ] = true;
         if ((error >> HARDWARE_ERROR_ELECTRONICAL_SHOCK)& 0b1 ) hardware_err_[id][ELECTRONICAL_SHOCK] = true;
         if ((error >> HARDWARE_ERROR_OVERLOAD          )& 0b1 ) hardware_err_[id][OVERLOAD          ] = true;
+        has_hardware_error_[id] = std::any_of(hardware_err_[id].begin(), hardware_err_[id].end(), [](bool b){return b;});
     }
 
     // コンソールへの表示
@@ -290,8 +289,6 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadHardwa
             if (hardware_err_[id][OVERLOAD          ]) ROS_ERROR(" * servo ID [%d] has OVERLOAD error"          ,id);
         }
     }
-    // 0b00000001 << HARDWARE_ERROR_INPUT_VOLTAGE と error が等しい場合のみ，そのエラーをfalseにする
-    for ( const auto& [id, error] : id_error_map ) if ((error >> HARDWARE_ERROR_INPUT_VOLTAGE     )& 0b1 ) hardware_err_[id][INPUT_VOLTAGE] = false;
     return {id_error_map.size()/double(target_id_list.size()), target_id_list.size()};
 }
 
@@ -471,7 +468,7 @@ template <typename Addr> void DynamixelHandler::StopDynamixels(const set<id_t>& 
         ROS_INFO("  Reset goal position for stopping");
         // 3. さらに念のため， トルクを瞬間的にオンオフすることでも停止させる．
         vector<id_t> tq_on_list;
-        for (auto id : target_id_list) if ( tq_mode_[id] ) tq_on_list.push_back(id);
+        for (auto id : target_id_list) if ( tq_mode_[id]==TORQUE_ENABLE ) tq_on_list.push_back(id);
         dyn_comm_.SyncWrite(AddrX::torque_enable, tq_on_list, vector<int64_t>(tq_on_list.size(), TORQUE_DISABLE));
         dyn_comm_.SyncWrite(AddrX::torque_enable, tq_on_list, vector<int64_t>(tq_on_list.size(), TORQUE_ENABLE ));
         ROS_INFO("  Reset torque enable for stopping");
@@ -480,12 +477,8 @@ template <typename Addr> void DynamixelHandler::StopDynamixels(const set<id_t>& 
 }
 
 template <> void DynamixelHandler::CheckDynamixels(const set<id_t>& id_set){
-    has_hardware_error_.clear();
     CheckDynamixels<AddrX>(id_set);
-    has_any_hardware_error_ = dyn_comm_.hardware_error_last_read();
     CheckDynamixels<AddrP>(id_set);
-    has_any_hardware_error_ |= dyn_comm_.hardware_error_last_read();
-    if ( has_any_hardware_error_ ) ROS_WARN( "Hardware Error are detected");
 }
 template <typename Addr> void DynamixelHandler::CheckDynamixels(const set<id_t>& id_set){
     vector<id_t> target_id_list = id_filter(id_set, Addr::series());
@@ -506,19 +499,20 @@ template <typename Addr> void DynamixelHandler::CheckDynamixels(const set<id_t>&
 
     // トルクの確認
     auto id_torque_map = SyncRead_log(Addr::torque_enable, target_id_list, verbose_["r_status"], verbose_["r_status_err"]);
-    for ( const auto& [id, torque] : id_torque_map ) tq_mode_[id] = torque;
-
-    // ハードウェアエラーの確認
-    auto error_id_list = dyn_comm_.hardware_error_id_last_read();
-    for (auto id : error_id_list) has_hardware_error_[id] = true;
-
-    // 直前に通信エラーがあれば，モータの応答を確認
-    const bool is_timeout   = dyn_comm_.timeout_last_read();
-    const bool has_comm_err = dyn_comm_.comm_error_last_read();
-    if ( !is_timeout && !has_comm_err ) { ping_err_.clear(); return; } // 通信エラーがない場合は即時return
-
+    // 全ての状態が取得できていれば, 終了
+    if ( id_torque_map.size() == target_id_list.size() ) { 
+        for ( const auto& [id, torque] : id_torque_map ) tq_mode_[id] = static_cast<torque_t>(torque); 
+        ping_err_.clear(); // 通信エラーがなければ，ping_err_をクリア
+        return; // ガード節
+    }
+    // 取れていないデータがあれば，個別に応答を確認
     vector<id_t> alive_id_list;
-    for (auto id : target_id_list) if ( dyn_comm_.Ping(id) ) alive_id_list.push_back(id);
+    for ( auto id : target_id_list ) { // ping による確認だと， 直前の fast sync read で読み込み失敗した影響によってうまくいかない． 詳細はReadme参照
+        auto id_torque_map = SyncRead_log(Addr::torque_enable, {id}, verbose_["r_status"], verbose_["r_status_err"]);
+        if ( id_torque_map.empty() ) continue; // トルクの読み込みに失敗した場合は，そのモータは死んでいるとみなす．
+        tq_mode_[id] = static_cast<torque_t>(id_torque_map[id]);
+        alive_id_list.push_back(id);
+    }
     // すべてのモータが死んでいる場合は，ping_err_=1で固定とする, おそらく根本で電源が切断されているため．
     // 生き残ったモータのping_err_をリセット
     // 一部の生き残っていないモータのping_err_をインクリメント

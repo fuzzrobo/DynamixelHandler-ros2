@@ -207,12 +207,13 @@ class DynamixelHandler : public rclcpp::Node {
         using id_t     = uint8_t;
         using model_t  = uint16_t; // DynamixelModelNumber 型を使うと, read(model_number) の結果をそのまま使えないので，uint16_t にしている
         using series_t = DynamixelSeries;
+        using torque_t = DynamixelTorquePermission;
         static inline set<id_t> id_set_; // chained dynamixel id list // 順序を保持する必要があうのでset
-        static inline unordered_map<id_t    , model_t > model_; // 各dynamixelの id と model のマップ
-        static inline unordered_map<id_t    , series_t> series_; // 各dynamixelの id と series のマップ
-        static inline unordered_map<id_t    , uint64_t> ping_err_; // 各dynamixelの id と 連続でpingに応答しなかった回数のマップ
         // 連結しているサーボの個々の状態を保持するunordered_map
-        static inline unordered_map<id_t, bool> tq_mode_;    // 各dynamixelの id と トルクON/OFF のマップ
+        static inline unordered_map<id_t, model_t > model_;  // 各dynamixelの id と model のマップ
+        static inline unordered_map<id_t, series_t> series_; // 各dynamixelの id と series のマップ
+        static inline unordered_map<id_t, uint64_t> ping_err_; // 各dynamixelの id と 連続でpingに応答しなかった回数のマップ
+        static inline unordered_map<id_t, torque_t> tq_mode_;  // 各dynamixelの id と トルクON/OFF のマップ
         static inline unordered_map<id_t, uint8_t> op_mode_; // 各dynamixelの id と 制御モード のマップ
         static inline unordered_map<id_t, uint8_t> dv_mode_; // 各dynamixelの id と ドライブモード のマップ
         static inline unordered_map<id_t, array<bool,   _num_hw_err >> hardware_err_; // 各dynamixelの id と サーボが起こしたハードウェアエラーのマップ, 中身の並びはHWErrIndexに対応する
@@ -230,7 +231,6 @@ class DynamixelHandler : public rclcpp::Node {
         static inline unordered_set<id_t> updated_id_gain_;    // topicのcallbackによって，limit_w_が更新されたidの集合
         static inline unordered_set<id_t> updated_id_limit_;   // topicのcallbackによって，limit_w_が更新されたidの集合
         static inline unordered_map<id_t, bool> has_hardware_error_;    // ハードウェアエラーを起こしているかどうか
-        static inline bool has_any_hardware_error_ = false; // 連結しているDynamixelのうち，どれか一つでもハードウェアエラーを起こしているかどうか
         // 各周期で実行するserial通信の内容を決めるためのset, 順序が必要なのでset
         static inline set<GoalIndex   > goal_indice_write_;
         static inline set<GainIndex   > gain_indice_write_;
@@ -255,7 +255,7 @@ class DynamixelHandler : public rclcpp::Node {
         bool UnifyBaudrate(uint64_t baudrate);
         //* Dynamixel単体との通信による下位機能
         uint8_t ReadHardwareError(id_t servo_id);
-        bool    ReadTorqueEnable(id_t servo_id);
+        bool ReadTorqueEnable(id_t servo_id);
         double  ReadPresentPWM(id_t servo_id);
         double  ReadPresentCurrent(id_t servo_id);
         double  ReadPresentVelocity(id_t servo_id);
