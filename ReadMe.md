@@ -2,9 +2,9 @@
 
 Robotis社の[Dynamixel](https://e-shop.robotis.co.jp/list.php?c_id=89)をROSから制御するための ros pkg `dynamixel_handler`を提供するリポジトリ.  
 
-Dynamixelとやり取りを行うライブラリは[別のリポジトリ](https://github.com/SHINOBI-organization/lib_dynamixel)として管理しており，git submoduleの機能を使って取り込んでいる．
+ROS2のみ対応，ROS1 ver は[こちら](https://github.com/ROBOTIS-JAPAN-GIT/DynamixelHandler-ros1).ただし，開発が分離しているので機能はやや異なる．
 
-note: ROS2のみ対応，ROS1 ver は[こちら](https://github.com/ROBOTIS-JAPAN-GIT/DynamixelHandler-ros1).ただし，開発が分離しているので機能はやや異なる．
+X, Pシリーズのみ対応，X320シリーズ，Yシリーズは順次対応予定．
 
 ## Table of Contents
   - [How to install](#how-to-install)
@@ -85,7 +85,7 @@ note: ROS2のみ対応，ROS1 ver は[こちら](https://github.com/ROBOTIS-JAPA
 
 ## How to install
 
-### パッケージをgit clone
+### このリポジトリをgit clone
 ```bash
 cd ~/ros2_ws/src
 # sshの場合
@@ -100,17 +100,17 @@ git clone --recursive https://github.com/ROBOTIS-JAPAN-GIT/DynamixelHandler-ros2
 ```bash
 cd ~/ros2_ws
 colcon build --symlink-install --packages-up-to dynamixel_handler
-source ~/.bashrc # 初回 build 時のみ
+source ~/ros2_ws/install/setup.bash # 初回 build 時のみ
 ```
 
 ***************************
 
 ## How to use
 
-以下では 
-- コマンドラインを用いた `dynaimxel_handler` node 動作確認
-- `dynamixel_handler_examples` パッケージを用いたプログラムからの利用方法
-を示す．
+- コマンドラインを用いた `dynaimxel_handler` node の動作確認
+- 他の制御用パッケージと連携した `dynaimxel_handler` node の利用
+
+上記を達成するための手順を以下に示す．
 
 ### 1. Dynamixelの接続
 
@@ -124,7 +124,7 @@ Dynamixel Wizardでモータの動作確認ができる程度の状態を想定�
 > `init/baudrate_auto_set`パラメータを`true`にすることで，接続時に自動で baudrate を変更することも可能．
 > また，別ノードとして，baudrateを一括で変更するための [dynamixel_unify_baudrate node](#Baudrateの一括変更) も用意してある
 
-### 2. dynamixel_handler nodeの起動
+### 2. `dynamixel_handler` nodeの起動
 
 #### 2-1. 自分の環境とconfigの設定を合わせる
 `config/config_dynamixel_handler.yml`の該当部分を編集し，保存．   
@@ -150,11 +150,12 @@ ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 # 出力例
 # ... 略 ...
 [dynamixel_handler-1] 00000.00000: Initializing DynamixelHandler ..... 
-[dynamixel_handler-1] 00000.00000: Succeeded to open USB device [/dev/ttyUSB0] 
-[dynamixel_handler-1] 00000.00000:                     baudrate [57600]
-[dynamixel_handler-1] 00000.00000:                latency_timer [16]
-[dynamixel_handler-1] 00000.00000: Expected number of Dynamixel is not set. 
-[dynamixel_handler-1] 00000.00000: Free number of Dynamixel is allowed.
+[dynamixel_handler-1] 00000.00000:  Succeeded to open USB device
+[dynamixel_handler-1] 00000.00000:   ------------ name '/dev/ttyUSB0' 
+[dynamixel_handler-1] 00000.00000:   -------- baudrate '57600'
+[dynamixel_handler-1] 00000.00000:   --- latency_timer '16'
+[dynamixel_handler-1] 00000.00000:  Expected number of Dynamixel is not set. 
+[dynamixel_handler-1] 00000.00000:  > Free number of Dynamixel is allowed.
 [dynamixel_handler-1] 00000.00000:  Auto scanning Dynamixel (id range [0] to [30]) ...
 [dynamixel_handler-1] 00000.00000:    * P series servo id [1] is found 
 [dynamixel_handler-1] 00000.00000:    ID [1] is enabled torque 
@@ -188,6 +189,7 @@ ros2 topic pub /dynamixel/command/x/position_control \
  dynamixel_handler_msgs/msg/DynamixelControlXPosition \
  "{id_list: [5], position_deg: [90], profile_vel_deg_s: [], profile_acc_deg_ss: []}" -1
 ```
+実機のサーボの角度が90degになれば成功．
 > [!note]
 > ID:5のDynamixelの制御モードは自動的に位置制御に変換される．
 
@@ -198,6 +200,8 @@ ros2 topic pub /dynamixel/shortcut \
  dynamixel_handler_msgs/msg/DynamixelShortcut \
  "{command: 'torque_off', id_list: [5]}"
 ```
+実機のサーボのトルクがOFFになれば成功．
+
 `/dynamixel/shortcut` topicで使えるコマンドについては[こちら](#shortcut-command-list) を参照．
 
 ### 4. Dynamixelの情報を取得
@@ -254,15 +258,16 @@ position_deg: # 現在の角度と目標角度
 ```
 トルクのオンオフ，制御モード，目標電流(実質的な最大電流)など，動作状況を確認するための情報が含まれる．
 
-### 5. `example1` node を起動し，Dynamixelの動作を制御 & 情報を取得
+### 5. dynamixel_handler_examples パッケージの `example1` node を起動
 
-以下ではプログラムから利用する例を [`dynamixel_handler_examples`](./dynamixel_handler_examples) が提供する `example1` node を用いて示す．
+以下では，`dynamixel_handler` node を別ノードと連携させて，Dynamixelの情報を取得しつつ，動作を制御する例を示す．
+例に用いるノードは [dynamixel_handler_examples](./dynamixel_handler_examples) が提供する `example1` node である．
 
-[`dynamixel_handler_examples`](./dynamixel_handler_examples) パッケージをビルド
+[dynamixel_handler_examples](./dynamixel_handler_examples) パッケージをビルド
 ```bash
 cd ~/ros2_ws
 colcon build --symlink-install --packages-up-to dynamixel_handler_examples
-source ~/.bashrc # 初回 build 時のみ
+source ~/ros2_ws/install/setup.bash # 初回 build 時のみ
 ```
 
 `example1` node を起動
@@ -270,15 +275,19 @@ source ~/.bashrc # 初回 build 時のみ
 ros2 launch dynamixel_handler_examples example1.xml
 ```
 
-`example1` node によって`/dynamixel/commands/x` トピック (`DxlCommandsX`型 ) が publish され，以下のように制御される．
+実行が成功すると，`example1` nodeが `/dynamixel/states` トピック (`DxlStates`型) を subscribe して，以下の情報が取得される．
+ - `status` フィールドにより，トルクのオンオフ，エラーの有無，pingの成否，制御モード．
+ - `present` フィールドにより，電流，速度，位置などの現在値．
+
+取得された情報はターミナルに表示される．
+
+また，`example1` node によって`/dynamixel/commands/x` トピック (`DxlCommandsX`型 ) が publish され，以下のように制御される．
  - `status` フィールドを用いてトルクをオン
  - `current_base_position_control` フィールド用いて
      - 電流を300mAに制限
-     - +-45degで往復運動させる．
+     - +-45degで往復運動
 
-また，`/dynamixel/states` トピック (`DxlStates`型) が subscribe され，以下のように情報が取得される．
- - `status` フィールドによりトルクのオンオフ，エラーの有無，pingの成否，制御モードが取得される．
- - `present` フィールドにより電流，速度，位置などの情報が取得される．
+IDにかかわらずすべてのサーボが上記の動作をしているはずである．
 
 コードの解説やpkgの構成については[`dynamixel_handler_examplesのREADME`](./dynamixel_handler_examples/ReadMe.md)を参照．
 
@@ -288,10 +297,10 @@ ros2 launch dynamixel_handler_examples example1.xml
 
 ### Summay
 
-基本的には以下のトピックを知っていればOK．
+一般的なユースケースでは以下の2つのトピックを利用すれば十分である．
 
 ####  `/dynamixel/states` (dynamixel_handler_msgs::msg::DynamixelStates)
-すべての状態をまとめたトピック, `dynaimxel_handler`からpublishされる．
+連結したサーボすべての状態をまとめたトピック, `dynaimxel_handler` からpublishされる．
 
 <details>
 <summary> field 構成 </summary>
@@ -358,7 +367,7 @@ extra: # DynamixelExtra型, 未実装
 </details>
 
 #### `/dynamixel/commands/x` (dynamixel_handler_msgs::msg::DynamixelCommandsX)
-Xシリーズのコマンドをまとめたトピック, `dynaimxel_handler`にsubscribeされる．
+Xシリーズに対してまとめて指令するトピック, `dynaimxel_handler`にsubscribeされる．
   
   <details>
   <summary> field 構成 </summary>
@@ -425,6 +434,9 @@ extra: # DynamixelExtra型, 未実装
 
 </details>
 
+<br>
+
+具体的な使い方ついては，[`dynamixel_handler_examples`](./dynamixel_handler_examples) を参照されたし．
  
 
 ### Published Topics
@@ -614,6 +626,13 @@ Subscribe時にデータが一時保存され，直後のメインループ内�
   dyn_comm/retry_num: 10 # 通信失敗時のリトライ回数
   dyn_comm/inerval_msec: 5 # 通信失敗時のインターバル時間
   dyn_comm/verbose: false # 通信失敗時の詳細をエラーとして出すか
+```
+主に ping などのサーボ単体との通信失敗時の挙動を決める．    
+基本的に数字が小さい方が初期化が早くなるが，サーボを発見できない可能性が高くなる．(デフォルト値は大きめに設定している)
+
+`dyn_comm/verbose` が `true`の時は，通信失敗時に詳細なエラーを出力する．基本は `false` で問題ない．
+
+```yml
 # サーボの初期設定
   init/baudrate_auto_set: true # 探索前に，全てのサーボと全てのBaudrateに対して，baudrateの書き込みをするかどうか
   init/expected_servo_num: 0 # 期待するサーボの数，0ならいくつでもOK
@@ -625,14 +644,7 @@ Subscribe時にデータが一時保存され，直後のメインループ内�
   init/torque_auto_enable: true # 初期化時に Torque を自動でONにするかどうか
   term/torque_auto_disable: true # 終了時に Torque を自動でOFFにするかどうか
   term/servo_auto_stop: true # 終了時に電流・速度制御のサーボを停止するかどうか
-# デフォルト値の設定
-  default/profile_acc: 600.0 # deg/s^2
-  default/profile_vel: 100.0 # deg/s
-  default/return_delay_time: 0.0 # us [double]
 ```
-`dyn_comm/...`は初期化処理における ping 通信失敗時の挙動を決める．    
-基本的に数字が小さい方が初期化が早くなるが，サーボを発見できない可能性が高くなる．(デフォルト値は大きめに設定している)
-
 `init/baudrate_auto_set` が `true`の時は，全てのサーボと全てのBaudrateに対して，事前に `baudrate` の書き込みを行う．   
 したがって，ノード起動時にBaudrateが `baudrate` と異なるサーボがあっても自動的に `baudrate` に統一される．
 
@@ -640,6 +652,12 @@ Subscribe時にデータが一時保存され，直後のメインループ内�
 `init/expected_servo_num` が `0` でない場合は，その数だけservoが見つかるまでスキャンを繰り返す．  
 `init/servo_auto_search.retry_times`の回数分のスキャンが失敗した場合，初期化失敗でノードは落ちる．
 
+```yml
+# デフォルト値の設定
+  default/profile_acc: 600.0 # deg/s^2
+  default/profile_vel: 100.0 # deg/s
+  default/return_delay_time: 0.0 # us [double]
+```
 `default/profile_acc`と`default/profile_vel`は位置制御時の最大加速度と最大速度を決める．
 この値が大きければキビキビとした動作になり，小さければ滑らかな動作になる．
 `{~}_control`系トピックで動的に指定することも可能．
@@ -797,13 +815,13 @@ Xシリーズの場合，`/dynamixel/commands/x` or `/dynamixel/command/x/{~}_co
 読みだされた情報は，`loop_rate`の内`pub_ratio/present.{~}`の最小値の割合で，`/dynamixel/states`の`present`フィールド and `/dynamixel/state/present` として publishされる．
 
 ### ゲイン (gain)
- - velocity_i_gain       
- - velocity_p_gain       
- - position_d_gain       
- - position_i_gain       
- - position_p_gain       
- - feedforward_acc_gain  
- - feedforward_vel_gain  
+ - velocity_i_gain       :
+ - velocity_p_gain       :
+ - position_d_gain       :
+ - position_i_gain       :
+ - position_p_gain       :
+ - feedforward_acc_gain  :
+ - feedforward_vel_gain  :
   
 ##### Subscrib / Write
 Xシリーズの場合，`/dynamixel/commands/x`の`gain`フィールド or `/dynamixel/command/gain` によって設定され，`loop_rate`の周期で書き込まれる．
@@ -849,13 +867,13 @@ Xシリーズの場合，`/dynamixel/commands/x`の`limit`フィールド or `/d
   
 ### その他 (extra)
  - drive_mode             : 
- - return_delay_time      : 
- - homing_offset          : reboot時の角度補正に用いられる．
+ - return_delay_time      : Dynamixelの応答遅延時間，デフォルトで$500$usだが，このpkgでは初期化時に$0$usに上書きされる．
+ - homing_offset          : この値が現在の真の角度に加算されて出力される．この pkg では，reboot時の角度補正に用いられる．
  - moving_threshold       : 
  - startup_configuration  : not support, buckupがあるときPIDゲインやprofile系の値を自動で復元してくれるが，PIDのデフォルト値がモードによって異なる問題があるので使わない．
  - shutdown               : 
  - status_return_level    : not support, 常に2を前提とする
- - bus_watchbdog          : node kill時と通信断絶時にサーボを自動停止させる機能に用いられる．   
+ - bus_watchbdog          : 指定時間通信が行われない場合に動作を停止する(トルクOFFとは異なる)，この pkg ではnode kill時と通信断絶時にサーボを自動停止させる機能に用いられる．   
  - led                    : 
  - registered_instruction : 
  - realtime_tick          : 
@@ -866,7 +884,7 @@ Xシリーズの場合，`/dynamixel/commands/x`の`limit`フィールド or `/d
 
 > [!note] 
 > (bus_watchdog の設定値が1以上の時) bus_watchdogの設定値 × 20ms 通信がないと自動で動作停止処理が実行される．
-> 位置制御系のモードかつ，homing_offset が設定されている状態でこの動作停止処理が走るとなぜか homing_offsetだけ回転する．
+> しかし，位置制御系のモードかつ，homing_offset が設定されている状態でこの動作停止処理が走るとなぜか homing_offsetだけ回転する．
 > firmwareのバグの模様，バージョンによってはこの問題が解消されているかもしれないが，危険なので位置制御系のモードでbus_watchdogを使うのは避けるべき．
 > ということで `term/servo_auto_stop` が `true` かつ，PWM・電流・速度制御モードの場合のみ，500msで停止するようにbus_watchdogを設定し，それ以外のモードではbus_watchdogは 0 として利用しないようにしている．
 
@@ -907,13 +925,13 @@ config/config_dynamixel_unify_baudrate.ymlの以下の部分を編集し，保�
 ```bash
 ros2 launch dynamixel_handler dynamixel_unify_baudrate_launch.xml
 ```
-全てのdynamixelのbaudrateを`TARGET_BAUDRATE`に設定してくれる．変更が終わると自動でnodeは終了する．
+全てのdynamixelのbaudrateを`target_baudrate`に設定してくれる．変更が終わると自動でnodeは終了する．
 
 ***************************
 
 ## Latency Timer
 
-シリアル通信にはパケットの送受信の間にlatency timer分のインターバルが挟まる．
+シリアル通信にはパケットの送受信の間に latency timer 分のインターバルが挟まる．
 (USBデバイスのデフォルトは16msのようであり，高速な通信の妨げとなることが多い)
 安定した通信のためには，使用するUBSデバイスの latency timer とros paramの `laytency_timer` を一致させる必要がある．
 
@@ -992,13 +1010,13 @@ present系の8つのアドレスすべてから読み込んでも，同時読み
 
 ターミナルを立ち上げ直すか，以下を実行．
 ```bash
-source ~/.bashrc
+source ~/ros2_ws/install/setup.bash
 ```
 
 ### nodeを起動してもdynamixelが1つも見つからない場合
 
 1. デバイス名の確認   
-   どんな方法で確認しても良いが，Dynamixelを認識するはずのUSBを抜く前後で `$ ls /dev/ttyUSB*` の出力を比較すれば，少なくとも正しいデバイス名がわかる．
+   どんな方法で確認しても良いが，Ubuntuの場合はDynamixelを認識するはずのUSBを抜く前後で `$ ls /dev/ttyUSB*` の出力を比較すれば，少なくとも正しいデバイス名がわかる．
 1. デバイスの実行権限の確認   
    `$ sudo chmod 777 /dev/{your device name}` として改善すれば実行権限問題であることがわかる．
 1. Dynaimxel側の baudrate の確認    
