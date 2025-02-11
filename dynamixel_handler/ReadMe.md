@@ -1,8 +1,12 @@
-# 開発者向けのメモ
+# 開発者向けReadMe
+
+## プログラムの構成
+
+Dynamixelとやり取りを行うライブラリは[別のリポジトリ](https://github.com/SHINOBI-organization/lib_dynamixel)として管理しており，git submoduleの機能を使って取り込んでいる．
 
 ***************************
 
-### 未実装機能
+## 未実装機能
  - extra に分類した情報の read/writeの実装
  - write するタイミングの検討について
    - 現在の方法：sub callback でストアしメインループで write
@@ -16,6 +20,7 @@
      - [－] topic の pub の仕方によってはwrite回数が増えてしまう
        - 例えば，ID:5へ指令する command topic と ID:6が別のノードからpubされているとすると，callbackは2回呼ばれる．一度ストアしてからまとめてWrite方式だとwriteは1回だが，callbackで直接Write方式だとwriteも2回
 
+## 開発メモ
 
 ### Node終了時の停止について
 
