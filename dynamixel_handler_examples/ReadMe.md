@@ -8,6 +8,102 @@ colcon build --symlink-install --packages-up-to dynamixel_handler_examples
 source ~/.bashrc # 初回 build 時のみ
 ```
 
+## Pkg configuration
+
+<details>
+<summary>package.xml</summary>
+
+```xml
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>dynamixel_handler_examples </name>
+  <version>0.0.0</version>
+  <description>The dynamixel_handler_examples package</description>
+  <maintainer email="michikawa.ryohei@gmail.com">michikawa07</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <build_depend>dynamixel_handler_msgs</build_depend>
+
+  <exec_depend>ros2launch</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+
+</package>
+```
+</details>
+
+<details>
+<summary>Cmakelist.txt</summary>
+
+```cmake
+cmake_minimum_required(VERSION 3.8)
+project(dynamixel_handler_examples)
+
+#C++17を使えるように宣言
+set(CMAKE_CXX_STANDARD 17)
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+## Find packages
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(dynamixel_handler_msgs REQUIRED)
+
+## Specify dependencies
+set(dependencies
+  rclcpp
+  dynamixel_handler_msgs
+)
+
+## Build
+include_directories(
+  include
+)
+
+add_executable(example1
+  src/example1.cpp
+)
+
+ament_target_dependencies(example1 ${dependencies})
+
+## Install
+install(TARGETS
+  example1
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+# install launch files
+install(
+  DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}/
+)
+
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+  # the following line skips the linter which checks for copyrights
+  # comment the line when a copyright and license is added to all source files
+  set(ament_cmake_copyright_FOUND TRUE)
+  # the following line skips cpplint (only works in a git repo)
+  # comment the line when this package is in a git repo and when
+  # a copyright and license is added to all source files
+  set(ament_cmake_cpplint_FOUND TRUE)
+  ament_lint_auto_find_test_dependencies()
+endif()
+
+ament_package()
+```
+
+</details>
+
+
+
 ## Example1　
 
 ### Launch
@@ -114,7 +210,7 @@ int main() {
 ```
 </details>
 
-#### 3-1. 動作制御部分について
+#### 動作指令の publish 部分について
 
 `DxlCommandsX`型のメッセージ利用するためのヘッダファイルをインクルード．
 ```cpp
@@ -151,7 +247,7 @@ if (!cmd.status.id_list.empty()) pub_cmd->publish(cmd);
 `auto& cmd_ctrl = cmd.current_base_position_control;`を`auto& cmd_ctrl = cmd.position_control;`に変更すると，`cmd_ctrl.current_ma.push_back(300/*mA*/);`の行でコンパイルエラーが発生する．   
 すなわち，各制御モードごとにどの目標値が有効なのか暗記しなくても，コンパイラが教えてくれる．
 
-#### 3-2. 情報取得部分について
+#### 現在情報の subscribe 部分について
 
 `DxlStates`型のメッセージを利用するためのヘッダファイルをインクルード．
 ```cpp

@@ -4,6 +4,31 @@
 
 Dynamixelとやり取りを行うライブラリは[別のリポジトリ](https://github.com/SHINOBI-organization/lib_dynamixel)として管理しており，git submoduleの機能を使って取り込んでいる．
 
+このパッケージはROS2ノードとして動作し，srcディレクトリ以下に主要な実装が配置されています．各ファイルの役割は以下の通りです:
+
+- **src/main.cpp**  
+  ノードのエントリーポイント．
+  初期化処理として ROS2 node の初期化やパラメータの設定，publisherやsubscriberの生成などを行っています．
+  さらに, 同期的に動作する処理を main_loop() に記述し，その中で実際の書き込みや読み込み処理を行っています．
+  また，ノードの終了時には，各サーボのトルクをオフにするなどの終了処理を行っています．
+
+- **src/dynamixel_handler.hpp**  
+  本パッケージの中心となるクラスの宣言を行い，Dynamixelとの通信および各種データ（状態，コマンド，制御パラメータ）の管理を実装しています．
+
+- **src/dynamixel_handler_ros_interface_sub.cpp**  
+  ROSのsubscribeインターフェースを担当し，各種コマンドメッセージの受信と一時的なコマンド情報の保持についての処理を実装しています．
+
+- **src/dynamixel_handler_ros_interface_pub.cpp**  
+  ROSのpublishインターフェースを担当し，Dynamixelの状態やエラー情報，デバッグ情報などを各トピックに出力する処理を実装しています．
+
+- **src/dynamixel_handler_dyn_interface_loop.cpp**  
+  動作ループ内での一括読み書き処理（SyncRead，SyncWrite）を担当し，各サーボの状態やエラー情報の更新，コマンドの指令，状態の取得などを実装しています．
+
+- **src/dynamixel_handler_dyn_interface_once.cpp**  
+  動作ループ外での一括読み書き処理（Read，Write）を担当し，各サーボの状態やエラー情報の更新，コマンドの指令，状態の取得などを実装しています．
+
+さらに，myUtilsディレクトリ内のユーティリティ群は，ログ出力やフォーマッティング，イテレータの利便性向上など，本パッケージ全体で共通して利用される補助的な機能を提供しています．
+
 ***************************
 
 ## 未実装機能
