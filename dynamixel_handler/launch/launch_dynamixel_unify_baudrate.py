@@ -3,28 +3,28 @@ from launch_ros.actions import Node
 import os
 from ament_index_python.packages import get_package_share_directory
 
-pkg_name1 = 'dynamixel_handler'
+pkg_name = 'dynamixel_handler'
 
 def generate_launch_description():
     ld = LaunchDescription()
 
-    config1 = os.path.join(
-        get_package_share_directory(pkg_name1),
+    config = os.path.join(
+        get_package_share_directory(pkg_name),
         'config',
         'config_dynamixel_unify_baudrate.yaml'
     )
 
-    node1 = Node(
-        package=pkg_name1,
-        executable='dynamixel_unify_baudrate_node',
-        name='dxl_unify_handler',
+    node = Node(
+        package=pkg_name,
+        executable='dynamixel_unify_baudrate',
+        name='dynamixel_unify_baudrate',
         namespace='',
         output='screen',
         emulate_tty=True,
-        parameters=[config1]
+        parameters=[config]
     )
 
-    ld.add_action(node1)
+    ld.add_action(node)
 # 複数ノードを追加する場合は，configN,nodeNを作ってld.add_action(nodeN)?
 
     return ld
