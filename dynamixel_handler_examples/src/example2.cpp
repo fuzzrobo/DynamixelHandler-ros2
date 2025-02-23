@@ -11,8 +11,8 @@ using std::map;
 #include <string>
 using std::string;
 
-int main() {
-    rclcpp::init(0, nullptr);
+int main(int argc, char **argv) {
+    rclcpp::init(argc, argv);
 
     auto dxl = dynamixel_handler_msgs::msg::DxlStates();
     auto updated_time = std::map<std::string, rclcpp::Time>();

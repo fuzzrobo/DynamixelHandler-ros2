@@ -25,8 +25,8 @@ void ROS_ERROR(const rclcpp::Node::SharedPtr node,  const char* format, Args&&..
     RCLCPP_ERROR(node->get_logger(), format, std::forward<Args>(args)...);
 };
 
-int main() {
-    rclcpp::init(0, nullptr);
+int main(int argc, char **argv) {
+    rclcpp::init(argc, argv);
 
     auto dxl = dynamixel_handler_msgs::msg::DxlStates();
     auto updated_time = std::map<std::string, rclcpp::Time>();

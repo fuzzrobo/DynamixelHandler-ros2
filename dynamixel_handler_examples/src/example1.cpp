@@ -8,8 +8,8 @@ using namespace dynamixel_handler_msgs::msg;
 #include <chrono>
 using namespace std::chrono_literals;
 
-int main() {
-    rclcpp::init(0, nullptr);
+int main(int argc, char **argv) {
+    rclcpp::init(argc, argv);
     auto node  = std::make_shared<rclcpp::Node>("example1_node");
 
     rclcpp::Time updated_time;
