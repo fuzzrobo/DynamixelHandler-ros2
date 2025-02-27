@@ -117,6 +117,7 @@ bool DynamixelHandler::ClearHardwareError(id_t id){
         /*リブート処理*/dyn_comm_.Reboot(id); //** RAMのデータが消えるが，この処理の後は電源喪失と同じ扱いなので，ここでは気にしない．
         // homing offsetが書き込めるまで待機する．
         while ( !WriteHomingOffset(id, offset) && rclcpp::ok() ) rsleep(10);
+        tq_mode_[id] = TORQUE_DISABLE;
     }
     // 結果を確認
     bool is_clear = (ReadHardwareError(id) == 0b00000000);
