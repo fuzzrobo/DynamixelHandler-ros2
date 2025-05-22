@@ -300,8 +300,8 @@ void DynamixelHandler::CallbackCmd_P_ExtendedPosition(const DynamixelControlPExt
 }
 
 constexpr auto warn_s = "(size mismatch)";
-constexpr auto warn_n = "(nan value input)";
-bool has_nan(const vector<double>& vec) { return std::any_of(vec.begin(), vec.end(), [](auto x){ return std::isnan(x); }); }
+constexpr auto warn_n = "(nan/inf value input)";
+bool is_valid(const vector<double>& vec) { return std::any_of(vec.begin(), vec.end(), [](auto x){ return std::isfinite(x); }); }
 
 void DynamixelHandler::CallbackCmd_Goal(const DynamixelGoal& msg) { // mutex_goal_を追加し， 排他制御を行う． log出力を排他制御に入れないように注意する．
     // msg.id_list内のIDの妥当性を確認
@@ -313,9 +313,9 @@ void DynamixelHandler::CallbackCmd_Goal(const DynamixelGoal& msg) { // mutex_goa
     size_t n_pwm = msg.pwm_percent   .size(), n_pos = msg.position_deg      .size();
     size_t n_cur = msg.current_ma    .size(), n_pv  = msg.profile_vel_deg_s .size();
     size_t n_vel = msg.velocity_deg_s.size(), n_pa  = msg.profile_acc_deg_ss.size();
-    bool valid_pwm = N==n_pwm && !has_nan(msg.pwm_percent   ), valid_pos = N==n_pos && !has_nan(msg.position_deg      );
-    bool valid_cur = N==n_cur && !has_nan(msg.current_ma    ), valid_pv  = N==n_pv  && !has_nan(msg.profile_vel_deg_s ) ;
-    bool valid_vel = N==n_vel && !has_nan(msg.velocity_deg_s), valid_pa  = N==n_pa  && !has_nan(msg.profile_acc_deg_ss) ;
+    bool valid_pwm = N==n_pwm && is_valid(msg.pwm_percent   ), valid_pos = N==n_pos && is_valid(msg.position_deg      );
+    bool valid_cur = N==n_cur && is_valid(msg.current_ma    ), valid_pv  = N==n_pv  && is_valid(msg.profile_vel_deg_s ) ;
+    bool valid_vel = N==n_vel && is_valid(msg.velocity_deg_s), valid_pa  = N==n_pa  && is_valid(msg.profile_acc_deg_ss) ;
     // log出力
     if ( verbose_callback_ ) {
         ROS_INFO("Goal cmd '%zu' servo(s) are tried to update", valid_id_list.size());
@@ -421,11 +421,11 @@ void DynamixelHandler::CallbackCmd_Limit(const DynamixelLimit& msg) { // mutex_l
     size_t n_pwm  = msg.pwm_limit_percent        .size(), n_cur  = msg.current_limit_ma         .size();
     size_t n_acc  = msg.acceleration_limit_deg_ss.size(), n_vel  = msg.velocity_limit_deg_s     .size();
     size_t n_maxp = msg.max_position_limit_deg   .size(), n_minp = msg.min_position_limit_deg   .size();
-    bool valid_temp = N==n_temp && !has_nan(msg.temperature_limit_degc   );
-    bool valid_maxv = N==n_maxv && !has_nan(msg.max_voltage_limit_v      ), valid_minv = N==n_minv && !has_nan(msg.min_voltage_limit_v      );
-    bool valid_pwm  = N==n_pwm  && !has_nan(msg.pwm_limit_percent        ), valid_cur  = N==n_cur  && !has_nan(msg.current_limit_ma         );
-    bool valid_acc  = N==n_acc  && !has_nan(msg.acceleration_limit_deg_ss), valid_vel  = N==n_vel  && !has_nan(msg.velocity_limit_deg_s     );
-    bool valid_maxp = N==n_maxp && !has_nan(msg.max_position_limit_deg   ), valid_minp = N==n_minp && !has_nan(msg.min_position_limit_deg   );
+    bool valid_temp = N==n_temp && is_valid(msg.temperature_limit_degc   );
+    bool valid_maxv = N==n_maxv && is_valid(msg.max_voltage_limit_v      ), valid_minv = N==n_minv && is_valid(msg.min_voltage_limit_v      );
+    bool valid_pwm  = N==n_pwm  && is_valid(msg.pwm_limit_percent        ), valid_cur  = N==n_cur  && is_valid(msg.current_limit_ma         );
+    bool valid_acc  = N==n_acc  && is_valid(msg.acceleration_limit_deg_ss), valid_vel  = N==n_vel  && is_valid(msg.velocity_limit_deg_s     );
+    bool valid_maxp = N==n_maxp && is_valid(msg.max_position_limit_deg   ), valid_minp = N==n_minp && is_valid(msg.min_position_limit_deg   );
     // log出力
     if ( verbose_callback_ ) {
         ROS_INFO("Limit cmd, '%zu' servo(s) are tried to update", valid_id_list.size());
