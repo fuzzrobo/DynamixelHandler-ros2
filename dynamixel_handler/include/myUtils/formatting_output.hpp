@@ -21,7 +21,9 @@ static string control_table_layout(int width, const map<T, vector<U>>& id_data_m
     ss << "\n";
     for (size_t i = 0; i < dp_list.size(); ++i) {
         ss << "-" << setw(3) << dp_list[i].address() << "|" ;
-        for (const auto& [id, data] : first) ss << std::setfill(' ') << setw(7) << data[i] << " "; 
+        for (const auto& [id, data] : first) 
+            if ( dp_list[i].is_dummy() ) ss << "      x ";
+            else ss << std::setfill(' ') << setw(7) << data[i] << " "; 
         ss << "\n";
     }
     // 分割した前半に後半を処理したものを追加する

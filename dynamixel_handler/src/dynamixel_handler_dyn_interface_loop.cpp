@@ -67,6 +67,7 @@ map<uint8_t, vector<int64_t>> DynamixelHandler::SyncRead_log(
 template <> void DynamixelHandler::SyncWriteGoal(set<GoalIndex> goal_indice_write, const unordered_set<id_t>& updated_id_goal){
     SyncWriteGoal<AddrX>(goal_indice_write, updated_id_goal);
     SyncWriteGoal<AddrP>(goal_indice_write, updated_id_goal);
+    SyncWriteGoal<AddrPro>(goal_indice_write, updated_id_goal);
 }
 template <typename Addr> void DynamixelHandler::SyncWriteGoal(set<GoalIndex> goal_indice_write, const unordered_set<id_t>& updated_id_goal){
     if ( goal_indice_write.empty() ) return; // 空なら即時return
@@ -104,6 +105,7 @@ template <typename Addr> void DynamixelHandler::SyncWriteGoal(set<GoalIndex> goa
 template <> void DynamixelHandler::SyncWriteGain(set<GainIndex> gain_indice_write, const unordered_set<id_t>& updated_id_gain){
     SyncWriteGain<AddrX>(gain_indice_write, updated_id_gain);
     SyncWriteGain<AddrP>(gain_indice_write, updated_id_gain);
+    SyncWriteGain<AddrPro>(gain_indice_write, updated_id_gain);
 }
 template <typename Addr> void DynamixelHandler::SyncWriteGain(set<GainIndex> gain_indice_write, const unordered_set<id_t>& updated_id_gain){
     if ( gain_indice_write.empty() ) return; // 空なら即時return
@@ -145,12 +147,16 @@ template <typename Addr> void DynamixelHandler::SyncWriteGain(set<GainIndex> gai
 template <> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> limit_indice_write, const unordered_set<id_t>& updated_id_limit){
     vector<id_t> id_list_x = id_filter(updated_id_limit, SERIES_X);
     vector<id_t> id_list_p = id_filter(updated_id_limit, SERIES_P);
+    vector<id_t> id_list_pro = id_filter(updated_id_limit, SERIES_PRO);
     if ( !id_list_x.empty() ) SyncWrite_log(AddrX::torque_enable, id_list_x, vector<int64_t>(id_list_x.size(), TORQUE_DISABLE), verbose_["w_limit"]);
     if ( !id_list_p.empty() ) SyncWrite_log(AddrP::torque_enable, id_list_p, vector<int64_t>(id_list_p.size(), TORQUE_DISABLE), verbose_["w_limit"]);
+    if ( !id_list_pro.empty() ) SyncWrite_log(AddrPro::torque_enable, id_list_pro, vector<int64_t>(id_list_pro.size(), TORQUE_DISABLE), verbose_["w_limit"]);
     SyncWriteLimit<AddrX>(limit_indice_write, updated_id_limit);
     SyncWriteLimit<AddrP>(limit_indice_write, updated_id_limit);
+    SyncWriteLimit<AddrPro>(limit_indice_write, updated_id_limit);
     if ( !id_list_x.empty() ) SyncWrite_log(AddrX::torque_enable, id_list_x, vector<int64_t>(id_list_x.size(), TORQUE_ENABLE), verbose_["w_limit"]);
     if ( !id_list_p.empty() ) SyncWrite_log(AddrP::torque_enable, id_list_p, vector<int64_t>(id_list_p.size(), TORQUE_ENABLE), verbose_["w_limit"]);
+    if ( !id_list_pro.empty() ) SyncWrite_log(AddrPro::torque_enable, id_list_pro, vector<int64_t>(id_list_pro.size(), TORQUE_ENABLE), verbose_["w_limit"]);
 }
 template <typename Addr> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> limit_indice_write, const unordered_set<id_t>& updated_id_limit){
     if ( limit_indice_write.empty() ) return; // 空なら即時return
@@ -199,6 +205,7 @@ using std::chrono::microseconds;
 template <> tuple<double, uint8_t> DynamixelHandler::SyncReadPresent(set<PresentIndex> present_indice_read, const set<id_t>& id_set ){
     auto [suc_rate_X, num_x] = SyncReadPresent<AddrX>(present_indice_read, id_set);
     auto [suc_rate_P, num_p] = SyncReadPresent<AddrP>(present_indice_read, id_set);
+    auto [suc_rate_PRO, num_pro] = SyncReadPresent<AddrPro>(present_indice_read, id_set);
     for ( auto id : id_filter(id_set, SERIES_UNKNOWN) ) {
         present_r_[id][PRESENT_PWM          ] = goal_w_[id][GOAL_PWM     ];
         present_r_[id][PRESENT_CURRENT      ] = goal_w_[id][GOAL_CURRENT ];
@@ -207,7 +214,8 @@ template <> tuple<double, uint8_t> DynamixelHandler::SyncReadPresent(set<Present
         present_r_[id][PRESENT_INPUT_VOLTAGE] = 25;
         present_r_[id][PRESENT_TEMPERATURE  ] = 25;
     }
-    return {(num_x+num_p)==0 ? 1.0 : (suc_rate_X*num_x + suc_rate_P*num_p) / (num_x+num_p), num_x+num_p};
+    auto num_all = num_x + num_p + num_pro;
+    return {(num_all)==0 ? 1.0 : (suc_rate_X*num_x + suc_rate_P*num_p + suc_rate_PRO*num_pro) / (num_all), num_all};
 }
 template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadPresent(set<PresentIndex> present_indice_read, const set<id_t>& id_set ){
     vector<id_t> target_id_list = id_filter(id_set, Addr::series());
@@ -256,7 +264,9 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadPresen
 template <> tuple<double, uint8_t> DynamixelHandler::SyncReadHardwareErrors(const set<id_t>& id_set){
     auto [suc_rate_X, num_x] = SyncReadHardwareErrors<AddrX>(id_set);
     auto [suc_rate_P, num_p] = SyncReadHardwareErrors<AddrP>(id_set);
-    return {(num_x+num_p)==0 ? 1.0 : (suc_rate_X*num_x + suc_rate_P*num_p) / (num_x+num_p), num_x+num_p};
+    auto [suc_rate_PRO, num_pro] = SyncReadHardwareErrors<AddrPro>(id_set);
+    auto num_all = num_x + num_p + num_pro;
+    return {(num_all)==0 ? 1.0 : (suc_rate_X*num_x + suc_rate_P*num_p + suc_rate_PRO*num_pro) / (num_all), num_all};
 }
 template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadHardwareErrors(const set<id_t>& id_set){
     vector<id_t> target_id_list = id_filter(id_set, Addr::series());
@@ -300,8 +310,10 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadHardwa
 template <> tuple<double, uint8_t> DynamixelHandler::SyncReadGain(set<GainIndex> gain_indice_read, const set<id_t>& id_set){
     auto [suc_rate_X, num_x] = SyncReadGain<AddrX>(gain_indice_read, id_set);
     auto [suc_rate_P, num_p] = SyncReadGain<AddrP>(gain_indice_read, id_set);
+    auto [suc_rate_PRO, num_pro] = SyncReadGain<AddrPro>(gain_indice_read, id_set);
     for (auto id : id_filter(id_set, SERIES_UNKNOWN)) gain_r_[id] = gain_w_[id]; // dummy servo の場合
-    return {(num_x+num_p)==0 ? 1.0 : (suc_rate_X*num_x + suc_rate_P*num_p) / (num_x+num_p), num_x+num_p};
+    auto num_all = num_x + num_p + num_pro;
+    return {(num_all)==0 ? 1.0 : (suc_rate_X*num_x + suc_rate_P*num_p + suc_rate_PRO*num_pro) / (num_all), num_all};
 }
 template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadGain(set<GainIndex> gain_indice_read, const set<id_t>& id_set){
     //* 今回読み込むIDを取得
@@ -351,8 +363,10 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadGain(s
 template <> tuple<double, uint8_t> DynamixelHandler::SyncReadLimit(set<LimitIndex> limit_indice_read, const set<id_t>& id_set){
     auto [suc_rate_X, num_x] = SyncReadLimit<AddrX>(limit_indice_read, id_set);
     auto [suc_rate_P, num_p] = SyncReadLimit<AddrP>(limit_indice_read, id_set);
+    auto [suc_rate_PRO, num_pro] = SyncReadLimit<AddrPro>(limit_indice_read, id_set);
     for (auto id : id_filter(id_set, SERIES_UNKNOWN)) limit_r_[id] = limit_w_[id]; // dummy servo の場合
-    return {(num_x+num_p)==0 ? 1.0 : (suc_rate_X*num_x + suc_rate_P*num_p) / (num_x+num_p), num_x+num_p};
+    auto num_all = num_x + num_p + num_pro;
+    return {(num_all)==0 ? 1.0 : (suc_rate_X*num_x + suc_rate_P*num_p + suc_rate_PRO*num_pro) / (num_all), num_all};
 }
 template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadLimit(set<LimitIndex> limit_indice_read, const set<id_t>& id_set){
     //* 読み読むIDを取得
@@ -404,8 +418,10 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadLimit(
 template <> tuple<double, uint8_t> DynamixelHandler::SyncReadGoal(set<GoalIndex> goal_indice_read, const set<id_t>& id_set){
     auto [suc_rate_X, num_x] = SyncReadGoal<AddrX>(goal_indice_read, id_set);
     auto [suc_rate_P, num_p] = SyncReadGoal<AddrP>(goal_indice_read, id_set);
+    auto [suc_rate_PRO, num_pro] = SyncReadGoal<AddrPro>(goal_indice_read, id_set);
     for (auto id : id_filter(id_set, SERIES_UNKNOWN)) goal_r_[id] = goal_w_[id]; // dummy servo の場合
-    return {(num_x+num_p)==0 ? 1.0 : (suc_rate_X*num_x + suc_rate_P*num_p) / (num_x+num_p), num_x+num_p};
+    auto num_all = num_x + num_p + num_pro;
+    return {(num_all)==0 ? 1.0 : (suc_rate_X*num_x + suc_rate_P*num_p + suc_rate_PRO*num_pro) / (num_all), num_all};
 }
 template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadGoal(set<GoalIndex> goal_indice_read, const set<id_t>& id_set){
     //* 読み込むIDを取得
@@ -450,13 +466,15 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadGoal(s
 template <> void DynamixelHandler::StopDynamixels(const set<id_t>& id_set){
     StopDynamixels<AddrX>(id_set);
     StopDynamixels<AddrP>(id_set);
+    StopDynamixels<AddrPro>(id_set);
 } 
 template <typename Addr> void DynamixelHandler::StopDynamixels(const set<id_t>& id_set){
     vector<id_t> target_id_list = id_filter(id_set, Addr::series());
     if ( target_id_list.empty() ) return; // 読み込むデータがない場合は即時return
 
     ROS_INFO(" %s servo will be stopped",  Addr::series()==SERIES_X ? "X series" 
-                                         : Addr::series()==SERIES_P ? "P series" : "Unknown");
+                                         : Addr::series()==SERIES_P ? "P series" 
+                                         : Addr::series()==SERIES_PRO ? "PRO series" : "Unknown");
     if ( do_torque_off_ ) { // ノード停止時の挙動して， do_torque_off_ は do_stop_end_ を包含する．
         dyn_comm_.SyncWrite(Addr::torque_enable, target_id_list, vector<int64_t>(target_id_list.size(), TORQUE_DISABLE));
         ROS_INFO("  Torque of all servo are disabled");
@@ -478,6 +496,7 @@ template <typename Addr> void DynamixelHandler::StopDynamixels(const set<id_t>& 
 template <> void DynamixelHandler::CheckDynamixels(const set<id_t>& id_set){
     CheckDynamixels<AddrX>(id_set);
     CheckDynamixels<AddrP>(id_set);
+    CheckDynamixels<AddrPro>(id_set);
 }
 template <typename Addr> void DynamixelHandler::CheckDynamixels(const set<id_t>& id_set){
     vector<id_t> target_id_list = id_filter(id_set, Addr::series());
