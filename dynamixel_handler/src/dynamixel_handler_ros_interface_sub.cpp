@@ -9,6 +9,10 @@ static double deg2rad(double deg){ return deg*DEG; }
 static vector<bool> falses(size_t N) { return vector<bool>(N, false); }
 static vector<bool> trues (size_t N) { return vector<bool>(N,  true); }
 
+bool DynamixelHandler::check_series(id_t id, series_t series) {
+    return series_[id] == series || series_[id] == SERIES_UNKNOWN; 
+}
+
 void DynamixelHandler::CallbackCmdsX(const DxlCommandsX::SharedPtr msg) {
     if ( verbose_callback_ ) ROS_INFO("=====================================");
     CallbackCmd_Status(msg->status); // Pシリーズ縛りを入れる
@@ -111,7 +115,7 @@ void DynamixelHandler::CallbackCmd_X_Pwm(const DynamixelControlXPwm& msg) {
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "PWM ctrl(X), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( auto& ID : id_list ) if ( series_[ID] == SERIES_P ) { // あえてPシリーズを指定することでUNKNOWNがはじかれないようにする
+    for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_X) ) { // SERIES_X か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
@@ -125,7 +129,7 @@ void DynamixelHandler::CallbackCmd_X_Position(const DynamixelControlXPosition& m
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Position ctrl(X), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( auto& ID : id_list ) if ( series_[ID] == SERIES_P ) { // あえてPシリーズを指定することでUNKNOWNがはじかれないようにする
+    for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_X) ) { // SERIES_X か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
@@ -141,7 +145,7 @@ void DynamixelHandler::CallbackCmd_X_Velocity(const DynamixelControlXVelocity& m
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Velocity ctrl(X), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( auto& ID : id_list ) if ( series_[ID] == SERIES_P ) { // あえてPシリーズを指定することでUNKNOWNがはじかれないようにする
+    for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_X) ) { // SERIES_X か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
@@ -156,7 +160,7 @@ void DynamixelHandler::CallbackCmd_X_Current(const DynamixelControlXCurrent& msg
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Current ctrl(X), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( auto& ID : id_list ) if ( series_[ID] == SERIES_P ) { // あえてPシリーズを指定することでUNKNOWNがはじかれないようにする
+    for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_X) ) { // SERIES_X か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
@@ -170,7 +174,7 @@ void DynamixelHandler::CallbackCmd_X_CurrentBasePosition(const DynamixelControlX
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Current-base Position ctrl(X), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( auto& ID : id_list ) if ( series_[ID] == SERIES_P ) { // あえてPシリーズを指定することでUNKNOWNがはじかれないようにする
+    for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_X) ) { // SERIES_X か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
@@ -194,7 +198,7 @@ void DynamixelHandler::CallbackCmd_X_ExtendedPosition(const DynamixelControlXExt
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Extended Position ctrl(X), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( auto& ID : id_list ) if ( series_[ID] == SERIES_P ) { // あえてPシリーズを指定することでUNKNOWNがはじかれないようにする
+    for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_X) ) { // SERIES_X か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
@@ -217,7 +221,7 @@ void DynamixelHandler::CallbackCmd_P_Pwm(const DynamixelControlPPwm& msg) {
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "PWM ctrl(P), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( auto& ID : id_list ) if ( series_[ID] == SERIES_X ) { // あえてXシリーズを指定することでUNKNOWNがはじかれないようにする
+    for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_P) ) { // SERIES_P か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
@@ -231,7 +235,7 @@ void DynamixelHandler::CallbackCmd_P_Current(const DynamixelControlPCurrent& msg
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Current ctrl(P), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( auto& ID : id_list ) if ( series_[ID] == SERIES_X ) { // あえてXシリーズを指定することでUNKNOWNがはじかれないようにする
+    for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_P) ) { // SERIES_P か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
@@ -245,7 +249,7 @@ void DynamixelHandler::CallbackCmd_P_Velocity(const DynamixelControlPVelocity& m
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Velocity ctrl(P), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( auto& ID : id_list ) if ( series_[ID] == SERIES_X ) { // あえてXシリーズを指定することでUNKNOWNがはじかれないようにする
+    for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_P) ) { // SERIES_P か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
@@ -261,7 +265,7 @@ void DynamixelHandler::CallbackCmd_P_Position(const DynamixelControlPPosition& m
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Position ctrl(P), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( auto& ID : id_list ) if ( series_[ID] == SERIES_X ) { // あえてXシリーズを指定することでUNKNOWNがはじかれないようにする
+    for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_P) ) { // SERIES_P か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
@@ -278,7 +282,7 @@ void DynamixelHandler::CallbackCmd_P_ExtendedPosition(const DynamixelControlPExt
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Extended Position ctrl(P), ID"));
     vector<uint16_t> id_list(msg.id_list);
-    for ( auto& ID : id_list ) if ( series_[ID] == SERIES_X ) { // あえてXシリーズを指定することでUNKNOWNがはじかれないようにする
+    for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_P) ) { // SERIES_P か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }

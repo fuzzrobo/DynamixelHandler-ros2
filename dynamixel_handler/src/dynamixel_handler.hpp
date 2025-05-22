@@ -243,6 +243,11 @@ class DynamixelHandler : public rclcpp::Node {
         static inline unordered_map<string, unsigned int>       pub_ratio_; // present value以外の周期
         static inline array<unsigned int, _num_present> pub_ratio_present_;
 
+        //* 実装の上でどうしても必要になったUtility関数群
+        template <typename Container> 
+        vector<id_t> id_filter(const Container& id_set, series_t series);
+        bool check_series(id_t id, series_t series);
+        
         //* 単体通信を組み合わせた上位機能
         bool ScanDynamixels(id_t id_min, id_t id_max, uint32_t num_expected, uint32_t time_retry_ms);
         bool DummyUpDynamixel(id_t servo_id);
@@ -284,7 +289,6 @@ class DynamixelHandler : public rclcpp::Node {
         bool WriteBusWatchdog(id_t servo_id, double time);
         bool WriteGains(id_t servo_id, array<uint16_t, _num_gain> gains);
         //* 連結しているDynamixelに一括で読み書きするloopで使用する機能
-        template <typename Container> vector<id_t> id_filter(const Container& id_set, series_t series);
         void SyncWrite_log(const vector<DynamixelAddress>& addr_list, const map<id_t, vector<int64_t>>& id_data_map, bool verbose);
         void SyncWrite_log(const        DynamixelAddress&  addr,      const vector<id_t>& id_list, const vector<int64_t>& data_list, bool verbose);
         map<id_t, vector<int64_t>> SyncRead_log(const vector<DynamixelAddress>& addr_list, const vector<id_t>& id_list, bool verbose, bool verbose_err);
