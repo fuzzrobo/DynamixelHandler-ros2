@@ -21,7 +21,7 @@ void DynamixelHandler::SyncWrite_log(
 void DynamixelHandler::SyncWrite_log(
     const vector<DynamixelAddress>& addr_list, const map<id_t, vector<int64_t>>& id_data_vec_map, bool verbose
 ){
-    if ( verbose ) ROS_INFO_STREAM( "'" << id_data_vec_map.size() << "' servo(s) will be written"
+    if ( verbose ) ROS_INFO_STREAM( "  '" << id_data_vec_map.size() << "' servo(s) will be written"
                                     << control_table_layout(width_log_, id_data_vec_map, addr_list) );
     dyn_comm_.SyncWrite(addr_list, id_data_vec_map); fflush(stdout);
 }
@@ -46,7 +46,7 @@ map<uint8_t, vector<int64_t>> DynamixelHandler::SyncRead_log(
     if ( verbose_err ) if ( is_timeout_ || is_comm_err_ ) {
         vector<id_t> failed_id_list;
         for ( auto id : id_list ) if ( !id_data_vec_map.count(id) ) failed_id_list.push_back(id);
-        ROS_WARN_STREAM( "'" << id_list.size() - id_data_vec_map.size() << "' servo(s) failed to read" 
+        ROS_WARN_STREAM( "  '" << id_list.size() - id_data_vec_map.size() << "' servo(s) failed to read" 
                         << (is_timeout_ ? " (time out)" : " (some kind packet error)") << "\n"
                         << id_list_layout(failed_id_list) << "\n");
     }
@@ -200,12 +200,12 @@ template <> tuple<double, uint8_t> DynamixelHandler::SyncReadPresent(set<Present
     auto [suc_rate_X, num_x] = SyncReadPresent<AddrX>(present_indice_read, id_set);
     auto [suc_rate_P, num_p] = SyncReadPresent<AddrP>(present_indice_read, id_set);
     for ( auto id : id_filter(id_set, SERIES_UNKNOWN) ) {
-        present_r_[id][PRESENT_PWM] = goal_w_[id][GOAL_PWM];
-        present_r_[id][PRESENT_CURRENT] = goal_w_[id][GOAL_CURRENT];
-        present_r_[id][PRESENT_VELOCITY] = goal_w_[id][GOAL_VELOCITY];
-        present_r_[id][PRESENT_POSITION] = goal_w_[id][GOAL_POSITION];
+        present_r_[id][PRESENT_PWM          ] = goal_w_[id][GOAL_PWM     ];
+        present_r_[id][PRESENT_CURRENT      ] = goal_w_[id][GOAL_CURRENT ];
+        present_r_[id][PRESENT_VELOCITY     ] = goal_w_[id][GOAL_VELOCITY];
+        present_r_[id][PRESENT_POSITION     ] = goal_w_[id][GOAL_POSITION];
         present_r_[id][PRESENT_INPUT_VOLTAGE] = 25;
-        present_r_[id][PRESENT_TEMPERATURE] = 25;
+        present_r_[id][PRESENT_TEMPERATURE  ] = 25;
     }
     return {(num_x+num_p)==0 ? 1.0 : (suc_rate_X*num_x + suc_rate_P*num_p) / (num_x+num_p), num_x+num_p};
 }
@@ -279,14 +279,14 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadHardwa
 
     // コンソールへの表示
     if ( verbose_["r_hwerr"] ) {
-        ROS_WARN( "Hardware error are Checked");
+        ROS_WARN( "  Hardware error are Checked");
         for (auto id : target_id_list) {
-            if (hardware_err_[id][INPUT_VOLTAGE     ]) ROS_WARN (" * servo ID [%d] has INPUT_VOLTAGE error"     ,id);
-            if (hardware_err_[id][MOTOR_HALL_SENSOR ]) ROS_ERROR(" * servo ID [%d] has MOTOR_HALL_SENSOR error" ,id);
-            if (hardware_err_[id][OVERHEATING       ]) ROS_ERROR(" * servo ID [%d] has OVERHEATING error"       ,id);
-            if (hardware_err_[id][MOTOR_ENCODER     ]) ROS_ERROR(" * servo ID [%d] has MOTOR_ENCODER error"     ,id);
-            if (hardware_err_[id][ELECTRONICAL_SHOCK]) ROS_ERROR(" * servo ID [%d] has ELECTRONICAL_SHOCK error",id);
-            if (hardware_err_[id][OVERLOAD          ]) ROS_ERROR(" * servo ID [%d] has OVERLOAD error"          ,id);
+            if (hardware_err_[id][INPUT_VOLTAGE     ]) ROS_WARN ("  * servo ID [%d] has INPUT_VOLTAGE error"     ,id);
+            if (hardware_err_[id][MOTOR_HALL_SENSOR ]) ROS_ERROR("  * servo ID [%d] has MOTOR_HALL_SENSOR error" ,id);
+            if (hardware_err_[id][OVERHEATING       ]) ROS_ERROR("  * servo ID [%d] has OVERHEATING error"       ,id);
+            if (hardware_err_[id][MOTOR_ENCODER     ]) ROS_ERROR("  * servo ID [%d] has MOTOR_ENCODER error"     ,id);
+            if (hardware_err_[id][ELECTRONICAL_SHOCK]) ROS_ERROR("  * servo ID [%d] has ELECTRONICAL_SHOCK error",id);
+            if (hardware_err_[id][OVERLOAD          ]) ROS_ERROR("  * servo ID [%d] has OVERLOAD error"          ,id);
         }
     }
     return {id_error_map.size()/double(target_id_list.size()), target_id_list.size()};
@@ -458,7 +458,7 @@ template <typename Addr> void DynamixelHandler::StopDynamixels(const set<id_t>& 
     ROS_INFO(" %s servo will be stopped",  Addr::series()==SERIES_X ? "X series" 
                                          : Addr::series()==SERIES_P ? "P series" : "Unknown");
     if ( do_torque_off_ ) { // ノード停止時の挙動して， do_torque_off_ は do_stop_end_ を包含する．
-        dyn_comm_.SyncWrite(AddrX::torque_enable, target_id_list, vector<int64_t>(target_id_list.size(), TORQUE_DISABLE));
+        dyn_comm_.SyncWrite(Addr::torque_enable, target_id_list, vector<int64_t>(target_id_list.size(), TORQUE_DISABLE));
         ROS_INFO("  Torque of all servo are disabled");
     } else if ( do_stop_end_ ) { // ノード停止時に， サーボの動作を止める．
         // 1. PWM，電流，位置制御につては, bus_watchdogによって自動的に停止するため何もしない．
@@ -469,11 +469,10 @@ template <typename Addr> void DynamixelHandler::StopDynamixels(const set<id_t>& 
         // 3. さらに念のため， トルクを瞬間的にオンオフすることでも停止させる．
         vector<id_t> tq_on_list;
         for (auto id : target_id_list) if ( tq_mode_[id]==TORQUE_ENABLE ) tq_on_list.push_back(id);
-        dyn_comm_.SyncWrite(AddrX::torque_enable, tq_on_list, vector<int64_t>(tq_on_list.size(), TORQUE_DISABLE));
-        dyn_comm_.SyncWrite(AddrX::torque_enable, tq_on_list, vector<int64_t>(tq_on_list.size(), TORQUE_ENABLE ));
+        dyn_comm_.SyncWrite(Addr::torque_enable, tq_on_list, vector<int64_t>(tq_on_list.size(), TORQUE_DISABLE));
+        dyn_comm_.SyncWrite(Addr::torque_enable, tq_on_list, vector<int64_t>(tq_on_list.size(), TORQUE_ENABLE ));
         ROS_INFO("  Reset torque enable for stopping");
     }
-
 }
 
 template <> void DynamixelHandler::CheckDynamixels(const set<id_t>& id_set){
