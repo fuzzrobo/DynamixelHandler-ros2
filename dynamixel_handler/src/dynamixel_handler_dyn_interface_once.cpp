@@ -27,7 +27,7 @@ bool DynamixelHandler::ScanDynamixels(id_t id_min, id_t id_max, uint32_t num_exp
 
 bool DynamixelHandler::DummyUpDynamixel(id_t id){
     if ( is_in(id, id_set_) ) return false; // すでに登録されている場合は失敗
-    ROS_INFO("   *   Dummy  servo ID [%d] is added", id);
+    ROS_INFO("   *    Dummy   servo ID [%d] is added", id);
     model_[id] = 0;
     series_[id] = SERIES_UNKNOWN;
     id_set_.insert(id);
@@ -49,16 +49,16 @@ bool DynamixelHandler::AddDynamixel(id_t id){
 
     auto dyn_model = dyn_comm_.tryRead(AddrCommon::model_number, id);
     switch ( dynamixel_series(dyn_model) ) { 
-        case SERIES_X: ROS_INFO("   * X series servo ID [%d] is found", id);
-            model_[id] = dyn_model;
+        case SERIES_X: ROS_INFO("   *  X  series servo ID [%d] is found", id);
+                        model_[id] = dyn_model;
             series_[id] = SERIES_X;
             id_set_.insert(id); break;
-        case SERIES_P: ROS_INFO("   * P series servo ID [%d] is found (include pro plus series)", id);
+        case SERIES_P: ROS_INFO("   *  P  series servo ID [%d] is found (include pro plus series)", id);
             model_[id] = dyn_model;
             series_[id] = SERIES_P;
             id_set_.insert(id); break;
         case SERIES_PRO: ROS_INFO("   * PRO series servo ID [%d] is found", id);
-            model_[id] = dyn_model;
+                        model_[id] = dyn_model;
             series_[id] = SERIES_PRO;
             id_set_.insert(id); break;
         default: ROS_WARN("   * No supported model [%d] servo ID [%d] is found, ignored", (int)dyn_model, id);
@@ -66,8 +66,8 @@ bool DynamixelHandler::AddDynamixel(id_t id){
     }
 
     WriteBusWatchdog (id, 0.0/*ms*/); // 最初にBusWatchdogを無効化することで，全てのGoal値の書き込みを許可する
-    WriteProfileAcc(id, default_profile_acc_deg_ss_*DEG ); 
-    WriteProfileVel(id, default_profile_vel_deg_s_*DEG );
+    WriteProfileAcc(id, default_["profile_acc_deg_ss"]*DEG ); 
+    WriteProfileVel(id, default_["profile_vel_deg_s"]*DEG );
 
     set<uint8_t> tmp = {id};
     static constexpr tuple<double, uint8_t> complete = {1.0-1e-6, 1};
@@ -84,14 +84,14 @@ bool DynamixelHandler::AddDynamixel(id_t id){
     gain_w_[id] = gain_r_[id];
     goal_w_[id] = goal_r_[id];
 
-    if ( abs(default_profile_acc_deg_ss_ - goal_r_[id][PROFILE_ACC]/DEG) > 3 ) 
-        ROS_WARN("    profile acc. '%2.1f' is too small (now '%2.1f')", default_profile_acc_deg_ss_, goal_r_[id][PROFILE_ACC]/DEG);
-    if ( abs(default_profile_vel_deg_s_ - goal_r_[id][PROFILE_VEL]/DEG) > 1 ) 
-        ROS_WARN("    profile vel. '%2.1f' is too small (now '%2.1f')", default_profile_vel_deg_s_, goal_r_[id][PROFILE_VEL]/DEG);
+    if ( abs(default_["profile_acc_deg_ss"] - goal_r_[id][PROFILE_ACC]/DEG) > 3 ) 
+        ROS_WARN("    profile acc. '%2.1f' is too small (now '%2.1f')", default_["profile_acc_deg_ss"], goal_r_[id][PROFILE_ACC]/DEG);
+    if ( abs(default_["profile_vel_deg_s"] - goal_r_[id][PROFILE_VEL]/DEG) > 1 ) 
+        ROS_WARN("    profile vel. '%2.1f' is too small (now '%2.1f')", default_["profile_vel_deg_s"], goal_r_[id][PROFILE_VEL]/DEG);
 
-    WriteReturnDelayTime(id, default_return_delay_time_us_);
-    if ( abs(ReadReturnDelayTime(id) - default_return_delay_time_us_) > 0.1 ) 
-        ROS_WARN("    return delay time '%2.1f' could not set (now '%2.1f')", default_return_delay_time_us_, ReadReturnDelayTime(id));
+    WriteReturnDelayTime(id, default_["return_delay_time_us"]);
+    if ( abs(ReadReturnDelayTime(id) - default_["return_delay_time_us"]) > 0.1 ) 
+        ROS_WARN("    return delay time '%2.1f' could not set (now '%2.1f')", default_["return_delay_time_us"], ReadReturnDelayTime(id));
 
     if ( do_clean_hwerr_ ) ClearHardwareError(id); // 現在の状態を変えない
     if ( do_torque_on_ )   TorqueOn(id);           // 現在の状態を変えない
@@ -231,7 +231,7 @@ bool DynamixelHandler::UnifyBaudrate(uint64_t baudrate) {
         ROS_INFO("  Try to change baudrate %8ld to %ld", br, baudrate);
         dyn_comm_.set_baudrate(br);
         if ( !dyn_comm_.OpenPort() ) ROS_ERROR("  Failed to open port at baudrate %ld", br);
-        else  dyn_comm_.Write(AddrCommon::baudrate, BROADCAST_ID, baudrate_map.at(baudrate));
+        else  dyn_comm_.Write(AddrX::baudrate, BROADCAST_ID, baudrate_map.at(baudrate)); // baudrateのアドレスはX, P, Proで共通なので... 
         rsleep(16);
     }
     dyn_comm_.set_baudrate(baudrate);
@@ -338,22 +338,22 @@ double DynamixelHandler::ReadBusWatchdog(id_t id){ switch ( series_[id] ) {
 } }
 
 uint8_t DynamixelHandler::ReadOperatingMode(id_t id){ switch ( series_[id] ) {
-    case SERIES_X: 
-    case SERIES_P:
-    case SERIES_PRO: return dyn_comm_.tryRead(AddrCommon::operating_mode, id);
+    case SERIES_X:   return dyn_comm_.tryRead(AddrX::operating_mode, id);
+    case SERIES_P:   return dyn_comm_.tryRead(AddrP::operating_mode, id);
+    case SERIES_PRO: return dyn_comm_.tryRead(AddrPro::operating_mode, id);
     default: return 0;
 } }
 
 uint8_t DynamixelHandler::ReadDriveMode(id_t id){ switch ( series_[id] ) {
-    case SERIES_X:
-    case SERIES_P:   return dyn_comm_.tryRead(AddrCommon::drive_mode, id);
+    case SERIES_X:   return dyn_comm_.tryRead(AddrX::drive_mode, id);
+    case SERIES_P:   return dyn_comm_.tryRead(AddrP::drive_mode, id);
     case SERIES_PRO: ROS_WARN("   = PRO series don't support 'drive_mode'"); return 0;
     default: return 0; 
 } }
 double DynamixelHandler::ReadReturnDelayTime(id_t id){ switch ( series_[id] ) {
-    case SERIES_X:
-    case SERIES_P:
-    case SERIES_PRO: return AddrCommon::return_delay_time.pulse2val(dyn_comm_.tryRead(AddrCommon::return_delay_time, id), model_[id]);
+    case SERIES_X:   return AddrX::return_delay_time.pulse2val(dyn_comm_.tryRead(AddrX::return_delay_time, id), model_[id]);
+    case SERIES_P:   return AddrP::return_delay_time.pulse2val(dyn_comm_.tryRead(AddrP::return_delay_time, id), model_[id]);
+    case SERIES_PRO: return AddrPro::return_delay_time.pulse2val(dyn_comm_.tryRead(AddrPro::return_delay_time, id), model_[id]);
     default: return 0.0;
 } }
 
@@ -448,16 +448,16 @@ bool DynamixelHandler::WriteGains(id_t id, array<uint16_t, _num_gain> gains){
 }
 
 bool DynamixelHandler::WriteOperatingMode(id_t id, uint8_t mode){ switch ( series_[id] ) {
-    case SERIES_X:    
-    case SERIES_P:    
-    case SERIES_PRO:  return dyn_comm_.tryWrite(AddrCommon::operating_mode, id, mode);
+    case SERIES_X:    return dyn_comm_.tryWrite(AddrX::operating_mode, id, mode);
+    case SERIES_P:    return dyn_comm_.tryWrite(AddrP::operating_mode, id, mode);
+    case SERIES_PRO:  return dyn_comm_.tryWrite(AddrPro::operating_mode, id, mode);
     default:         return false;
 } }
 
 bool DynamixelHandler::WriteReturnDelayTime(id_t id, double time){ switch ( series_[id] ) {
-    case SERIES_X:    
-    case SERIES_P:    
-    case SERIES_PRO:  return dyn_comm_.tryWrite(AddrCommon::return_delay_time, id, AddrCommon::return_delay_time.val2pulse(time, model_[id]));
+    case SERIES_X:    return dyn_comm_.tryWrite(AddrX::return_delay_time, id, AddrX::return_delay_time.val2pulse(time, model_[id]));
+    case SERIES_P:    return dyn_comm_.tryWrite(AddrP::return_delay_time, id, AddrP::return_delay_time.val2pulse(time, model_[id]));
+    case SERIES_PRO:  return dyn_comm_.tryWrite(AddrPro::return_delay_time, id, AddrPro::return_delay_time.val2pulse(time, model_[id]));
     default:          return false;
 } }
     

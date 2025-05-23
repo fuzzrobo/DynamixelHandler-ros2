@@ -8,6 +8,7 @@
 #include "dynamixel_handler_msgs/msg/dxl_states.hpp"
 #include "dynamixel_handler_msgs/msg/dxl_commands_x.hpp"
 #include "dynamixel_handler_msgs/msg/dxl_commands_p.hpp"
+#include "dynamixel_handler_msgs/msg/dxl_commands_pro.hpp"
 #include "dynamixel_handler_msgs/msg/dxl_commands_all.hpp"
 
 #include "dynamixel_handler_msgs/msg/dynamixel_status.hpp"
@@ -29,6 +30,10 @@
 #include "dynamixel_handler_msgs/msg/dynamixel_control_p_velocity.hpp"
 #include "dynamixel_handler_msgs/msg/dynamixel_control_p_current.hpp"
 #include "dynamixel_handler_msgs/msg/dynamixel_control_p_extended_position.hpp"
+#include "dynamixel_handler_msgs/msg/dynamixel_control_pro_position.hpp"
+#include "dynamixel_handler_msgs/msg/dynamixel_control_pro_velocity.hpp"
+#include "dynamixel_handler_msgs/msg/dynamixel_control_pro_current.hpp"
+#include "dynamixel_handler_msgs/msg/dynamixel_control_pro_extended_position.hpp"
 
 #include "dynamixel_handler_msgs/msg/dynamixel_debug.hpp"
 #include "dynamixel_handler_msgs/msg/dynamixel_shortcut.hpp"
@@ -90,6 +95,10 @@ class DynamixelHandler : public rclcpp::Node {
         void CallbackCmd_P_Velocity        (const DynamixelControlPVelocity& msg);
         void CallbackCmd_P_Position        (const DynamixelControlPPosition& msg);
         void CallbackCmd_P_ExtendedPosition(const DynamixelControlPExtendedPosition& msg);
+        void CallbackCmd_Pro_Current         (const DynamixelControlProCurrent& msg);
+        void CallbackCmd_Pro_Velocity        (const DynamixelControlProVelocity& msg);
+        void CallbackCmd_Pro_Position        (const DynamixelControlProPosition& msg);
+        void CallbackCmd_Pro_ExtendedPosition(const DynamixelControlProExtendedPosition& msg);
         void CallbackCmd_Status (const DynamixelStatus& msg); 
         void CallbackCmd_Goal   (const DynamixelGoal& msg); 
         void CallbackCmd_Gain   (const DynamixelGain& msg); 
@@ -97,6 +106,7 @@ class DynamixelHandler : public rclcpp::Node {
         // void CallbackExtra (const DynamixelExtra& msg);  // todo
         void CallbackCmdsX               (const DxlCommandsX::SharedPtr msg);
         void CallbackCmdsP               (const DxlCommandsP::SharedPtr msg);
+        void CallbackCmdsPro             (const DxlCommandsPro::SharedPtr msg);
         void CallbackCmdsAll             (const DxlCommandsAll::SharedPtr msg);
 
         //* ROS publisher subscriber instance
@@ -120,12 +130,17 @@ class DynamixelHandler : public rclcpp::Node {
         rclcpp::Subscription<DynamixelControlPVelocity>::SharedPtr         sub_ctrl_p_vel_;
         rclcpp::Subscription<DynamixelControlPPosition>::SharedPtr         sub_ctrl_p_pos_;
         rclcpp::Subscription<DynamixelControlPExtendedPosition>::SharedPtr sub_ctrl_p_epos_;
+        rclcpp::Subscription<DynamixelControlProCurrent>::SharedPtr          sub_ctrl_pro_cur_;
+        rclcpp::Subscription<DynamixelControlProVelocity>::SharedPtr         sub_ctrl_pro_vel_;
+        rclcpp::Subscription<DynamixelControlProPosition>::SharedPtr         sub_ctrl_pro_pos_;
+        rclcpp::Subscription<DynamixelControlProExtendedPosition>::SharedPtr sub_ctrl_pro_epos_;
         rclcpp::Subscription<DynamixelStatus>::SharedPtr  sub_status_;
         rclcpp::Subscription<DynamixelGoal>::SharedPtr    sub_goal_;
         rclcpp::Subscription<DynamixelGain>::SharedPtr    sub_gain_;
         rclcpp::Subscription<DynamixelLimit>::SharedPtr   sub_limit_;
         rclcpp::Subscription<DxlCommandsX>::SharedPtr sub_dxl_x_cmds_;
         rclcpp::Subscription<DxlCommandsP>::SharedPtr sub_dxl_p_cmds_;
+        rclcpp::Subscription<DxlCommandsPro>::SharedPtr sub_dxl_pro_cmds_;
         rclcpp::Subscription<DxlCommandsAll>::SharedPtr sub_dxl_all_cmds_;
 
         //* 各種のフラグとパラメータ
@@ -133,19 +148,17 @@ class DynamixelHandler : public rclcpp::Node {
         unsigned int  ratio_mainloop_   = 100; // 0の時は初回のみ
         unsigned int  auto_remove_count_ = 0;
         unsigned int  width_log_ = 7;
-        bool use_split_write_     = false;
-        bool use_split_read_      = false;
-        bool use_fast_read_       = false;
         map<string, bool> verbose_; // 各種のverboseフラグ
                     bool  verbose_callback_ = false;
-        double default_profile_vel_deg_s_ = 0.0;
-        double default_profile_acc_deg_ss_ = 0.0;
-        double default_return_delay_time_us_ = 0.0;
+        map<string, double> default_;
         bool do_clean_hwerr_ = false;
         bool do_torque_on_   = false;
         bool do_pub_pre_all_ = true;
         bool do_torque_off_  = true;
         bool do_stop_end_    = true;
+        bool use_split_write_     = false;
+        bool use_split_read_      = false;
+        bool use_fast_read_       = false;
 
         //* Dynamixelとの通信
         DynamixelCommunicator dyn_comm_;
