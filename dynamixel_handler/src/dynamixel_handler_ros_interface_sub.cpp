@@ -36,6 +36,16 @@ void DynamixelHandler::CallbackCmdsP(const DxlCommandsP::SharedPtr msg) {
     CallbackCmd_Gain  (msg->gain);  // Pシリーズ縛りを入れる
     CallbackCmd_Limit (msg->limit); // Pシリーズ縛りを入れる
 }
+void DynamixelHandler::CallbackCmdsPro(const DxlCommandsPro::SharedPtr msg) {
+    if ( verbose_callback_ ) ROS_INFO("=====================================");
+    CallbackCmd_Status(msg->status);  // Pシリーズ縛りを入れる
+    CallbackCmd_Pro_Current(msg->current_control);
+    CallbackCmd_Pro_Velocity(msg->velocity_control);
+    CallbackCmd_Pro_Position(msg->position_control);
+    CallbackCmd_Pro_ExtendedPosition(msg->extended_position_control);
+    CallbackCmd_Gain  (msg->gain);  // Pシリーズ縛りを入れる
+    CallbackCmd_Limit (msg->limit); // Pシリーズ縛りを入れる
+}
 void DynamixelHandler::CallbackCmdsAll(const DxlCommandsAll::SharedPtr msg) {
     if ( verbose_callback_ ) ROS_INFO("=====================================");
     CallbackCmd_Status(msg->status);
@@ -303,6 +313,79 @@ void DynamixelHandler::CallbackCmd_P_ExtendedPosition(const DynamixelControlPExt
     );
 }
 
+
+
+void DynamixelHandler::CallbackCmd_Pro_Current(const DynamixelControlProCurrent& msg) {
+    if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
+    if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Current ctrl(Pro), ID"));
+    vector<uint16_t> id_list(msg.id_list);
+    for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_PRO) ) { // SERIES_PRO か dummy であることを確認
+        if(verbose_callback_) ROS_WARN("  ID [%d] is not Pro series", ID);
+        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
+    }
+    for ( auto ID : id_list ) if(ID<255) ChangeOperatingMode(ID, OPERATING_MODE_CURRENT);
+    CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
+        .set__current_ma(msg.current_ma)
+    );
+}
+
+void DynamixelHandler::CallbackCmd_Pro_Velocity(const DynamixelControlProVelocity& msg) {
+    if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
+    if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Velocity ctrl(Pro), ID"));
+    vector<uint16_t> id_list(msg.id_list);
+    for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_PRO) ) { // SERIES_PRO か dummy であることを確認
+        if(verbose_callback_) ROS_WARN("  ID [%d] is not Pro series", ID);
+        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
+    }
+    for ( auto ID : id_list ) if(ID<255) ChangeOperatingMode(ID, OPERATING_MODE_VELOCITY);
+    CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
+        .set__current_ma(msg.current_ma)
+        .set__velocity_deg_s(msg.velocity_deg_s)
+        .set__profile_acc_deg_ss(msg.acceleration_deg_ss)
+    );
+}
+
+void DynamixelHandler::CallbackCmd_Pro_Position(const DynamixelControlProPosition& msg) {
+    if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
+    if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Position ctrl(Pro), ID"));
+    vector<uint16_t> id_list(msg.id_list);
+    for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_PRO) ) { // SERIES_PRO か dummy であることを確認
+        if(verbose_callback_) ROS_WARN("  ID [%d] is not Pro series", ID);
+        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
+    }
+    for ( auto ID : id_list ) if(ID<255) ChangeOperatingMode(ID, OPERATING_MODE_POSITION);
+    CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
+        .set__current_ma(msg.current_ma)
+        .set__position_deg(msg.position_deg)
+        .set__velocity_deg_s(msg.velocity_deg_s)
+        .set__profile_acc_deg_ss(msg.acceleration_deg_ss)
+    );
+}
+
+void DynamixelHandler::CallbackCmd_Pro_ExtendedPosition(const DynamixelControlProExtendedPosition& msg) {
+    if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
+    if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Extended Position ctrl(Pro), ID"));
+    vector<uint16_t> id_list(msg.id_list);
+    for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_PRO) ) { // SERIES_PRO か dummy であることを確認
+        if(verbose_callback_) ROS_WARN("  ID [%d] is not Pro series", ID);
+        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
+    }
+    vector<double> position_deg(msg.position_deg);
+    if ( size_t N_rot=msg.rotation.size(); N_rot==0 || N_rot==id_list.size() ) {
+        if (position_deg.size() < N_rot) position_deg.resize(N_rot); // 0埋め拡張
+        for ( size_t i=0; i<N_rot; i++ ) position_deg[i] += msg.rotation[i]*360;
+    } else { // 0 < N_rot < id_list.size() の場合は不適
+        if (verbose_callback_) ROS_WARN("   Field [rotation] is size mismatch");
+    }
+    for ( auto ID : id_list ) if(ID<255) ChangeOperatingMode(ID, OPERATING_MODE_EXTENDED_POSITION);
+    CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
+        .set__current_ma(msg.current_ma)
+        .set__position_deg(position_deg)
+        .set__velocity_deg_s(msg.velocity_deg_s)
+        .set__profile_vel_deg_s(msg.velocity_deg_s)
+        .set__profile_acc_deg_ss(msg.acceleration_deg_ss)
+    );
+}
 constexpr auto warn_s = "(size mismatch)";
 constexpr auto warn_n = "(nan/inf value input)";
 bool is_valid(const vector<double>& vec) { return std::any_of(vec.begin(), vec.end(), [](auto x){ return std::isfinite(x); }); }

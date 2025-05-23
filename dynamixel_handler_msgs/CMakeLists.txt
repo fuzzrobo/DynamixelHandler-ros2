@@ -16,6 +16,7 @@ set(msg_files
   "msg/DxlStates.msg"
   "msg/DxlCommandsX.msg"
   "msg/DxlCommandsP.msg"
+  "msg/DxlCommandsPro.msg"
   "msg/DxlCommandsAll.msg"
 
   "msg/DynamixelStatus.msg"
@@ -46,6 +47,10 @@ set(msg_files
   "msg/DynamixelControlPVelocity.msg"
   "msg/DynamixelControlPPosition.msg"
   "msg/DynamixelControlPExtendedPosition.msg"
+  "msg/DynamixelControlProCurrent.msg"
+  "msg/DynamixelControlProVelocity.msg"
+  "msg/DynamixelControlProPosition.msg"
+  "msg/DynamixelControlProExtendedPosition.msg"
 
   "msg/DxlExternalPort.msg"
 )

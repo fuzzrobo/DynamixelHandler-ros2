@@ -49,16 +49,19 @@ bool DynamixelHandler::AddDynamixel(id_t id){
 
     auto dyn_model = dyn_comm_.tryRead(AddrCommon::model_number, id);
     switch ( dynamixel_series(dyn_model) ) { 
-        case SERIES_X: ROS_INFO("   *  X  series servo ID [%d] is found", id);
-                        model_[id] = dyn_model;
+        case SERIES_X:   ROS_INFO("   *  X  series servo ID [%d] is %s", id, (use_["x"] ? "found" : "ignored"));
+            if ( !use_["x"] ) return false;
+            model_[id] = dyn_model;
             series_[id] = SERIES_X;
             id_set_.insert(id); break;
-        case SERIES_P: ROS_INFO("   *  P  series servo ID [%d] is found (include pro plus series)", id);
+        case SERIES_P:   ROS_INFO("   *  P  series servo ID [%d] is %s", id, (use_["p"] ? "found" : "ignored"));
+            if ( !use_["p"] ) return false;
             model_[id] = dyn_model;
             series_[id] = SERIES_P;
             id_set_.insert(id); break;
-        case SERIES_PRO: ROS_INFO("   * PRO series servo ID [%d] is found", id);
-                        model_[id] = dyn_model;
+        case SERIES_PRO: ROS_INFO("   * PRO series servo ID [%d] is %s", id, (use_["pro"] ? "found" : "ignored"));
+            if ( !use_["pro"] ) return false;
+            model_[id] = dyn_model;
             series_[id] = SERIES_PRO;
             id_set_.insert(id); break;
         default: ROS_WARN("   * No supported model [%d] servo ID [%d] is found, ignored", (int)dyn_model, id);

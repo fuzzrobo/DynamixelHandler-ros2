@@ -94,6 +94,9 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     this->get_parameter_or("default/profile_acc", default_["profile_acc_deg_ss"], 600.0);
     this->get_parameter_or("default/return_delay_time", default_["return_delay_time_us"], 0.0);
     // id_set_の作成に関連するもの    
+    this->get_parameter_or("init/uesd_servo_series.X", use_["x"], true);
+    this->get_parameter_or("init/uesd_servo_series.P", use_["p"], false);
+    this->get_parameter_or("init/uesd_servo_series.Pro", use_["pro"], false);
     int num_expected; this->get_parameter_or("init/expected_servo_num"     , num_expected, 0);
     int times_retry ; this->get_parameter_or("init/servo_auto_search.retry_times", times_retry , 5);
     int id_min      ; this->get_parameter_or("init/servo_auto_search.min_id"     , id_min      , 1);
@@ -102,6 +105,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     if ( num_expected>0 ) ROS_INFO(" '%d' servo(s) are expected", num_expected);
     else                 {ROS_WARN(" Expected servo number is not set."); ROS_WARN(" > Free number of Dynamixel is allowed");}
     ROS_INFO(" Auto scanning Dynamixel (id range '%d' to '%d') ...", id_min, id_max);
+    ROS_INFO(" > series: X [%suse], P [%suse], PRO [%suse]", use_["x"]?"":"no ", use_["p"]?"":"no ", use_["pro"]?"":"no ");
     /* *********************** dynamixelを探索し，初期化する ***********************************/
     /* */for (const auto id : dummy_id_list) DummyUpDynamixel(id);
     /* */ScanDynamixels(id_min, id_max, num_expected, times_retry);
@@ -117,31 +121,37 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     }
     ROS_INFO("  ... Finish scanning Dynamixel");
 
+    // Subscriber / Publisherの設定
     auto callback_group_subscriber = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     rclcpp::SubscriptionOptions sub_options;
     sub_options.callback_group = callback_group_subscriber;
-    // Subscriber / Publisherの設定
     // 他のノードとの通信用
     sub_dxl_all_cmds_= create_subscription<DxlCommandsAll>("dynamixel/commands/all", 10, bind(&DynamixelHandler::CallbackCmdsAll, this, _1));
-    sub_dxl_x_cmds_  = create_subscription<DxlCommandsX>("dynamixel/commands/x", 10, bind(&DynamixelHandler::CallbackCmdsX, this, _1));
-    sub_dxl_p_cmds_  = create_subscription<DxlCommandsP>("dynamixel/commands/p", 10, bind(&DynamixelHandler::CallbackCmdsP, this, _1));
+    if(use_["x"]) sub_dxl_x_cmds_  = create_subscription<DxlCommandsX>("dynamixel/commands/x", 10, bind(&DynamixelHandler::CallbackCmdsX, this, _1));
+    if(use_["p"]) sub_dxl_p_cmds_  = create_subscription<DxlCommandsP>("dynamixel/commands/p", 10, bind(&DynamixelHandler::CallbackCmdsP, this, _1));
+    if(use_["pro"]) sub_dxl_pro_cmds_  = create_subscription<DxlCommandsPro>("dynamixel/commands/pro", 10, bind(&DynamixelHandler::CallbackCmdsPro, this, _1));
     pub_dxl_states_ = create_publisher<DxlStates>   ("dynamixel/states", 4);
     // デバッグ用
     sub_shortcut_ = create_subscription<DynamixelShortcut>("dynamixel/shortcut", 4, bind(&DynamixelHandler::CallbackShortcut, this, _1));
     pub_debug_ = create_publisher<DynamixelDebug>("dynamixel/debug", 4);
     if ( !no_use_command_line ){ // コマンドラインからの操作用
-        sub_ctrl_x_pwm_  = create_subscription<DynamixelControlXPwm>                 ("dynamixel/command/x/pwm_control",                   4, bind(&DynamixelHandler::CallbackCmd_X_Pwm, this, _1));
-        sub_ctrl_x_cur_  = create_subscription<DynamixelControlXCurrent>             ("dynamixel/command/x/current_control",               4, bind(&DynamixelHandler::CallbackCmd_X_Current, this, _1));
-        sub_ctrl_x_vel_  = create_subscription<DynamixelControlXVelocity>            ("dynamixel/command/x/velocity_control",              4, bind(&DynamixelHandler::CallbackCmd_X_Velocity, this, _1));
-        sub_ctrl_x_pos_  = create_subscription<DynamixelControlXPosition>            ("dynamixel/command/x/position_control",              4, bind(&DynamixelHandler::CallbackCmd_X_Position, this, _1));
-        sub_ctrl_x_epos_ = create_subscription<DynamixelControlXExtendedPosition>    ("dynamixel/command/x/extended_position_control",     4, bind(&DynamixelHandler::CallbackCmd_X_ExtendedPosition, this, _1));
-        sub_ctrl_x_cpos_ = create_subscription<DynamixelControlXCurrentBasePosition> ("dynamixel/command/x/current_base_position_control", 4, bind(&DynamixelHandler::CallbackCmd_X_CurrentBasePosition, this, _1));
+        if(use_["x"]) sub_ctrl_x_pwm_  = create_subscription<DynamixelControlXPwm>                 ("dynamixel/command/x/pwm_control",                   4, bind(&DynamixelHandler::CallbackCmd_X_Pwm, this, _1));
+        if(use_["x"]) sub_ctrl_x_cur_  = create_subscription<DynamixelControlXCurrent>             ("dynamixel/command/x/current_control",               4, bind(&DynamixelHandler::CallbackCmd_X_Current, this, _1));
+        if(use_["x"]) sub_ctrl_x_vel_  = create_subscription<DynamixelControlXVelocity>            ("dynamixel/command/x/velocity_control",              4, bind(&DynamixelHandler::CallbackCmd_X_Velocity, this, _1));
+        if(use_["x"]) sub_ctrl_x_pos_  = create_subscription<DynamixelControlXPosition>            ("dynamixel/command/x/position_control",              4, bind(&DynamixelHandler::CallbackCmd_X_Position, this, _1));
+        if(use_["x"]) sub_ctrl_x_epos_ = create_subscription<DynamixelControlXExtendedPosition>    ("dynamixel/command/x/extended_position_control",     4, bind(&DynamixelHandler::CallbackCmd_X_ExtendedPosition, this, _1));
+        if(use_["x"]) sub_ctrl_x_cpos_ = create_subscription<DynamixelControlXCurrentBasePosition> ("dynamixel/command/x/current_base_position_control", 4, bind(&DynamixelHandler::CallbackCmd_X_CurrentBasePosition, this, _1));
 
-        sub_ctrl_p_pwm_  = create_subscription<DynamixelControlPPwm>             ("dynamixel/command/p/pwm_control",               4, bind(&DynamixelHandler::CallbackCmd_P_Pwm, this, _1));
-        sub_ctrl_p_cur_  = create_subscription<DynamixelControlPCurrent>         ("dynamixel/command/p/current_control",           4, bind(&DynamixelHandler::CallbackCmd_P_Current, this, _1));
-        sub_ctrl_p_vel_  = create_subscription<DynamixelControlPVelocity>        ("dynamixel/command/p/velocity_control",          4, bind(&DynamixelHandler::CallbackCmd_P_Velocity, this, _1));
-        sub_ctrl_p_pos_  = create_subscription<DynamixelControlPPosition>        ("dynamixel/command/p/position_control",          4, bind(&DynamixelHandler::CallbackCmd_P_Position, this, _1));
-        sub_ctrl_p_epos_ = create_subscription<DynamixelControlPExtendedPosition>("dynamixel/command/p/extended_position_control", 4, bind(&DynamixelHandler::CallbackCmd_P_ExtendedPosition, this, _1));
+        if(use_["p"]) sub_ctrl_p_pwm_  = create_subscription<DynamixelControlPPwm>             ("dynamixel/command/p/pwm_control",               4, bind(&DynamixelHandler::CallbackCmd_P_Pwm, this, _1));
+        if(use_["p"]) sub_ctrl_p_cur_  = create_subscription<DynamixelControlPCurrent>         ("dynamixel/command/p/current_control",           4, bind(&DynamixelHandler::CallbackCmd_P_Current, this, _1));
+        if(use_["p"]) sub_ctrl_p_vel_  = create_subscription<DynamixelControlPVelocity>        ("dynamixel/command/p/velocity_control",          4, bind(&DynamixelHandler::CallbackCmd_P_Velocity, this, _1));
+        if(use_["p"]) sub_ctrl_p_pos_  = create_subscription<DynamixelControlPPosition>        ("dynamixel/command/p/position_control",          4, bind(&DynamixelHandler::CallbackCmd_P_Position, this, _1));
+        if(use_["p"]) sub_ctrl_p_epos_ = create_subscription<DynamixelControlPExtendedPosition>("dynamixel/command/p/extended_position_control", 4, bind(&DynamixelHandler::CallbackCmd_P_ExtendedPosition, this, _1));
+
+        if(use_["pro"]) sub_ctrl_pro_cur_  = create_subscription<DynamixelControlProCurrent>         ("dynamixel/command/pro/current_control",           4, bind(&DynamixelHandler::CallbackCmd_Pro_Current, this, _1));
+        if(use_["pro"]) sub_ctrl_pro_vel_  = create_subscription<DynamixelControlProVelocity>        ("dynamixel/command/pro/velocity_control",          4, bind(&DynamixelHandler::CallbackCmd_Pro_Velocity, this, _1));
+        if(use_["pro"]) sub_ctrl_pro_pos_  = create_subscription<DynamixelControlProPosition>        ("dynamixel/command/pro/position_control",          4, bind(&DynamixelHandler::CallbackCmd_Pro_Position, this, _1));
+        if(use_["pro"]) sub_ctrl_pro_epos_ = create_subscription<DynamixelControlProExtendedPosition>("dynamixel/command/pro/extended_position_control", 4, bind(&DynamixelHandler::CallbackCmd_Pro_ExtendedPosition, this, _1));
 
         sub_status_ = create_subscription<DynamixelStatus>   ("dynamixel/command/status", 4, bind(&DynamixelHandler::CallbackCmd_Status, this, _1));
         sub_goal_   = create_subscription<DynamixelGoal>     ("dynamixel/command/goal",   4, bind(&DynamixelHandler::CallbackCmd_Goal, this, _1));

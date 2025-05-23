@@ -148,6 +148,7 @@ class DynamixelHandler : public rclcpp::Node {
         unsigned int  ratio_mainloop_   = 100; // 0の時は初回のみ
         unsigned int  auto_remove_count_ = 0;
         unsigned int  width_log_ = 7;
+        map<string, bool> use_;
         map<string, bool> verbose_; // 各種のverboseフラグ
                     bool  verbose_callback_ = false;
         map<string, double> default_;
