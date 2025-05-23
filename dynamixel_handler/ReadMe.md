@@ -88,3 +88,28 @@ Fast Sync Read で 1~6 のサーボに read を送った状況で，ID:1モー�
 　- Fast Sync Read で指定するIDの順番を逆順にしたうえで，ID:1を断線させても問題は起きない．
 　- Fast Sync Read で指定するIDの順番を逆順にしたうえで，ID:6を断線させると問題が起きる．
 
+### Yシリーズ対応に向けて
+
+- 方針としては何とか頑張ってX, Pシリーズと共通化する方向で行きたい．
+- ただし，X, Pシリーズの方がYシリーズよりも機能が多いので，msgのfieldはYシリーズに合わせる形になるかも．
+
+Commands 系: 個別に用意すればいいので問題なし?
+  - goal: 順番は異なるが機能は同じ, profileのvelベースとtimeベースが分離してたりするが機能は同じ．
+    - 結局Goal系はIndirect Addressで再構築しないと難しそう．
+    - Profile_vel, Profile_accは, Profile_vel, Profile_acc, Profile_time, Profile_acc_timeの4つに分裂しているが，結局Drive_modeの設定でどのペアが使われるかが変わるので，以下のようにして他のシリーズと共用の形式にまとめられそう．
+    ```
+    float64[] profile_vel_deg_s  # こちらが埋まっている場合は drive_mode を velocity base　に
+    float64[] profile_acc_deg_ss # こちらが埋まっている場合は drive_mode を velocity base　に
+    float64[] profile_time_ms     # こちらが埋まっている場合は drive_mode を time base に + Yシリーズの場合はIndirect Address の方もvel->timeに書き換え
+    float64[] profile_acc_time_ms # こちらが埋まっている場合は drive_mode を time base に + Yシリーズの場合はIndirect Address の方もvel->timeに書き換え
+    ```
+  - offset: PWM, Current, Velocityについて謎の項目が生えてる．
+States 系: 1つのmsgに載せられるかは要検討
+  - gain: 順番は異なるが同じ
+  - present: 温度がモータとインバータで別れてる．他は同じ．項目を追加すれば対応可能．
+  - limit: 同上
+  - error: 種類の増加はともかく，エラーデータ構造が異なっている．種類増加は単純にフィールド追加で対応，データ構造はYシリーズのみ読み込み方を変えることで対応できそう．
+
+順番違い系はIndirectAddressで何とかするか...？
+
+エラークリア用のパケットが増えてる

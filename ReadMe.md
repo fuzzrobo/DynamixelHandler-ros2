@@ -2,9 +2,9 @@
 
 Robotis社の[Dynamixel](https://e-shop.robotis.co.jp/list.php?c_id=89)をROSから制御するための `dynamixel_handler`パッケージとその周辺パッケージを提供するリポジトリ.  
 
-ROS2のみ対応，ROS1 ver は[こちら](https://github.com/ROBOTIS-JAPAN-GIT/DynamixelHandler-ros1).ただし，開発が分離しているので機能はやや異なる．
+ROS2(Humble)のみ対応，ROS1 ver は[こちら](https://github.com/ROBOTIS-JAPAN-GIT/DynamixelHandler-ros1).ただし，開発が分離しているので機能はやや異なる．
 
-X, Pシリーズのみ対応，X320シリーズ，Yシリーズは順次対応予定．
+X, P, Proシリーズに対応，X320シリーズ，Yシリーズは順次対応予定．
 
 ## Table of Contents
   - [How to install](#how-to-install)
@@ -157,18 +157,18 @@ ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 [dynamixel_handler-1] 00000.00000:  Expected number of Dynamixel is not set. 
 [dynamixel_handler-1] 00000.00000:  > Free number of Dynamixel is allowed.
 [dynamixel_handler-1] 00000.00000:  Auto scanning Dynamixel (id range [0] to [30]) ...
-[dynamixel_handler-1] 00000.00000:    * P series servo id [1] is found 
-[dynamixel_handler-1] 00000.00000:    ID [1] is enabled torque 
-[dynamixel_handler-1] 00000.00000:    * X series servo id [6] is found 
+[dynamixel_handler-1] 00000.00000:  > series: X [use], P [no use], PRO [no use]
+[dynamixel_handler-1] 00000.00000:   * P series servo id [1] is ignored 
+[dynamixel_handler-1] 00000.00000:   * X series servo id [6] is found 
 [dynamixel_handler-1] 00000.00000:    ID [6] is enabled torque 
-[dynamixel_handler-1] 00000.00000:    * X series servo id [7] is found 
+[dynamixel_handler-1] 00000.00000:   * X series servo id [7] is found 
 [dynamixel_handler-1] 00000.00000:    ID [7] is enabled torque 
 [dynamixel_handler-1] 00000.00000:  ... Finish scanning Dynamixel 
 [dynamixel_handler-1] 00000.00000: ..... DynamixelHandler is initialized 
-[dynamixel_handler-1] 00000.00000: Loop [0]: write=0.00ms read=11.72ms(p/f=100%/100%) 
-[dynamixel_handler-1] 00000.00000: Loop [300]: write=0.01ms read=5.55ms(p/f=100%/100%) 
-[dynamixel_handler-1] 00000.00000: Loop [600]: write=0.01ms read=5.47ms(p/f=100%/100%) 
-[dynamixel_handler-1] 00000.00000: Loop [900]: write=0.01ms read=5.30ms(p/f=100%/100%)
+[dynamixel_handler-1] 00000.00000: time=0.03ms/loop(5.11ms/read), success=100%(full=100%) 
+[dynamixel_handler-1] 00000.00000: time=0.50ms/loop(5.11ms/read), success=100%(full=100%)  
+[dynamixel_handler-1] 00000.00000: time=0.56ms/loop(5.11ms/read), success=100%(full=100%)  
+[dynamixel_handler-1] 00000.00000: time=0.89ms/loop(5.11ms/read), success=100%(full=100%) 
 ```
 
 連結したDynamixelが自動で探索され，見つかったDynamixelの初期設定が行われる．   
@@ -299,7 +299,7 @@ IDにかかわらずすべてのサーボが上記の動作をしているはず
 
 一般的なユースケースでは以下の2つの topic を利用すれば十分である．
 
-####  `/dynamixel/states`(dynamixel_handler_msgs::msg::DynamixelStates)
+####  `/dynamixel/states`([dynamixel_handler_msgs::msg::DxlStates](#./dynamixel_handler_msgs#dynamixel_handler_msgsmsgdxlstates-type))
 連結したサーボすべての状態をまとめた topic, `dynaimxel_handler`からpublishされる．
 
 <details>
@@ -307,66 +307,66 @@ IDにかかわらずすべてのサーボが上記の動作をしているはず
 
 ```yaml 
 $ ros2 topic echo --flow-style /dynamixel/states #このtopicはコマンドラインから見る想定ではない．
-stamp: 0000
+stamp: {sec: 0, nanosec: 0} # Builtin_interfaces/Time型
 status: # DynamixelStatus型, pub_ratio/status に一回 read される．．
    id_list: [1, 2, 3, 4]
-   torque: [true, false, false, false]
-   error: [false, false, false, false]
-   ping: [true, true, true, true]
-   mode: ['position', 'velocity', 'current', 'velocity']
+   torque: [true, false, false, false] # トルクが入ってるか
+   error: [false, false, false, false] # ハードウェアエラーが起きているか
+   ping: [true, true, true, true]      # サーボが応答しているか
+   mode: ['position', 'velocity', 'current', 'velocity'] # 制御モード
 present: # DynamixelPresent型, pub_ratio/present.~ に一回 read され，1要素でも読み取ったら埋める
    id_list: [1, 2, 3, 4]
-   pwm_percent: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.pwm に一回更新される．
-   current_ma: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.current に一回更新される．
-   velocity_deg_s: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.velocity に一回更新される．
-   position_deg: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.position に一回更新される．
-   vel_trajectory_deg_s: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.vel_trajectory に一回更新される．
-   pos_trajectory_deg: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.pos_trajectory に一回更新される．
-   input_voltage_v: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.input_voltage に一回更新される．
-   temperature_degc: [0.0, 0.0, 0.0, 0.0] # pub_ratio/present.temperature に一回更新される．
+   pwm_percent: [.nan, .nan, .nan, .nan]      # 現在のPWM値, Proシリーズは無し．
+   current_ma: [0.0, 0.0, 0.0, 0.0]           # 現在の電流値
+   velocity_deg_s: [0.0, 0.0, 0.0, 0.0]       # 現在の速度
+   position_deg: [0.0, 0.0, 0.0, 0.0]         # 現在の位置
+   vel_trajectory_deg_s: [0.0, 0.0, 0.0, 0.0] # profileによって生成された理想の速度，Proシリーズは無し．
+   pos_trajectory_deg: [0.0, 0.0, 0.0, 0.0]   # profileによって生成された理想の位置, Proシリーズは無し．
+   input_voltage_v: [0.0, 0.0, 0.0, 0.0]      # 現在の入力電圧
+   temperature_degc: [0.0, 0.0, 0.0, 0.0]     # 現在の温度
 goal: # DynamixelGoal型, pub_ratio/goalに一回 read され，読み取ったら埋める
    id_list: [1, 2, 3, 4]
-   pwm_percent: [0.0, 0.0, 0.0, 0.0]
-   current_ma: [0.0, 0.0, 0.0, 0.0]
-   velocity_deg_s: [0.0, 0.0, 0.0, 0.0]
-   profile_acc_deg_ss: [0.0, 0.0, 0.0, 0.0]
-   profile_vel_deg_s: [0.0, 0.0, 0.0, 0.0]
-   position_deg: [0.0, 0.0, 0.0, 0.0]
+   pwm_percent: [.nan, .nan, .nan, .nan]     # 目標PWM値, Proシリーズは無し．
+   current_ma: [0.0, 0.0, 0.0, 0.0]          # 目標電流値
+   velocity_deg_s: [0.0, 0.0, 0.0, 0.0]      # 目標速度
+   profile_acc_deg_ss: [0.0, 0.0, 0.0, 0.0]  # profileの加速度，Proシリーズのgoal_accelerationに対応．
+   profile_vel_deg_s: [0.0, 0.0, 0.0, 0.0]   # profileの速度，Proシリーズは無し．
+   position_deg: [0.0, 0.0, 0.0, 0.0]　　　　　　 # 目標位置
 limit: # DynamixelLimit型, pub_ratio/limitに一回 read され，読み取りに成功したら埋める．
    id_list: []
-   temperature_limit_degc: []
-   max_voltage_limit_v: []
-   min_voltage_limit_v: []
-   pwm_limit_percent: []
-   current_limit_ma: []
-   acceleration_limit_deg_ss: []
-   velocity_limit_deg_s: []
-   max_position_limit_deg: []
-   min_position_limit_deg: []
+   temperature_limit_degc: []    # 温度上限 
+   max_voltage_limit_v: []       # 入力電圧上限 
+   min_voltage_limit_v: []       # 入力電圧下限
+   pwm_limit_percent: []         # pwm上限, goal_pwmはこれより大きな値を書き込めない, Proシリーズは無し．
+   current_limit_ma: []          # 電流値上限, goal_currentはこれより大きな値を書き込めない
+   acceleration_limit_deg_ss: [] # 加速度上限, profile_accelerationはこれより大きな値を書き込めない
+   velocity_limit_deg_s: []      # 速度上限, goal_velocityはこれより大きな値を書き込めない
+   max_position_limit_deg: []    # 位置上限, goal_positionはこれより大きな値を書き込めない
+   min_position_limit_deg: []    #　位置下限, goal_positionはこれより小さな値を書き込めない
 gain: # DynamixelGain型, pub_ratio/gainに一回 read され，読み取りに成功したら埋める．
    id_list: [1, 2, 3, 4]
-   velocity_i_gain_pulse: [0, 0, 0, 0]
-   velocity_p_gain_pulse: [0, 0, 0, 0]
-   position_d_gain_pulse: [0, 0, 0, 0]
-   position_i_gain_pulse: [0, 0, 0, 0]
-   position_p_gain_pulse: [0, 0, 0, 0]
-   feedforward_2nd_gain_pulse: [0, 0, 0, 0]
-   feedforward_1st_gain_pulse: [0, 0, 0, 0]
+   velocity_i_gain_pulse: [0, 0, 0, 0]      # 詳細はe-manualを参照
+   velocity_p_gain_pulse: [0, 0, 0, 0]      # 詳細はe-manualを参照
+   position_d_gain_pulse: [0, 0, 0, 0]      # 詳細はe-manualを参照, Proシリーズは無し．
+   position_i_gain_pulse: [0, 0, 0, 0]      # 詳細はe-manualを参照, Proシリーズは無し．
+   position_p_gain_pulse: [0, 0, 0, 0]      # 詳細はe-manualを参照
+   feedforward_2nd_gain_pulse: [0, 0, 0, 0] # 詳細はe-manualを参照, Proシリーズは無し．
+   feedforward_1st_gain_pulse: [0, 0, 0, 0] # 詳細はe-manualを参照, Proシリーズは無し．
 error: # DynamxielError型, pub_ratio/errorに一回 read され，読み取りに成功したら埋める．
    id_list: [1, 2, 3, 4]
-   input_voltage: [false, false, false, false]
-   motor_hall_sensor: [false, false, false, false]
-   overheating: [false, false, false, false]
-   motor_encoder: [false, false, false, false]
-   electronical_shock: [false, false, false, false]
-   overload: [false, false, false, false]
+   input_voltage: [false, false, false, false]      #　入力電圧が上限下限に引っかかっている
+   motor_hall_sensor: [false, false, false, false]  # ホールセンサの異常
+   overheating: [false, false, false, false]        # 現在温度が温度上限を超えている
+   motor_encoder: [false, false, false, false]      # エンコーダの異常
+   electronical_shock: [false, false, false, false] # 電子回路の異常
+   overload: [false, false, false, false]           # 過負荷，判定アルゴリズムは不明
 extra: # DynamixelExtra型, 未実装
   # 未実装につき略
 ```
 
 </details>
 
-#### `/dynamixel/commands/x`(dynamixel_handler_msgs::msg::DynamixelCommandsX)
+#### `/dynamixel/commands/x`([dynamixel_handler_msgs::msg::DxlCommandsX](#./dynamixel_handler_msgs#dynamixel_handler_msgsmsgdxlcommandsx-type))
 Xシリーズに対してまとめて指令する topic, `dynaimxel_handler`に subscribe される．
   
   <details>
@@ -403,11 +403,11 @@ current_base_position_control: # DynamixelControlXCurrentPosition型
    profile_vel_deg_s: [100.0]   # profile_velocity アドレスに 100 deg/s に相当するパルス値を書き込む．
    profile_acc_deg_ss: [1000.0] # profile_acceleration アドレスに 1000 deg/s^2 に相当するパルス値を書き込む．
 status: # DynamixelStatus型
-   id_list: []
-   torque: [] # torque_onコマンド, torque_offコマンドと同等
-   error: [] # clear_errorコマンドと同等
-   ping: [] # add_id コマンド, remove_id コマンドと同等
-   mode: [] # 各control系のコマンドと同等
+   id_list: [1,2]
+   torque: [true, false] # 1番のサーボはトルクON, 2番のサーボはトルクOFF
+   error: [false, true] # trueでもfalseでもエラー解除をトライ
+   ping: [] # trueなら対応するIDを追加，falseなら削除
+   mode: [] # 文字列指定で制御モードの変更, 詳細はDynamixelStatus型の説明を参照
 gain: # DynamixelGain型
    id_list: [1,2,3,4]
    velocity_i_gain_pulse: []
@@ -447,17 +447,19 @@ extra: # DynamixelExtra型, 未実装
 #### プログラム向けの統合的なステータス情報
 
 - **`/dynamixel/states`** ([`DxlStates`型](./dynamixel_handler_msgs#dynamixel_handler_msgsmsgdxlstates-type))  
-  Xシリーズ・Pシリーズ共通のサーボ状態をまとめた topic．以下の field からなる：
+  全シリーズ共通のサーボ状態をまとめた topic．以下の field からなる：
   - `stamp`: データが読み取れた時刻  
-  - `status`: `/dynamixel/state/status`に相当し，`pub_ratio/status`に一回データが埋められる．  
-  - `present`: `/dynamixel/state/present`に相当し，`pub_ratio/present.{~}`の最小値に一回埋められる．  
-  - `goal` : `/dynamixel/state/goal`に相当, `pub_ratio/goal`に一回データが埋められる．  
-  - `gain` : `/dynamixel/state/gain`に相当, `pub_ratio/gain`に一回データが埋められる．  
-  - `limit`: `/dynamixel/state/limit`に相当, `pub_ratio/limit`に一回データが埋められる．  
-  - `error`: `/dynamixel/state/error`に相当, `pub_ratio/error`に一回データが埋められる．
+  - `status`: [`/dynamixel/state/status`](./dynamixel_handler_msgs#dynamixelstatus-type)に相当し，`pub_ratio/status`に一回データが埋められる．  
+  - `present`: [`/dynamixel/state/present`](./dynamixel_handler_msgs#dynamixelpresent-type)に相当し，`pub_ratio/present.{~}`の最小値に一回埋められる．  
+  - `goal` : [`/dynamixel/state/goal`](./dynamixel_handler_msgs#dynamixelgoal-type)に相当, `pub_ratio/goal`に一回データが埋められる．  
+  - `gain` : [`/dynamixel/state/gain`](./dynamixel_handler_msgs#dynamixelgain-type)に相当, `pub_ratio/gain`に一回データが埋められる．  
+  - `limit`: [`/dynamixel/state/limit`](./dynamixel_handler_msgs#dynamixellimit-type)に相当, `pub_ratio/limit`に一回データが埋められる．  
+  - `error`: [`/dynamixel/state/error`](./dynamixel_handler_msgs#dynamixelerror-type)に相当, `pub_ratio/error`に一回データが埋められる．
  
+　 ※　シリーズ共通で扱うため，いくつかの field は address 名が読み違えられていたり，`.nan`で埋まっている場合がある．詳細は各 field に相当する topic の説明を参照． 
+
 - **`/dynamixel/external_port/read`** ([`DxlExternalPort`型](./dynamixel_handler_msgs#dynamixel_handler_msgsmsgdxlexternalport-type))    
-  XH540とPシリーズが持つExternal Port機能を扱うための topic．以下の field からなる:
+  XH540とP・Proシリーズが持つExternal Port機能を扱うための topic．以下の field からなる:
   - `stamp`: データが読み取れた時刻  
   - `id_list`: サーボのID
   - `port`: External Portのポート番号
@@ -468,7 +470,8 @@ extra: # DynamixelExtra型, 未実装
 
   field は[メッセージの定義](./dynamixel_handler_msgs/ReadMe.md)を参照．  
   基本的に，`id_list`フィールドの長さとそれ以外の field の長さは一致する．   
-  例外は`pub_outdated_present`パラメータが`false`が設定されている場合の`/dynaimxel/state/present`だけ．
+  例外は`pub_outdated_present`パラメータが`false`に設定されている場合の`/dynaimxel/state/present`だけであり，読み込まれなかった field は空配列となる．
+  各 topic の publish 周期は　[Parameters](#parameters) の章の[実行時の動作設定](#実行時の動作設定)の `pub_ratio/{~}` で決まる．
 
 - **`/dynamixel/state/status`** ([`DynamixelStatus`型](./dynamixel_handler_msgs#dynamixelstatus-type))  
   サーボの状態(トルク・エラー・ping・制御モード)を示す．     
@@ -526,17 +529,26 @@ Subscribe 時にデータが一時保存され，直後のメインループ内�
   - `gain`: `/dynamixel/command/gain`に相当  
   - `limit`: `/dynamixel/command/limit`に相当
 
+- **`/dynamixel/commands/pro`** ([`DxlCommandsPro`型](./dynamixel_handler_msgs#dynamixel_handler_msgsmsgdxlcommandspro-type))    
+  Proシリーズ用のコマンドを統合した topic．以下の field からなる： 
+  - `current_control`: `/dynamixel/command/pro/current_control`に相当  
+  - `velocity_control`: `/dynamixel/command/pro/velocity_control`に相当  
+  - `position_control`: `/dynamixel/command/pro/position_control`に相当  
+  - `extended_position_control`: `/dynamixel/command/pro/extended_position_control`に相当  
+  - `status`: `/dynamixel/command/status`に相当  
+  - `gain`: `/dynamixel/command/gain`に相当  
+  - `limit`: `/dynamixel/command/limit`に相当
+
 - **`/dynamixel/commands/all`** ([`DxlCommandsAll`型](./dynamixel_handler_msgs#dynamixel_handler_msgsmsgdxlcommandsall-type))  
-  X,Pシリーズを共通で扱うための topic. 以下の field からなる：
+  全シリーズを共通で扱うための topic. シリーズ共通で扱うため，`status.mode` field で制御モードを指定し`goal.~`で各種目標値を与える．以下の field からなる：
   - `status`: `/dynamixel/command/status`に相当  
   - `goal`: `/dynamixel/command/goal`に相当  
   - `gain`: `/dynamixel/command/gain`に相当  
   - `limit`: `/dynamixel/command/limit`に相当  
     ※ `{~}_control`系の field がないため制御モードの自動変更機能は無し.    
-      `status.mode`で個別モードを指定し`goal.~`で各種目標値を与える．
     
 - **`/dynamixel/external_port/write`** ([`DxlExternalPort`型](./dynamixel_handler_msgs#dynamixel_handler_msgsmsgdxlexternalport-type))    
-  XH540とPシリーズが持つExternal Port機能を扱うための topic．以下の field からなる:
+  XH540とP・Proシリーズが持つExternal Port機能を扱うための topic．以下の field からなる:
   - `stamp`: メッセージのタイムスタンプ  (無効)
   - `id_list`: 適用するサーボのID
   - `port`: 適用するExternal Portのポート番号
@@ -561,6 +573,12 @@ Subscribe 時にデータが一時保存され，直後のメインループ内�
   - **`/dynamixel/command/p/velocity_control`** ([`DynamixelControlPVelocity`型](./dynamixel_handler_msgs#dynamixelcontrolpvelocity-type))  
   - **`/dynamixel/command/p/position_control`** ([`DynamixelControlPPosition`型](./dynamixel_handler_msgs#dynamixelcontrolpposition-type))  
   - **`/dynamixel/command/p/extended_position_control`** ([`DynamixelControlPExtendedPosition`型](./dynamixel_handler_msgs#dynamixelcontrolpextendedposition-type))
+
+ **Proシリーズ用の制御コマンド** : 関連するgoal値の設定＋制御モードの変更を行う. 
+  - **`/dynamixel/command/pro/current_control`** ([`DynamixelControlProCurrent`型](./dynamixel_handler_msgs#dynamixelcontrolprocurrent-type))  
+  - **`/dynamixel/command/pro/velocity_control`** ([`DynamixelControlProVelocity`型](./dynamixel_handler_msgs#dynamixelcontrolprovelocity-type))  
+  - **`/dynamixel/command/pro/position_control`** ([`DynamixelControlProPosition`型](./dynamixel_handler_msgs#dynamixelcontrolproposition-type))  
+  - **`/dynamixel/command/pro/extended_position_control`** ([`DynamixelControlProExtendedPosition`型](./dynamixel_handler_msgs#dynamixelcontrolproextendedposition-type))
 
   **共通コマンド**
   - **`/dynamixel/command/status`** ([`DynamixelStatus`型](./dynamixel_handler_msgs#dynamixelstatus-type))       
@@ -636,7 +654,7 @@ Subscribe 時にデータが一時保存され，直後のメインループ内�
 # サーボの初期設定
   init/dummy_servo_list: [-1] # ダミーのサーボを作成するIDのリスト,同じIDのサーボが存在する場合でもダミーが優先される． [0, 254]の範囲外は無視される．
   init/baudrate_auto_set: false # 探索前に，全てのサーボと全てのBaudrateに対して，baudrateの書き込みをするかどうか
-  init/uesd_servo_series: {X: false, P: false, Pro: true} # 使用するサーボのシリーズ
+  init/uesd_servo_series: {X: true, P: false, Pro: false} # 使用するサーボのシリーズ
   init/expected_servo_num: 0
   init/servo_auto_search: {min_id: 0, max_id: 10, retry_times: 0} # サーボのIDを自動で探索するかどうか
   init/hardware_error_auto_clean: true # 初期化時に Hardware error を自動でクリアするかどうか
@@ -776,7 +794,7 @@ Dynamixelの動作に直接関連しない，Optional 機能の設定．
  - (ping)         : Control table の情報ではないが，statusとして扱っている．pingが通るかどうか．
  - (error)        : Control table の情報ではないが，statusとして扱っている．何らかのエラーを持っているかどうか．
  - operating_mode : サーボの制御モード，PWM, 電流制御, 速度制御, 位置制御, 拡張位置制御, 電流制御付き位置制御の6つのモードがある．
- -  
+ 
 ##### Subscrib / Write  
 Xシリーズの場合，`/dynamixel/commands/x`の`status`フィールド or `/dynamixel/command/status`によって設定され，`loop_rate`の周期で書き込まれる．
 operationg_modeのみ，対応する`/dynamixel/command/x/{~}_control`系の topic を subscribe することでも自動で設定される． 
@@ -789,7 +807,8 @@ operationg_modeのみ，対応する`/dynamixel/command/x/{~}_control`系の top
  - goal_velocity        : 目標速度, 速度制御モードでのみ有効
  - goal_position        : 目標角度, 位置制御モードと拡張位置制御モード，電流制御付き位置制御で有効
  - profile_acceleration : 最大加速度, 速度制御・位置制御・拡張位置制御・電流制御付き位置制御モードで有効
- - profile_velocity     : 目標速度値, 位置制御モードと拡張位置制御モード，電流制御付き位置制御で有効 
+   - (goal_acceleration): Proシリーズでの表記.
+ - profile_velocity     : 目標速度値, 位置制御モードと拡張位置制御モード，電流制御付き位置制御で有効 (Proシリーズにはないが，goal_velocityで代用できる)
 
 ##### Subscrib / Write
 Xシリーズの場合，`/dynamixel/commands/x`or `/dynamixel/command/x/{~}_control`系の topic  or `/dynamixel/command/goal`によって設定され，`loop_rate`の周期で書き込まれる．   
@@ -797,12 +816,12 @@ Xシリーズの場合，`/dynamixel/commands/x`or `/dynamixel/command/x/{~}_con
 `loop_rate`の内`pub_ratio/goal`毎に1回の周期で読みだされ，`/dynamixel/states`の`goal`フィールド and `/dynamixel/state/goal`として publish される．
 
 ### 現在値 (present)
- - present_pwm          : 現在のPWM値
+ - present_pwm          : 現在のPWM値 (Proシリーズにはない)
  - present_current      : 現在の電流値
  - present_velocity     : 現在の速度
  - present_position     : 現在の角度
- - velocity_trajectory  : 目標速度のようなもの
- - position_trajectory  : 目標角度のようなもの
+ - velocity_trajectory  : 目標速度のようなもの (Proシリーズにはない)
+ - position_trajectory  : 目標角度のようなもの (Proシリーズにはない)
  - present_input_voltage: 現在の入力電圧
  - present_temperature  : 現在の温度
 
@@ -815,11 +834,11 @@ Xシリーズの場合，`/dynamixel/commands/x`or `/dynamixel/command/x/{~}_con
 ### ゲイン (gain)
  - velocity_i_gain       :
  - velocity_p_gain       :
- - position_d_gain       :
- - position_i_gain       :
+ - position_d_gain       :　Proシリーズでは無効
+ - position_i_gain       :　Proシリーズでは無効
  - position_p_gain       :
- - feedforward_acc_gain  :
- - feedforward_vel_gain  :
+ - feedforward_acc_gain  :　Proシリーズでは無効
+ - feedforward_vel_gain  :　Proシリーズでは無効
   
 ##### Subscrib / Write
 Xシリーズの場合，`/dynamixel/commands/x`の`gain`フィールド or `/dynamixel/command/gain`によって設定され，`loop_rate`の周期で書き込まれる．
@@ -833,11 +852,11 @@ Xシリーズの場合，`/dynamixel/commands/x`の`gain`フィールド or `/dy
  - temperature_limit : 温度がこの値を超えると Hardware error (overheating) が発生する．
  - max_voltage_limit : 入力電圧がこの値を超えると Hardware error (input_voltage) が発生する．
  - min_voltage_limit : 入力電圧がこの値を下回ると Hardware error (input_voltage) が発生する．   
- - pwm_limit         : 指定・発揮できるPWMの最大値
+ - pwm_limit         : 指定・発揮できるPWMの最大値 (Proシリーズにはない)
  - current_limit     : 指定・発揮できる最大電流値
- - acceleration_limit : 最大加速度 (読み書きが有効なのはPシリーズのみ)  
+ - acceleration_limit : 最大加速度 (Xシリーズにはない)
  - velocity_limit     : 最大速度
- - max_position_limit : 位置制御モードでの最大角度   
+ - max_position_limit : 位置制御モードでの最大角度 
  - min_position_limit : 位置制御モードでの最小角度
   
 ##### Subscrib / Write
@@ -851,12 +870,12 @@ Xシリーズの場合，`/dynamixel/commands/x`の`limit`フィールド or `/d
 ### エラー (error)
  - hardware_error_status  : サーボのハードウェアエラー情報    
    検知されるエラーは以下の7種類．
-   - input_voltage : 入力電圧が制限範囲外
-   - motor_hall_sensor : モータのホールセンサの異常
-   - overheating   : 温度が最大値を超えた
-   - motor_encoder : モータのエンコーダの異常
+   - input_voltage      : 入力電圧が制限範囲外
+   - motor_hall_sensor  : モータのホールセンサの異常
+   - overheating        : 温度が最大値を超えた
+   - motor_encoder      : モータのエンコーダの異常
    - electronical_shock : 電子回路内での異常
-   - overload      : 過負荷
+   - overload           : 過負荷
 
 ##### Subscrib / Write
 書き込みは不可．  
@@ -864,21 +883,21 @@ Xシリーズの場合，`/dynamixel/commands/x`の`limit`フィールド or `/d
 `loop_rate`の内`pub_ratio/error`毎に1回の周期で読みだされ，`/dynamixel/states`の`error`フィールド and `/dynamixel/state/error`として publish される．
   
 ### その他 (extra)
- - drive_mode             : 
+ - drive_mode             : (Proシリーズにはない) 
  - return_delay_time      : Dynamixelの応答遅延時間，デフォルトで$500$usだが，この pkg では初期化時に$0$usに上書きされる．
  - homing_offset          : この値が現在の真の角度に加算されて出力される．この pkg では，reboot時の角度補正に用いられる．
  - moving_threshold       : 
  - startup_configuration  : not support, buckupがあるときPIDゲインやprofile系の値を自動で復元してくれるが，PIDのデフォルト値がモードによって異なる問題があるので使わない．
  - shutdown               : 
  - status_return_level    : not support, 常に2を前提とする
- - bus_watchbdog          : 指定時間通信が行われない場合に動作を停止する(トルクOFFとは異なる)，この pkg では node kill 時と通信断絶時にサーボを自動停止させる機能に用いられる．   
+ - bus_watchbdog          : 指定時間通信が行われない場合に動作を停止する(トルクOFFとは異なる)，この pkg では node kill 時と通信断絶時にサーボを自動停止させる機能に用いられる．(Proシリーズにはない)
  - led                    : 
  - registered_instruction : 
  - realtime_tick          : 
  - moving                 : 
  - moving_status          : 
 
-読み書きは未実装
+ pub/subによる読み書きは未実装
 
 > [!note] 
 > (bus_watchdog の設定値が1以上の時) bus_watchdogの設定値 × 20ms 通信がないと自動で動作停止処理が実行される．
@@ -895,7 +914,7 @@ Xシリーズの場合，`/dynamixel/commands/x`の`limit`フィールド or `/d
      - digital input (pulldown) : プルダウンされたデジタル値を読み取る，1 or 0 としてdataに格納する
 
 > [!note]
-> X540シリーズとPシリーズのみに搭載される機能．
+> X540シリーズとP・Proシリーズのみに搭載される機能．
 
 利用する場合は `option/external_port.use`を`true`に設定する．
 ##### Subscrib / Write
@@ -1016,7 +1035,7 @@ source ~/ros2_ws/install/setup.bash
 1. デバイス名の確認   
    どんな方法で確認しても良いが，Ubuntuの場合はDynamixelを認識するはずのUSBを抜く前後で `$ ls /dev/ttyUSB*`の出力を比較すれば，少なくとも正しいデバイス名がわかる．
 1. デバイスの実行権限の確認   
-   `$ sudo chmod 777 /dev/{your device name}`として改善すれば実行権限問題であることがわかる．
+   `$ sudo chmod 777 /dev/{your_device_name}`として改善すれば実行権限問題であることがわかる．
 1. Dynaimxel側の baudrate の確認    
    Dynamixel wizardで確認するのが最も確実．
    とりあえず動くようにするには `init/baudrate_auto_set`パラメータを `true`にセットするか,
@@ -1025,12 +1044,45 @@ source ~/ros2_ws/install/setup.bash
 ### `dynamixel_handler`ノードを起動したときにdynamixelが一部しか見つからない
 
 1. laytency timer の確認    
-   `$ cat /sys/bus/usb-serial/devices/{your device name}/latency_timer`を実行して出てきたデバイス側の latency timer の数値が，ros parameter の `latency_timer`と一致しているかどうかを確認する．  
+   `$ cat /sys/bus/usb-serial/devices/{your_device_name}/latency_timer`を実行して出てきたデバイス側の latency timer の数値が，ros parameter の `latency_timer`と一致しているかどうかを確認する．  
    ros parameter 側の値を変えたい場合は config ファイルを修正すればよい．   
    デバイス側値を変えたい場合は [Latency Timer](#latency-timer) を参照．
 3. 通信状態が悪すぎる場合   
    根本的にはケーブルやノイズ等を改善すべきだが，対症療法的に`dyn_comm/retry_num`を大きくすることでも改善する可能性がある．
    [Parameters](#parameters) の該当パラメータを参照
+
+### `dynamixel_handler`ノードを起動したときにサーボの初期化が終わらない．
+```
+[dynamixel_handler-1] 1748119256.347349302: Initializing DynamixelHandler ..... 
+[dynamixel_handler-1] 1748119256.352399757:  Succeeded to open device 
+[dynamixel_handler-1] 1748119256.352459648:   ------------ name '/dev/ttyUSB0'
+[dynamixel_handler-1] 1748119256.352463615:   -------- baudrate '1000000'
+[dynamixel_handler-1] 1748119256.352466370:   --- latency_timer '1'
+[dynamixel_handler-1] 1748119256.352996238:  Expected servo number is not set. 
+[dynamixel_handler-1] 1748119256.353100349:  > Free number of Dynamixel is allowed 
+[dynamixel_handler-1] 1748119256.353110024:  Auto scanning Dynamixel (id range '0' to '10') ...
+[dynamixel_handler-1] 1748119256.353129157:  > series: X [use], P [no use], PRO [no use]
+[dynamixel_handler-1] 1748119256.397073588:   *  X  series servo ID [1] is found
+[dynamixel_handler-1] 1748119256.397073588:     Reading  present values...
+[dynamixel_handler-1] 1748119256.397073588:     Reading  present values...
+...
+```
+上記のような表記が続く．
+
+1. Read methodの確認
+   `method/fast_read`が`true`になっているか確認する．
+   一部のモータは Fast Sync Readに対応しておらず，そうしたモータの場合初期の通信が失敗して無限ループに入ってしまう．
+   [Parameters](#parameters)　の`method/fast_read`を`false`にして，通常のSync Readに切り替えることで解決する．
+
+### dynamxiel は見つかったが通信の成功率が極端に低い
+
+1. Dynamixelの接続状態の確認
+   TTLとRS485を並列に同時に使うと起きる．
+1. laytency timerの確認
+   デバイス側の latency timer の値よりも，ros parameter の `latency_timer`の値が小さいときに起きる．
+1. 別のノードによるUSBデバイスの占有
+   他のノードがUSBデバイスを占有していると，通信がうまくいかないことがある．
+   その場合は，`$ ros2 node list`で他のノードを確認し，必要に応じて停止する．
 
 ### ``cannot publish data``といったようなエラーが出た場合
 デフォルトのDDSはFast-RTPSであるが，固有のバグを持っているらしく，実行時にエラーが発生する．
