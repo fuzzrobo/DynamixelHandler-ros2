@@ -15,7 +15,9 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     // 開発用
     bool is_debug; get_parameter_or("debug", is_debug, false);
     bool no_use_command_line; get_parameter_or("no_use_command_line", no_use_command_line, false);
-    vector<int64_t> dummy_id_list; this->get_parameter("dummy_servo_id_list", dummy_id_list); //int64_t で受けないといけない．
+    // ダミーモータのIDリストを取得, 0未満，255以上のIDを排除する
+    vector<int64_t> dummy_id_list; this->get_parameter("init/dummy_servo_list", dummy_id_list); //int64_t で受けないといけない．
+    dummy_id_list.erase(std::remove_if(dummy_id_list.begin(), dummy_id_list.end(), [](int64_t id){ return id<0 || id>=255; }), dummy_id_list.end());
     // Serial通信の設定
     int baudrate      ; this->get_parameter_or("baudrate"     , baudrate     ,           57600);
     int latency_timer ; this->get_parameter_or("latency_timer", latency_timer,              16);
@@ -71,16 +73,16 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     this->get_parameter_or("verbose/write_goal"         , verbose_["w_goal"  ], false);
     this->get_parameter_or("verbose/write_gain"         , verbose_["w_gain"  ], false);
     this->get_parameter_or("verbose/write_limit"        , verbose_["w_limit" ], false);
-    this->get_parameter_or("verbose/read_status/raw"    , verbose_["r_status"    ], false);
-    this->get_parameter_or("verbose/read_status/err"    , verbose_["r_status_err"], false);
-    this->get_parameter_or("verbose/read_present/raw"   , verbose_["r_present"    ], false);
-    this->get_parameter_or("verbose/read_present/err"   , verbose_["r_present_err"], false);
-    this->get_parameter_or("verbose/read_goal/raw"      , verbose_["r_goal"    ], false);
-    this->get_parameter_or("verbose/read_goal/err"      , verbose_["r_goal_err"], false);
-    this->get_parameter_or("verbose/read_gain/raw"      , verbose_["r_gain"    ], false);
-    this->get_parameter_or("verbose/read_gain/err"      , verbose_["r_gain_err"], false);
-    this->get_parameter_or("verbose/read_limit/raw"     , verbose_["r_limit"    ], false);
-    this->get_parameter_or("verbose/read_limit/err"     , verbose_["r_limit_err"], false);
+    this->get_parameter_or("verbose/read_status.raw"    , verbose_["r_status"    ], false);
+    this->get_parameter_or("verbose/read_status.err"    , verbose_["r_status_err"], false);
+    this->get_parameter_or("verbose/read_present.raw"   , verbose_["r_present"    ], false);
+    this->get_parameter_or("verbose/read_present.err"   , verbose_["r_present_err"], false);
+    this->get_parameter_or("verbose/read_goal.raw"      , verbose_["r_goal"    ], false);
+    this->get_parameter_or("verbose/read_goal.err"      , verbose_["r_goal_err"], false);
+    this->get_parameter_or("verbose/read_gain.raw"      , verbose_["r_gain"    ], false);
+    this->get_parameter_or("verbose/read_gain.err"      , verbose_["r_gain_err"], false);
+    this->get_parameter_or("verbose/read_limit.raw"     , verbose_["r_limit"    ], false);
+    this->get_parameter_or("verbose/read_limit.err"     , verbose_["r_limit_err"], false);
     this->get_parameter_or("verbose/read_hardware_error", verbose_["r_hwerr" ], false);
     this->get_parameter_or("no_response_id_auto_remove_count", auto_remove_count_   , 0u);
     // 初期化・終了時

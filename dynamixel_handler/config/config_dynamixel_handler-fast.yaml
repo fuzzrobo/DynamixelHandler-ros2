@@ -2,25 +2,15 @@
 # /ns/dyn_handler:
 /**:
     ros__parameters:
-    # 開発用
-        debug: false # true: デバイスとの接続に失敗してもエラーを出力しない/ false: エラーを出力して終了する
-        no_use_command_line: false # true: プログラム用のトピックのみ使用する/ false: コマンドライン用のトピックも出力する
-        # dummy_servo_id_list: [2] # ダミーのサーボを作成する,同じIDのサーボが存在する場合でもダミーが優先される．
     # 通信機器の設定
         device_name: /dev/ttyUSB0 # 通信するデバイス名
         baudrate: 4000000 # 通信速度
         latency_timer: 1 # 通信のインターバル
-    # 通信の設定
-        dyn_comm/retry_num: 5
-        dyn_comm/inerval_msec: 2
-        dyn_comm/verbose: false
     # サーボの設定
+        init/dummy_servo_list: [255] # ダミーのサーボを作成するIDのリスト,同じIDのサーボが存在する場合でもダミーが優先される． 255は無視される．
         init/baudrate_auto_set: true # 探索前に，全てのサーボと全てのBaudrateに対して，baudrateの書き込みをするかどうか
         init/expected_servo_num: 0
-        init/servo_auto_search:
-            min_id: 0
-            max_id: 20
-            retry_times: 0
+        init/servo_auto_search: {min_id: 0, max_id: 20, retry_times: 0} # サーボのIDを自動で探索するかどうか
         init/hardware_error_auto_clean: true # 初期化時に Hardware error を自動でクリアするかどうか
         init/torque_auto_enable: true # 初期化時に Torque を自動でONにするかどうか
         term/torque_auto_disable: true # 終了時に Torque を自動でOFFにするかどうか
@@ -52,31 +42,31 @@
         method/fast_read: true
         method/split_read: false
         method/split_write: true
+    # Optonal機能
+        option/external_port:
+            use: false # External Portの機能を使うかどうか
+            pub_ratio/data: 10  # この回数に一回 Data を読み取る.
+            pub_ratio/mode: 100 # この回数に一回 Mode を読み取る, ROM値なので大きくても問題ない．
+            verbose/callback: false
+            verbose/write:    false
+            verbose/read:     {raw: false, err: false}
     # デバッグ用
         max_log_width: 6
         verbose/callback: false
         verbose/write_status: false
-        verbose/write_goal: false
-        verbose/write_gain: false
-        verbose/write_limit: false
-        verbose/read_status/raw: false
-        verbose/read_status/err: false
-        verbose/read_present/raw: false
-        verbose/read_present/err: false
-        verbose/read_goal/raw: false
-        verbose/read_goal/err: false
-        verbose/read_gain/raw: false
-        verbose/read_gain/err: false
-        verbose/read_limit/raw: false
-        verbose/read_limit/err: false
-        verbose/read_hardware_error: false
-    # Optonal機能
-        option/external_port:
-            use : false # External Portの機能を使うかどうか
-            pub_ratio/data : 10  # この回数に一回 Data を読み取る.
-            pub_ratio/mode : 100 # この回数に一回 Mode を読み取る, ROM値なので大きくても問題ない．
-            verbose/callback : false
-            verbose/write    : false
-            verbose/read/raw : false
-            verbose/read/err : false
-
+        verbose/write_goal:   false
+        verbose/write_gain:   false
+        verbose/write_limit:  false
+        verbose/read_status:  {raw: false, err: false}
+        verbose/read_present: {raw: false, err: false}
+        verbose/read_goal:    {raw: false, err: false}
+        verbose/read_gain:    {raw: false, err: false}
+        verbose/read_limit:   {raw: false, err: false}
+        verbose/read_hardware_error: true
+    # 通信の設定
+        dyn_comm/retry_num: 5
+        dyn_comm/inerval_msec: 2
+        dyn_comm/verbose: false
+    # 開発用
+        debug: false # true: デバイスとの接続に失敗してもエラーを出力しない/ false: エラーを出力して終了する
+        no_use_command_line: false # true: プログラム用のトピックのみ使用する/ false: コマンドライン用のトピックも出力する
