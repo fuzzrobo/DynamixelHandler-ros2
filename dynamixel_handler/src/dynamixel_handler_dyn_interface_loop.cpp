@@ -234,7 +234,7 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadPresen
         case VELOCITY_TRAJECTORY  : state_addr_list.push_back(Addr::velocity_trajectory  ); break;   
         case POSITION_TRAJECTORY  : state_addr_list.push_back(Addr::position_trajectory  ); break;  
         case PRESENT_INPUT_VOLTAGE: state_addr_list.push_back(Addr::present_input_voltage); break; 
-        case PRESENT_TEMPERATURE  : state_addr_list.push_back(Addr::present_temperture   ); break;
+        case PRESENT_TEMPERATURE  : state_addr_list.push_back(Addr::present_temperature  ); break;
         default: /*ここに来たらエラ-*/ ROS_STOP("Unknown PresentIndex");
     }
     // SyncReadでまとめて読み込み

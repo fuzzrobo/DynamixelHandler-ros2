@@ -654,7 +654,7 @@ Subscribe 時にデータが一時保存され，直後のメインループ内�
 # サーボの初期設定
   init/dummy_servo_list: [-1] # ダミーのサーボを作成するIDのリスト,同じIDのサーボが存在する場合でもダミーが優先される． [0, 254]の範囲外は無視される．
   init/baudrate_auto_set: false # 探索前に，全てのサーボと全てのBaudrateに対して，baudrateの書き込みをするかどうか
-  init/uesd_servo_series: {X: true, P: false, Pro: false} # 使用するサーボのシリーズ
+  init/used_servo_series: {X: true, P: false, Pro: false} # 使用するサーボのシリーズ
   init/expected_servo_num: 0
   init/servo_auto_search: {min_id: 0, max_id: 10, retry_times: 0} # サーボのIDを自動で探索するかどうか
   init/hardware_error_auto_clean: true # 初期化時に Hardware error を自動でクリアするかどうか
