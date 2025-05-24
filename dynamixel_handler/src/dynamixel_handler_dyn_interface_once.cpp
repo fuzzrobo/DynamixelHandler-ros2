@@ -49,23 +49,27 @@ bool DynamixelHandler::AddDynamixel(id_t id){
 
     auto dyn_model = dyn_comm_.tryRead(AddrCommon::model_number, id);
     switch ( dynamixel_series(dyn_model) ) { 
-        case SERIES_X:   ROS_INFO("   *  X  series servo ID [%d] is %s", id, (use_["x"] ? "found" : "ignored"));
+        case SERIES_X:   ROS_INFO("  *  X  series servo ID [%d] is %s", id, (use_["x"] ? "found" : "ignored"));
             if ( !use_["x"] ) return false;
             model_[id] = dyn_model;
             series_[id] = SERIES_X;
             id_set_.insert(id); break;
-        case SERIES_P:   ROS_INFO("   *  P  series servo ID [%d] is %s", id, (use_["p"] ? "found" : "ignored"));
+        case SERIES_P:   ROS_INFO("  *  P  series servo ID [%d] is %s", id, (use_["p"] ? "found" : "ignored"));
             if ( !use_["p"] ) return false;
             model_[id] = dyn_model;
             series_[id] = SERIES_P;
             id_set_.insert(id); break;
-        case SERIES_PRO: ROS_INFO("   * PRO series servo ID [%d] is %s", id, (use_["pro"] ? "found" : "ignored"));
+        case SERIES_PRO: ROS_INFO("  * PRO series servo ID [%d] is %s", id, (use_["pro"] ? "found" : "ignored"));
             if ( !use_["pro"] ) return false;
             model_[id] = dyn_model;
             series_[id] = SERIES_PRO;
             id_set_.insert(id); break;
-        default: ROS_WARN("   * No supported model [%d] servo ID [%d] is found, ignored", (int)dyn_model, id);
+        default: ROS_WARN("  * No supported model [%d] servo ID [%d] is found, ignored", (int)dyn_model, id);
             return false;
+    }
+    if ( use_fast_read_ && !has_current_sensor(dyn_model) ) {
+        ROS_WARN("   no current sensor is found, fast_read is disabled");
+        use_fast_read_ = false; // 電流センサを持たないサーボの場合はfast_readを無効化する，エラーを起こしてfast_readに反応しなくなるので．
     }
 
     WriteBusWatchdog (id, 0.0/*ms*/); // 最初にBusWatchdogを無効化することで，全てのGoal値の書き込みを許可する
@@ -74,11 +78,11 @@ bool DynamixelHandler::AddDynamixel(id_t id){
 
     set<uint8_t> tmp = {id};
     static constexpr tuple<double, uint8_t> complete = {1.0-1e-6, 1};
-    while ( rclcpp::ok() && SyncReadPresent( present_indice_read_, tmp) < complete ) rsleep(50);
-    while ( rclcpp::ok() && SyncReadGoal   ( goal_indice_read_ , tmp) < complete ) rsleep(50); 
-    while ( rclcpp::ok() && SyncReadGain   ( gain_indice_read_ , tmp) < complete ) rsleep(50); 
-    while ( rclcpp::ok() && SyncReadLimit  ( limit_indice_read_, tmp) < complete ) rsleep(50); 
-    while ( rclcpp::ok() && SyncReadHardwareErrors(tmp) < complete ) rsleep(50);
+    while (SyncReadPresent( present_indice_read_, tmp)<complete) {if(!rclcpp::ok()) ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading  present values...");}
+    while (SyncReadGoal   ( goal_indice_read_   , tmp)<complete) {if(!rclcpp::ok()) ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading   goal   values...");} 
+    while (SyncReadGain   ( gain_indice_read_   , tmp)<complete) {if(!rclcpp::ok()) ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading   gain   values...");} 
+    while (SyncReadLimit  ( limit_indice_read_  , tmp)<complete) {if(!rclcpp::ok()) ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading  limit   values...");} 
+    while (SyncReadHardwareErrors(tmp)                <complete) {if(!rclcpp::ok()) ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading hardware errors...");}
 
     tq_mode_[id] = ReadTorqueEnable(id) ? TORQUE_ENABLE : TORQUE_DISABLE;
     op_mode_[id] = ReadOperatingMode(id);
@@ -88,13 +92,13 @@ bool DynamixelHandler::AddDynamixel(id_t id){
     goal_w_[id] = goal_r_[id];
 
     if ( abs(default_["profile_acc_deg_ss"] - goal_r_[id][PROFILE_ACC]/DEG) > 3 ) 
-        ROS_WARN("    profile acc. '%2.1f' is too small (now '%2.1f')", default_["profile_acc_deg_ss"], goal_r_[id][PROFILE_ACC]/DEG);
+        ROS_WARN("   profile acc. '%2.1f' is too small (now '%2.1f')", default_["profile_acc_deg_ss"], goal_r_[id][PROFILE_ACC]/DEG);
     if ( abs(default_["profile_vel_deg_s"] - goal_r_[id][PROFILE_VEL]/DEG) > 1 ) 
-        ROS_WARN("    profile vel. '%2.1f' is too small (now '%2.1f')", default_["profile_vel_deg_s"], goal_r_[id][PROFILE_VEL]/DEG);
+        ROS_WARN("   profile vel. '%2.1f' is too small (now '%2.1f')", default_["profile_vel_deg_s"], goal_r_[id][PROFILE_VEL]/DEG);
 
     WriteReturnDelayTime(id, default_["return_delay_time_us"]);
     if ( abs(ReadReturnDelayTime(id) - default_["return_delay_time_us"]) > 0.1 ) 
-        ROS_WARN("    return delay time '%2.1f' could not set (now '%2.1f')", default_["return_delay_time_us"], ReadReturnDelayTime(id));
+        ROS_WARN("   return delay time '%2.1f' could not set (now '%2.1f')", default_["return_delay_time_us"], ReadReturnDelayTime(id));
 
     if ( do_clean_hwerr_ ) ClearHardwareError(id); // 現在の状態を変えない
     if ( do_torque_on_ )   TorqueOn(id);           // 現在の状態を変えない

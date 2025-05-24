@@ -270,8 +270,8 @@ void DynamixelHandler::MainLoop(){
     if ( ratio_mainloop_ && cnt % ratio_mainloop_ == 0) {
         float partial_suc = 100*n_present_suc_p/n_present_read; 
         float full_suc    = 100*n_present_suc_f/n_present_read;
-        char msg[100]; sprintf(msg, "Loop [%d]: total=%.2fms(read=%.2fms), success=%3.0f%%(full=%3.0f%%)",
-                               cnt, t_total/ratio_mainloop_, t_read/n_any_read, partial_suc, full_suc);
+        char msg[100]; sprintf(msg, "time=%2.2fms/loop(%2.2fms/read), success=%3.0f%%(full=%3.0f%%)",
+                               t_total/ratio_mainloop_, t_read/n_any_read, partial_suc, full_suc);
         if (full_suc < 80) ROS_ERROR("%s", msg); else if (partial_suc < 99) ROS_WARN("%s", msg); else ROS_INFO("%s", msg);
         t_total = 0.0; /* mainloopで行われてる処理の計測時間を初期化 */
     }
