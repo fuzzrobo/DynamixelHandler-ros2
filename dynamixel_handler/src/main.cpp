@@ -68,23 +68,6 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     this->get_parameter_or("method/split_write"    , use_split_write_    , false);
     this->get_parameter_or("method/split_read"     , use_split_read_     , false);
     this->get_parameter_or("method/fast_read"      , use_fast_read_      , true);
-    this->get_parameter_or("verbose/callback"           , verbose_callback_, false);
-    this->get_parameter_or("verbose/write_status"       , verbose_["w_status"], false);
-    this->get_parameter_or("verbose/write_goal"         , verbose_["w_goal"  ], false);
-    this->get_parameter_or("verbose/write_gain"         , verbose_["w_gain"  ], false);
-    this->get_parameter_or("verbose/write_limit"        , verbose_["w_limit" ], false);
-    this->get_parameter_or("verbose/read_status.raw"    , verbose_["r_status"    ], false);
-    this->get_parameter_or("verbose/read_status.err"    , verbose_["r_status_err"], false);
-    this->get_parameter_or("verbose/read_present.raw"   , verbose_["r_present"    ], false);
-    this->get_parameter_or("verbose/read_present.err"   , verbose_["r_present_err"], false);
-    this->get_parameter_or("verbose/read_goal.raw"      , verbose_["r_goal"    ], false);
-    this->get_parameter_or("verbose/read_goal.err"      , verbose_["r_goal_err"], false);
-    this->get_parameter_or("verbose/read_gain.raw"      , verbose_["r_gain"    ], false);
-    this->get_parameter_or("verbose/read_gain.err"      , verbose_["r_gain_err"], false);
-    this->get_parameter_or("verbose/read_limit.raw"     , verbose_["r_limit"    ], false);
-    this->get_parameter_or("verbose/read_limit.err"     , verbose_["r_limit_err"], false);
-    this->get_parameter_or("verbose/read_hardware_error", verbose_["r_hwerr" ], false);
-    this->get_parameter_or("no_response_id_auto_remove_count", auto_remove_count_   , 0u);
     // 初期化・終了時
     this->get_parameter_or("init/hardware_error_auto_clean", do_clean_hwerr_, true);
     this->get_parameter_or("init/torque_auto_enable"       , do_torque_on_  , true);
@@ -120,6 +103,24 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
         if ( !is_debug ) ROS_STOP("Initialization failed (number of dynamixel is not matched)");
     }
     ROS_INFO("  ... Finish scanning Dynamixel");
+    // ループ中のverbose設定
+    this->get_parameter_or("verbose/callback"           , verbose_callback_, false);
+    this->get_parameter_or("verbose/write_status"       , verbose_["w_status"], false);
+    this->get_parameter_or("verbose/write_goal"         , verbose_["w_goal"  ], false);
+    this->get_parameter_or("verbose/write_gain"         , verbose_["w_gain"  ], false);
+    this->get_parameter_or("verbose/write_limit"        , verbose_["w_limit" ], false);
+    this->get_parameter_or("verbose/read_status.raw"    , verbose_["r_status"    ], false);
+    this->get_parameter_or("verbose/read_status.err"    , verbose_["r_status_err"], false);
+    this->get_parameter_or("verbose/read_present.raw"   , verbose_["r_present"    ], false);
+    this->get_parameter_or("verbose/read_present.err"   , verbose_["r_present_err"], false);
+    this->get_parameter_or("verbose/read_goal.raw"      , verbose_["r_goal"    ], false);
+    this->get_parameter_or("verbose/read_goal.err"      , verbose_["r_goal_err"], false);
+    this->get_parameter_or("verbose/read_gain.raw"      , verbose_["r_gain"    ], false);
+    this->get_parameter_or("verbose/read_gain.err"      , verbose_["r_gain_err"], false);
+    this->get_parameter_or("verbose/read_limit.raw"     , verbose_["r_limit"    ], false);
+    this->get_parameter_or("verbose/read_limit.err"     , verbose_["r_limit_err"], false);
+    this->get_parameter_or("verbose/read_hardware_error", verbose_["r_hwerr" ], false);
+    this->get_parameter_or("no_response_id_auto_remove_count", auto_remove_count_   , 0u);
 
     // Subscriber / Publisherの設定
     auto callback_group_subscriber = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);

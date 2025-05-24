@@ -276,6 +276,7 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadHardwa
     if ( dyn_comm_.timeout_last_read() ) return {0.0, target_id_list.size() }; // 読み込み失敗
 
     //  hardware_error_とhas_hardware_error_に反映
+    bool has_any_error = false;
     for (const auto& [id, error] : id_error_map ){
         hardware_err_[id].fill(false);
         if ((error >> HARDWARE_ERROR_INPUT_VOLTAGE     )& 0b1 ) hardware_err_[id][INPUT_VOLTAGE     ] = true;
@@ -285,11 +286,12 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadHardwa
         if ((error >> HARDWARE_ERROR_ELECTRONICAL_SHOCK)& 0b1 ) hardware_err_[id][ELECTRONICAL_SHOCK] = true;
         if ((error >> HARDWARE_ERROR_OVERLOAD          )& 0b1 ) hardware_err_[id][OVERLOAD          ] = true;
         has_hardware_error_[id] = std::any_of(hardware_err_[id].begin(), hardware_err_[id].end(), [](bool b){return b;});
+        if ( has_hardware_error_[id] ) has_any_error = true;
     }
 
     // コンソールへの表示
-    if ( verbose_["r_hwerr"] ) {
-        ROS_WARN( "  Hardware error are Checked");
+    if ( verbose_["r_hwerr"] ) if ( has_any_error ) {
+        ROS_WARN( "Hardware error are detected");
         for (auto id : target_id_list) {
             if (hardware_err_[id][INPUT_VOLTAGE     ]) ROS_WARN ("  * servo ID [%d] has INPUT_VOLTAGE error"     ,id);
             if (hardware_err_[id][MOTOR_HALL_SENSOR ]) ROS_ERROR("  * servo ID [%d] has MOTOR_HALL_SENSOR error" ,id);
