@@ -17,12 +17,21 @@ X, P, Proシリーズに対応，X320シリーズ，Yシリーズは順次対応
 
 ## Features of this package
  - **Dynamixel制御に特化した最小単位のパッケージ**
+
+    <details>
+    <summary>詳細</summary>
+    
     - `dynamixel_handler`パッケージが提供する **`dynamixel_handler`** ノードは，サーボモータとの通信を担う．
     - サーボの動作制御はユーザーが開発する **別の制御ノード**が行い，`dynamixel_handler`ノードは通信の仲介を行うイメージ．
     - ユーザーはシリアル通信の通信プロトコルや，コントロールテーブルついて知る必要が(あまり)ない．
     - Dynamixelの各種情報や機能が[適切に分類](#各種情報の分類と-control-table-との対応)され，ほぼすべての情報・機能を利用することが可能
+    </details>
   
  - **ROSトピックのみで制御できるシンプルなインターフェース**   
+
+    <details>
+    <summary>詳細</summary>
+
     トピック通信だけで利用できるので，このパッケージ自体のコードの編集は不要 
     - **Subscribe**: `/dynamixel/commands/x`(他、`/dynamixel/commands/p`など)
       - シリーズごとに定義された制御コマンドを送ることで動作制御．
@@ -33,15 +42,25 @@ X, P, Proシリーズに対応，X320シリーズ，Yシリーズは順次対応
         - "error": overload エラー などのハードウェアエラー (デフォルト 約2Hz)  
         - "present": current [mA], velocity [deg/s], position [deg] などの現在値 (デフォルト 約50Hz)
         - etc... (goal, limit, gain, extra)
+    </details>
 
  - **物理量ベースでのやり取り**
+
+    <details>
+    <summary>詳細</summary>
+
     - current [mA], velocity [deg/s], position [deg] などの物理量を直接扱える．
     - Dynamixelから read されたパルス値(0 ~ 4095 など)は物理量に変換してから publish される． 
     - Dynamixelへの目標値は物理量で入力され，内部でパルス値に変換されてから write される．  
      
     ※ 特に角度を rad (-π ~ π) ではなく degree (-180.0 ~ 180.0) で扱うので直感的．
+    </details>
 
  - **高速で安定したRead/Write** 
+
+    <details>
+    <summary>詳細</summary>
+    
    - 読み書きをできるだけ一括で行うことで通信回数を削減  
       - 連続アドレスの一括読み書き
       - 複数サーボの一括読み書き (SyncRead/SyncWrite)
@@ -52,8 +71,13 @@ X, P, Proシリーズに対応，X320シリーズ，Yシリーズは順次対応
 
     ※ 12サーボ同時Read/Writeでも150Hz程度の通信が可能なことを確認  
     ※※ 高速通信には適切な [`latency timer`](#latency-timer)  (1~4ms) と `baudrate`(推奨 1,000,000bps 以上) が必要
+    </details>
 
  - **開発の手間を減らす便利機能**
+
+    <details>
+    <summary>詳細</summary>
+    
     - 初期化時の動作 
       - 連結したDynamixelを自動で認識
       - 連結されるDynamixel数の指定 (Optional)
@@ -71,13 +95,19 @@ X, P, Proシリーズに対応，X320シリーズ，Yシリーズは順次対応
       - エラークリア時の回転数消失問題を homing offset により自動補正
     - baudrate の一括変更 (別ノードで提供)
       -  パッケージに同梱している `dynamixel_unify_baudrate`ノードで一括で変更可能
+    </details>
 
  - **ROSパラメータによる各種ログ表示制御**
+
+    <details>
+    <summary>詳細</summary>
+    
    - Read/Write にかかる平均時間とSerial通信の成功率
    - CallBackした内容 (Optional)
    - Read/Write されるパルス値 (Optional)
    - Readに失敗したID (Optional)
    - etc...
+    </details>
   
   各機能の設定については ros param から可能なので，詳細は [Parameters](#parameters)の章を参照．
 
@@ -490,7 +520,7 @@ Operating mode list
 
 | Field                | Type     | Description                               |
 |----------------------|----------|-------------------------------------------|
-| `id_list`            | `uint16s[]`| サーボIDのリスト                              |
+| `id_list`            | `uint16[]`| サーボIDのリスト                              |
 | `input_voltage`      | `bool[]` | 入力電圧が上限下限に引っかかっている                        |
 | `motor_hall_sensor`  | `bool[]` | ホールセンサの異常                               |
 | `overheating`        | `bool[]` | 現在温度が温度上限を超えている                          |
@@ -513,7 +543,7 @@ Operating mode list
 #### `/dynamixel/external_port/read` ([`DxlExternalPort`型](./dynamixel_handler_msgs#dynamixel_handler_msgsmsgdxlexternalport-type))    
   XH540とP・Proシリーズが持つExternal Port機能を扱うための topic．   
   `option/external_port.use` パラメータが`true`に設定されている場合にのみ利用可能．
-  `option/external_port.pub_ratio` パラメータで設定された周期で読み取られ，読み取られた場合のみ publish される．  
+  `option/external_port.pub_ratio` パラメータの `mode` または `data` の小さい方の周期で読み取られ，読み取られた場合のみ publish される．  
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -521,15 +551,16 @@ Operating mode list
 | `id_list` | `uint16[]` | サーボのID |
 | `port` | `uint16[]` | External Portのポート番号の配列 |
 | `mode` | `string[]` | ポートのモードの配列  (以下の External port mode list を参照)|
-| `data` | `uint16[]` | ポートのデータの配列  |
+| `data` |  `int16[]` | ポートのデータの配列  (analog: 0 ~ 4096, digital: 0 or 1, unset: -1)|
 
 <details>
 <summary> External port mode list </summary>
 
 - `"a_in"` = analog in : アナログ入力モードで，0-4096の値を読み取る．
-- `"d_out"` = digital out : デジタル出力モードで，High or Low を出力する．
+- `"d_out"` = digital out : デジタル出力モードで，High or Low の出力状態を表す．
 - `"d_in_pu"` = digital in (pull up) : プルアップ抵抗付きのデジタル入力モードで，0または1の値を読み取る．
 - `"d_in_pd"` = digital in (pull down) : プルダウン抵抗付きのデジタル入力モードで，0または1の値を読み取る．
+- `"unset"` : `/dynamixel/external_port/read` topic でポートを設定していない状態．
 
 </details>
 
@@ -959,14 +990,17 @@ Subscribe 時にデータが一時保存され，直後のメインループ内�
 </details>
 
 #### `/dynamixel/external_port/write` ([`DxlExternalPort`型](./dynamixel_handler_msgs#dynamixel_handler_msgsmsgdxlexternalport-type))    
-  XH540とP・Proシリーズが持つExternal Port機能を扱うための topic．
+XH540とP・Proシリーズが持つExternal Port機能を扱うための topic．  
+サーボのIDとポート番号の組で  External Port を指定するため，`id_list` と `port` の長さは一致する必要がある．
+`mode` と `data` を同時に指定する必要はないが，指定した要素は `id_list` と長さが一致する必要がある．
+
 | Field     | Type      | Description                                                                 |
 |-----------|-----------|-----------------------------------------------------------------------------|
 | `stamp`  | `builtin_interfaces/Time` | メッセージのタイムスタンプ．無効．                                    |
 | `id_list` | `uint16[]` | 適用するサーボのIDリスト．複数指定可能．                                          |
 | `port`    | `uint16[]`   | External Portのポート番号 (X: [1, 2, 3], P/Pro: [1, 2, 3, 4]) |
 | `mode`    | `string[]`   | ポートのモード．文字列で指定 (詳細は[`DxlExternalPort`型](./dynamixel_handler_msgs#dynamixel_handler_msgsmsgdxlexternalport-type)の定数を参照) |
-| `data`    | `uint16[]`  | ポートのデータ．モードが digital out の場合のみ有効．(0: Low, 1: High)|
+| `data`    |  `int16[]`  | ポートのデータ．モードが digital out の場合のみ有効．(0: Low, 1: High)|
 
 #### `/dynamixel/shortcut` ([`DynamixelShortcut`型](./dynamixel_handler_msgs#dynamixelshortcut-type))    
  Dynamixelの起動、停止、エラー解除などのショートカットコマンド  

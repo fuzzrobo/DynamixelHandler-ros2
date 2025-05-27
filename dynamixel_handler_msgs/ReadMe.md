@@ -832,17 +832,17 @@ printf("magnet sensor is %d\n", val_magnet);
 ```yaml
 $ ros2 topic echo --flow-style /dynamixel/external_port/write # DxlExternalPort型
 stamp: {sec: 0, nanosec: 0} # builtin_interfaces/Time型
-id_list: [1, 1, 2]
-port: [1, 2, 3]
-mode: ["d_out", "d_out", "a_in"]
-data: [1, 0, 0]
+id_list: [1, 1, 2, 1]
+port: [1, 2, 3, 3]
+mode: ["d_out", "d_out", "a_in", "unset"]
+data: [1, 0, 0, 0] # 3つ目と4つ目の要素はダミー値
 
 $ ros2 topic echo --flow-style /dynamixel/external_port/read # DxlExternalPort型
 stamp: {sec: 0, nanosec: 0} # builtin_interfaces/Time型
 id_list: [1, 1, 1, 2, 2, 2]
 port: [1, 2, 3, 1, 2, 3]
-mode: ["d_out", "d_out", "d_in_pu", "d_in_pd", "d_in_pd", "a_in"]
-data: [1, 0, 0, 1, 1, 2000]
+mode: ["d_out", "d_out", "d_in_pu", "d_in_pd", "unset", "a_in"]
+data: [1, 0, 0, 1, -1, 2000]
 ---
 ```
 
@@ -855,10 +855,11 @@ builtin_interfaces/Time stamp
 uint16[] id_list
 uint16[] port
 string[] mode
-uint16[] data
+int16[] data
 #====== mode field に指定できる文字列 ======
-string MODE_ANALOG_IN           = "a_in"
-string MODE_DIGITAL_OUT         = "d_out"
-string MODE_DIGITAL_IN_PULLUP   = "d_in_pu"
-string MODE_DIGITAL_IN_PULLDOWN = "d_in_pd"
+string MODE_ANALOG_IN           = "a_in"    # 指定ポートをアナログ入力モードに設定する．
+string MODE_DIGITAL_OUT         = "d_out"   # 指定ポートをデジタル出力モードに設定する．
+string MODE_DIGITAL_IN_PULLUP   = "d_in_pu" # 指定ポートをデジタル入力モード(プルアップ)に設定する．
+string MODE_DIGITAL_IN_PULLDOWN = "d_in_pd" #　指定ポートをデジタル入力モード(プルダウン)に設定する．
+string MODE_UNSET               = "unset"   #　指定ポートのモードの設定を解除する．
 ```
