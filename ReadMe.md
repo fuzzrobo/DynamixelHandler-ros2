@@ -29,10 +29,10 @@ X, P, Proシリーズに対応，X320シリーズ，Yシリーズは順次対応
       - 制御コマンドの内容に合わせてサーボの制御モードが自動変更．
     - **Publish**: `/dynamixel/states` 
       - [分類された各情報](#各種情報の分類と-control-table-との対応)を個別の周期で自動的に read & publish．
-        - "Status": torqueのオンオフ, errorの有無, pingの成否, 制御モード (デフォルト 約2Hz)
-        - "Error": overload エラー などのハードウェアエラー (デフォルト 約2Hz)  
-        - "Present": current [mA], velocity [deg/s], position [deg] などの現在値 (デフォルト 約50Hz)
-        - etc... (Goal, Limit, Gain, Extra)
+        - "status": torqueのオンオフ, errorの有無, pingの成否, 制御モード (デフォルト 約2Hz)
+        - "error": overload エラー などのハードウェアエラー (デフォルト 約2Hz)  
+        - "present": current [mA], velocity [deg/s], position [deg] などの現在値 (デフォルト 約50Hz)
+        - etc... (goal, limit, gain, extra)
 
  - **物理量ベースでのやり取り**
     - current [mA], velocity [deg/s], position [deg] などの物理量を直接扱える．
@@ -297,13 +297,15 @@ IDにかかわらずすべてのサーボが上記の動作をしているはず
 
 ### Summay
 
-一般的なユースケースでは以下の2つの topic を利用すれば十分である．
+一般的なユースケースでは以下の2つの topic を利用すれば十分である．  
+ヘッダーファイルや型など，具体的な使い方ついては，[`dynamixel_handler_examples`](./dynamixel_handler_examples) を参照されたし．
 
-####  `/dynamixel/states`([dynamixel_handler_msgs::msg::DxlStates](#./dynamixel_handler_msgs#dynamixel_handler_msgsmsgdxlstates-type))
+####  `/dynamixel/states`([dynamixel_handler_msgs::msg::DxlStates](./dynamixel_handler_msgs#dynamixel_handler_msgsmsgdxlstates-type))
 連結したサーボすべての状態をまとめた topic, `dynaimxel_handler`からpublishされる．
+publish の周期と内容は [Parameters](#parameters) の章の[実行時の動作設定](#実行時の動作設定)の`pub_ratio`パラメータで設定される．
 
 <details>
-<summary> field 構成 </summary>
+<summary> field 構成など　(これを見ればだいたいわかるはず) </summary>
 
 ```yaml 
 $ ros2 topic echo --flow-style /dynamixel/states #このtopicはコマンドラインから見る想定ではない．
@@ -315,7 +317,7 @@ status: # DynamixelStatus型, pub_ratio/status に一回 read される．．
    ping: [true, true, true, true]      # サーボが応答しているか
    mode: ['position', 'velocity', 'current', 'velocity'] # 制御モード
 present: # DynamixelPresent型, pub_ratio/present.~ に一回 read され，1要素でも読み取ったら埋める
-   id_list: [1, 2, 3, 4]
+   id_list: [1, 2, 3, 4]                      # 以下の各要素の read 周期は個別に設定される．
    pwm_percent: [.nan, .nan, .nan, .nan]      # 現在のPWM値, Proシリーズは無し．
    current_ma: [0.0, 0.0, 0.0, 0.0]           # 現在の電流値
    velocity_deg_s: [0.0, 0.0, 0.0, 0.0]       # 現在の速度
@@ -366,11 +368,12 @@ extra: # DynamixelExtra型, 未実装
 
 </details>
 
-#### `/dynamixel/commands/x`([dynamixel_handler_msgs::msg::DxlCommandsX](#./dynamixel_handler_msgs#dynamixel_handler_msgsmsgdxlcommandsx-type))
+#### `/dynamixel/commands/x`([dynamixel_handler_msgs::msg::DxlCommandsX](./dynamixel_handler_msgs#dynamixel_handler_msgsmsgdxlcommandsx-type))
 Xシリーズに対してまとめて指令する topic, `dynaimxel_handler`に subscribe される．
-  
+[Parameters](#parameters) の章の[初期化・終了時等の挙動設定](#初期化終了時等の挙動設定)における `init/used_servo_series` パラメータで `X: true` に設定されている場合に利用可能．
+
   <details>
-  <summary> field 構成 </summary>
+  <summary> field 構成など(これを見ればだいたいわかるはず) </summary>
   
 ```yaml
 $ ros2 topic echo --flow-style /dynamixel/commands/x #このtopicはコマンドラインから送る想定ではない．
@@ -435,36 +438,37 @@ extra: # DynamixelExtra型, 未実装
 </details>
 
 <br>
-
-具体的な使い方ついては，[`dynamixel_handler_examples`](./dynamixel_handler_examples) を参照されたし．
  
+他のシリーズのサーボを制御するための topic として以下がある．
+ - `/dynamixel/commands/p` ([`dynamixel_handler_msgs::msg::DxlCommandsP`](./dynamixel_handler_msgs#dynamixel_handler_msgsmsgdxlcommandsp-type))
+ - `/dynamixel/commands/pro` ([`Dxdynamixel_handler_msgs::msg::lCommandsPro`](./dynamixel_handler_msgs#dynamixel_handler_msgsmsgdxlcommandspro-type))
+
+それぞれ [Parameters](#parameters) の章の[初期化・終了時等の挙動設定](#初期化終了時等の挙動設定)における `init/used_servo_series`パラメータで`P: true`/`Pro: true`に設定されている場合に利用可能．
 
 ### Published Topics
 
-各情報は読み取り周期 `pub_ratio/{~}`に従って読み取られ，**読み取られた場合のみ** publish or データが埋められる．    
-読み取りの周期は[実行時の動作設定](#実行時の動作設定)や[各種情報の分類](#各種情報の分類と-control-table-との対応)を参照．
+`dynamixel_handler` ノードが publish する topic を以下に示す．
+各情報は読み取り周期 `pub_ratio/{~}`に従って読み取られ，**読み取られた場合のみ** publish される．
 
 #### プログラム向けの統合的なステータス情報
 
 - **`/dynamixel/states`** ([`DxlStates`型](./dynamixel_handler_msgs#dynamixel_handler_msgsmsgdxlstates-type))  
   全シリーズ共通のサーボ状態をまとめた topic．以下の field からなる：
   - `stamp`: データが読み取れた時刻  
-  - `status`: [`/dynamixel/state/status`](./dynamixel_handler_msgs#dynamixelstatus-type)に相当し，`pub_ratio/status`に一回データが埋められる．  
-  - `present`: [`/dynamixel/state/present`](./dynamixel_handler_msgs#dynamixelpresent-type)に相当し，`pub_ratio/present.{~}`の最小値に一回埋められる．  
-  - `goal` : [`/dynamixel/state/goal`](./dynamixel_handler_msgs#dynamixelgoal-type)に相当, `pub_ratio/goal`に一回データが埋められる．  
-  - `gain` : [`/dynamixel/state/gain`](./dynamixel_handler_msgs#dynamixelgain-type)に相当, `pub_ratio/gain`に一回データが埋められる．  
-  - `limit`: [`/dynamixel/state/limit`](./dynamixel_handler_msgs#dynamixellimit-type)に相当, `pub_ratio/limit`に一回データが埋められる．  
-  - `error`: [`/dynamixel/state/error`](./dynamixel_handler_msgs#dynamixelerror-type)に相当, `pub_ratio/error`に一回データが埋められる．
+  - [`status`](./dynamixel_handler_msgs#dynamixelstatus-type) : `/dynamixel/state/status`に相当，`pub_ratio/status`に一回データが埋められる．  
+  - [`present`](./dynamixel_handler_msgs#dynamixelpresent-type) : `/dynamixel/state/present`に相当，`pub_ratio/present.{~}`の最小値に一回埋められる．  
+  - [`goal`](./dynamixel_handler_msgs#dynamixelgoal-type) : `/dynamixel/state/goal`に相当, `pub_ratio/goal`に一回データが埋められる．  
+  - [`gain`](./dynamixel_handler_msgs#dynamixelgain-type) : `/dynamixel/state/gain`に相当, `pub_ratio/gain`に一回データが埋められる．  
+  - [`limit`](./dynamixel_handler_msgs#dynamixellimit-type) : `/dynamixel/state/limit`に相当, `pub_ratio/limit`に一回データが埋められる．  
+  - [`error`](./dynamixel_handler_msgs#dynamixelerror-type) : `/dynamixel/state/error`に相当, `pub_ratio/error`に一回データが埋められる．
  
-　 ※　シリーズ共通で扱うため，いくつかの field は address 名が読み違えられていたり，`.nan`で埋まっている場合がある．詳細は各 field に相当する topic の説明を参照． 
-
 - **`/dynamixel/external_port/read`** ([`DxlExternalPort`型](./dynamixel_handler_msgs#dynamixel_handler_msgsmsgdxlexternalport-type))    
   XH540とP・Proシリーズが持つExternal Port機能を扱うための topic．以下の field からなる:
   - `stamp`: データが読み取れた時刻  
   - `id_list`: サーボのID
-  - `port`: External Portのポート番号
-  - `mode`: ポートのモード，analog in / digital out / digital in (pull up) / digital in (pull down)
-  - `data`: ポートのデータ，モードに応じて 0--4096 (analog in) と 0 or 1 (digital ~) の値をとる．
+  - `port`: External Portのポート番号の配列
+  - `mode`: ポートのモードの配列，analog in / digital out / digital in (pull up) / digital in (pull down)
+  - `data`: ポートのデータの配列，モードに応じて 0--4096 (analog in) と 0 or 1 (digital ~) の値をとる．
 
 #### コマンドライン確認用のステータス情報
 
@@ -473,14 +477,62 @@ extra: # DynamixelExtra型, 未実装
   例外は`pub_outdated_present`パラメータが`false`に設定されている場合の`/dynaimxel/state/present`だけであり，読み込まれなかった field は空配列となる．
   各 topic の publish 周期は　[Parameters](#parameters) の章の[実行時の動作設定](#実行時の動作設定)の `pub_ratio/{~}` で決まる．
 
+   ※ シリーズ共通で扱うため，トピックの field 名と Dynamixel の address 名は必ずしも一致していない．シリーズによっては非対応な要素もあるが，その場合は `.nan` で埋められる．
+
 - **`/dynamixel/state/status`** ([`DynamixelStatus`型](./dynamixel_handler_msgs#dynamixelstatus-type))  
   サーボの状態(トルク・エラー・ping・制御モード)を示す．     
   ※ エラーについてはハードウェアエラーの有無を示し，エラーの詳細は別途提供．
+  <details>
+  <summary> 出力例 </summary>
+
+  ```yaml
+  $ ros2 topic echo --flow-style /dynamixel/state/status
+  id_list: [1, 6, 7] # 認識されているサーボのID
+  torque: [true, true, false] # トルクがONかOFFか
+  error: [false, false, true] # エラーが発生しているか
+  ping: [true, true, true] # pingが通っているか
+  mode: [position, velocity, current] # 制御モード
+  ```
+  </details>
 
 - **`/dynamixel/state/present`** ([`DynamixelPresent`型](./dynamixel_handler_msgs#dynamixelpresent-type))  
   サーボの現在値(位置、速度、電流など)を示す．    
   高速化のため，位置，速度などの要素個別で読み取り周期`pub_ratio/present.{~}`を設定できる．   
-  ※ そのため最新のデータと非最新のデータが混在することになるが，非最新のデータを publish するかどうかは `pub_outdated_present`パラメータで設定可能．デフォルトは `true`なので古いデータも含め全ての field が埋まる．   
+  ※ そのため最新のデータと非最新のデータが混在することになるが，非最新のデータを publish するかどうかは `pub_outdated_present`パラメータで設定可能．
+  
+  <details>
+  <summary> 出力例 </summary>
+  `pub_ratio/present` に `{current_ma: 1, velocity_deg_s: 1, position_deg: 1}`　が設定されており，その他の`pub_ratio/present.{~}`が `0` に設定されている場合の出力例を示す．
+  `pub_outdated_present` はデフォルトで `true`なので読み取られなかったデータも含め全ての field が埋まる．   
+  ```yaml
+  $ ros2 topic echo --flow-style /dynamixel/state/present #このtopicはコマンドラインから見る想定ではない．
+  present: # DynamixelPresent型, pub_ratio/present.~ に一回 read され，1要素でも読み取ったら埋める
+    id_list: [2, 3]
+    pwm_percent: [0.0,  0.0]      # 現在のPWM値, Proシリーズは無し．
+    current_ma: [100.9, 200.6]           # 現在の電流値
+    velocity_deg_s: [10.0, 15.1]       # 現在の速度
+    position_deg: [40.2, 3.1]         # 現在の位置
+    vel_trajectory_deg_s: [0.0, 0.0] # profileによって生成された理想の速度，Proシリーズは無し．
+    pos_trajectory_deg: [0.0, 0.0]   # profileによって生成された理想の位置, Proシリーズは無し．
+    input_voltage_v: [0.0, 0.0]      # 現在の入力電圧
+    temperature_degc: [0.0, 0.0]     # 現在の温度
+  ```
+
+  `pub_outdated_present_value` パラメータを `false` にすると以下のように読み取られなかった field は空配列となる．この場合は `pwm_percent`, `vel_trajectory_deg_s`, `pos_trajectory_deg`, `input_voltage_v`, `temperature_degc` は `pub_ratio/present.{~}` が `0` なので読み取られない．
+  ```yaml
+  $ ros2 topic echo --flow-style /dynamixel/state/present #このtopicはコマンドラインから見る想定ではない．
+  present: # DynamixelPresent型, pub_ratio/present.~ に一回 read され，1要素でも読み取ったら埋める
+    id_list: [2, 3]
+    pwm_percent: []      # 現在のPWM値, Proシリーズは無し．
+    current_ma: [0.0, 0.0]           # 現在の電流値
+    velocity_deg_s: [0.0, 0.0]       # 現在の速度
+    position_deg: [0.0, 0.0]         # 現在の位置
+    vel_trajectory_deg_s: [] # profileによって生成された理想の速度，Proシリーズは無し．
+    pos_trajectory_deg: []   # profileによって生成された理想の位置, Proシリーズは無し．
+    input_voltage_v: []      # 現在の入力電圧
+    temperature_degc: []     # 現在の温度
+  ```
+  </details>  
 
 - **`/dynamixel/state/goal`** ([`DynamixelGoal`型](./dynamixel_handler_msgs#dynamixelgoal-type))  
   サーボの目標値(目標位置、目標速度など)を示す．   
@@ -585,7 +637,7 @@ Subscribe 時にデータが一時保存され，直後のメインループ内�
     サーボの状態を設定する. 以下の field からなる：
     - `id_list`: 適用するサーボのID
     - `torque`: `true`/`false`で指定IDのトルクを安全にON/OFFする．
-    - `error`: `false`, `true`のどちらが指定されていてもエラークリアする．
+    - `error`: `false`, `true`のどちらが指定されていてもエラークリアをトライ
     - `ping`: `true`/`false`で指定したIDを認識リストへ追加/削除する．  
     - `mode`: [制御モードの文字列](./dynamixel_handler_msgs#dynamixelstatus-type)によって指定したIDの制御モードを変更．    
        ※ 各モードの`{~}_control`系の topic を送ることでも自動設定されるので，基本的には使わなくもてOK．   

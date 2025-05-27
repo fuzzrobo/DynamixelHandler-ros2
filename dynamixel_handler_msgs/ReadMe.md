@@ -11,7 +11,7 @@
    - write: `/dynamixel/commands/x` topic (for X series), `/dynamixel/commands/p` topic (for P series), `/dynamixel/commands/pro` topic (for Pro series)
  - Usage in command line
    - read: `/dynamixel/state/...` topics, `/dynamixel/debug` topic
-   - write: `/dynamixel/command/...` topics
+   - write: `/dynamixel/command/...` topics, `/dynamixel/shortcut` topic
 
 -----
 
@@ -28,11 +28,11 @@
   
 #### コマンドラインから使う想定のもの
 
-   **デバック用**
+   **> デバック用**
    - `/dynamixel/debug` : サーボが動かないときにに確認したい情報をまとめたもの
    - `/dynamixel/shortcut` : トルクのオンオフ・エラー解除・IDの追加削除などを行うためのもの
 
-   **状態確認用**
+   **> 状態確認用**
    - `/dynamixel/state/status` : サーボの状態を示す
    - `/dynamixel/state/present` : 現在の値を示す
    - `/dynamixel/state/goal` : 目標値を示す
@@ -41,24 +41,24 @@
    - `/dynamixel/state/error` : エラーを示す
    - `/dynamixel/state/extra` : その他の情報を示す
 
-   **コマンド送信用**
-   - `/dynamixel/command/x/pwm_control` : pwm制御モードでの指令を送る
-   - `/dynamixel/command/x/current_control` : 電流制御モードでの指令を送る
-   - `/dynamixel/command/x/velocity_control` : 速度制御モードでの指令を送る
-   - `/dynamixel/command/x/position_control` : 位置制御モードでの指令を送る
-   - `/dynamixel/command/x/extended_position_control` :　拡張位置制御モードでの指令を送る
-   - `/dynamixel/command/x/current_base_position_control` :　電流制限付き位置制御モードでの指令を送る
+   **> コマンド送信用**
+   - `/dynamixel/command/x/pwm_control` :Xシリーズに対いてpwm制御モードでの指令を送る
+   - `/dynamixel/command/x/current_control` :Xシリーズに対いて電流制御モードでの指令を送る
+   - `/dynamixel/command/x/velocity_control` :Xシリーズに対いて速度制御モードでの指令を送る
+   - `/dynamixel/command/x/position_control` :Xシリーズに対いて位置制御モードでの指令を送る
+   - `/dynamixel/command/x/extended_position_control` :Xシリーズに対いて拡張位置制御モードでの指令を送る
+   - `/dynamixel/command/x/current_base_position_control` :Xシリーズに対いて電流制限付き位置制御モードでの指令を送る
 
-   - `/dynamixel/command/p/pwm_control` : pwm制御モードでの指令を送る
-   - `/dynamixel/command/p/current_control` : 電流制御モードでの指令を送る
-   - `/dynamixel/command/p/velocity_control` : 速度制御モードでの指令を送る
-   - `/dynamixel/command/p/position_control` : 位置制御モードでの指令を送る
-   - `/dynamixel/command/p/extended_position_control` : 拡張位置制御モードでの指令を送る
+   - `/dynamixel/command/p/pwm_control` : pシリーズに対してpwm制御モードでの指令を送る
+   - `/dynamixel/command/p/current_control` : pシリーズに対して電流制御モードでの指令を送る
+   - `/dynamixel/command/p/velocity_control` : pシリーズに対して速度制御モードでの指令を送る
+   - `/dynamixel/command/p/position_control` : pシリーズに対して位置制御モードでの指令を送る
+   - `/dynamixel/command/p/extended_position_control` : pシリーズに対して拡張位置制御モードでの指令を送る
 
-   - `/dynamixel/command/pro/current_control` : 電流制御モードでの指令を送る
-   - `/dynamixel/command/pro/velocity_control` : 速度制御モードでの指令を送る
-   - `/dynamixel/command/pro/position_control` : 位置制御モードでの指令を送る
-   - `/dynamixel/command/pro/extended_position_control` : 拡張位置制御モードでの指令を送る
+   - `/dynamixel/command/pro/current_control` : Proシリーズに対して電流制御モードでの指令を送る
+   - `/dynamixel/command/pro/velocity_control` : Proシリーズに対して速度制御モードでの指令を送る
+   - `/dynamixel/command/pro/position_control` : Proシリーズに対して位置制御モードでの指令を送る
+   - `/dynamixel/command/pro/extended_position_control` : Proシリーズに対して拡張位置制御モードでの指令を送る
 
    - `/dynamixel/command/status` : サーボの状態を変更する
    - `/dynamixel/command/goal` : サーボの目標値を変更する
@@ -226,13 +226,13 @@ profile_acc_deg_ss: [0.0, 0.0, 0.0, 0.0]" -1
 ```cpp
 builtin_interfaces/Time stamp
 
-dynamixel_handler/DynamixelStatus status
+dynamixel_handler/DynamixelStatus  status
 dynamixel_handler/DynamixelPresent present
-dynamixel_handler/DynamixelGoal goal
-dynamixel_handler/DynamixelGain gain
-dynamixel_handler/DynamixelLimit limit
-dynamixel_handler/DynamixelError error
-dynamixel_handler/DynamixelExtra extra
+dynamixel_handler/DynamixelGoal    goal
+dynamixel_handler/DynamixelGain    gain
+dynamixel_handler/DynamixelLimit   limit
+dynamixel_handler/DynamixelError   error
+dynamixel_handler/DynamixelExtra   extra
 ```
 具体的な詳細については，[それぞれの要素の型定義](#それぞれの要素の型定義)を参照.　
 ↓ 出力例（これを見ればだいたいわかるはず）
@@ -480,7 +480,7 @@ dynamixel_handler/DynamixelExtra  extra
 
 ### それぞれの要素の型定義
 #### `DynamixelStatus` type
-Status 関連を読み書きするためのトピック `/dynamixel/command/status` と `/dynamixel/state/status` の型
+status 関連を読み書きするためのトピック `/dynamixel/command/status` と `/dynamixel/state/status` の型
    ```yml
    uint16[] id_list
    bool[] torque
@@ -496,7 +496,7 @@ Status 関連を読み書きするためのトピック `/dynamixel/command/stat
    string CONTROL_CURRENT_BASE_POSITION = "cur_position"
    ```
 
-`mode` フィールドに指定可能な文字列はDynamixelStatus型の定数として定義されており，プログラム内から扱う場合，以下の様に記述できる．
+`mode` フィールドに指定可能な文字列は `DynamixelStatus` 型の定数として定義されており，プログラム内から扱う場合，以下の様に記述できる．
    ```cpp
    // DynamixelStatus 型を直接使う場合
    dynamixel_handler_msgs::msg::DynamixelStatus msg;
@@ -511,7 +511,7 @@ Status 関連を読み書きするためのトピック `/dynamixel/command/stat
    ```
 
 #### `DynamixelGoal` type
-Goal値を読み書きするためのトピック `/dynamixel/command/goal` と `/dynamixel/state/goal` の型
+goal値を読み書きするためのトピック `/dynamixel/command/goal` と `/dynamixel/state/goal` の型
    ```yml
    uint16[] id_list
    float64[] pwm_percent
@@ -521,10 +521,11 @@ Goal値を読み書きするためのトピック `/dynamixel/command/goal` と 
    float64[] profile_vel_deg_s
    float64[] position_deg
    ```
-field 名はX,Pシリーズに合わせて構成されている．Proシリーズは `pwm_percent`, `profile_vel_deg_s` に非対応．また，Proシリーズの`goal_acceleration`は`profile_acc_deg_ss`に対応している．
+field 名はX,Pシリーズに合わせて構成されている．Proシリーズは `pwm_percent`, `profile_vel_deg_s` に非対応．  
+また，Proシリーズの`goal_acceleration`は`profile_acc_deg_ss`に対応している．
 
 #### `DynamixelPresent` type
-Present値を読み出すためのトピック `/dynamixel/state/present` の型
+present値を読み出すためのトピック `/dynamixel/state/present` の型
    ```yml
    uint16[] id_list
    float64[] pwm_percent
@@ -539,7 +540,7 @@ Present値を読み出すためのトピック `/dynamixel/state/present` の型
 field 名はX,Pシリーズに合わせて構成されている．Proシリーズは`pwm_percent` と `vel_trajectory_deg_s`，`pos_trajectory_deg` に非対応．
 
 #### `DynamixelGain` type
-Gainを読み書きするためのトピック `/dynamixel/command/gain` と `/dynamixel/state/gain` の型
+gainを読み書きするためのトピック `/dynamixel/command/gain` と `/dynamixel/state/gain` の型
    ```yml
    uint16[] id_list
    float64[] velocity_i_gain_pulse
@@ -554,7 +555,7 @@ Gainを読み書きするためのトピック `/dynamixel/command/gain` と `/d
 field 名はX,Pシリーズに合わせて構成されている．Proシリーズは`position_d_gain_pulse`, `position_i_gain_pulse`, `feedforward_2nd_gain_pulse`, `feedforward_1st_gain_pulse` に非対応．
 
 #### `DynamixelLimit` type
-Limitを読み書きするためのトピック `/dynamixel/command/limit`　と　`/dynamixel/state/limit`　の型
+limit値を読み書きするためのトピック `/dynamixel/command/limit`　と　`/dynamixel/state/limit`　の型
    ```yml
    uint16[] id_list
    float64[] temperature_limit_degc
@@ -571,7 +572,7 @@ Limitを読み書きするためのトピック `/dynamixel/command/limit`　と
 field 名はPシリーズに合わせて構成されている．Xシリーズは `acceleration_limit_deg_ss`に非対応．Proシリーズは`pwm_limit_percent`に非対応．
 
 #### `DynamixelError` type
-Errorを読みだすためのトピック `/dynamixel/state/error` の型
+errorを読みだすためのトピック `/dynamixel/state/error` の型
    ```yml
    uint16[] id_list
    bool[] input_voltage
