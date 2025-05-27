@@ -61,7 +61,8 @@ class DynamixelHandler::ExternalPort {
         };
         static inline unordered_map<DynamixelSeries, vector<uint8_t>> ex_port_indice_ = {
             {SERIES_X, {1,2,3}}, 
-            {SERIES_P, {1,2,3,4}}
+            {SERIES_P, {1,2,3,4}},
+            {SERIES_PRO, {1,2,3,4}}
         };
 
         // 連結しているサーボの個々の状態を保持するmap
@@ -81,7 +82,6 @@ class DynamixelHandler::ExternalPort {
         template <typename Addr=AddrCommon> void SyncWriteExternalPortData(unordered_set<uint8_t> updated_id_data);
         template <typename Addr=AddrCommon> double SyncReadExternalPortMode(set<uint8_t> id_set);
         template <typename Addr=AddrCommon> double SyncReadExternalPortData(set<uint8_t> id_set);
-
 };
 
 #endif /* DYNAMIXEL_EXTERNAL_PORT_H */
