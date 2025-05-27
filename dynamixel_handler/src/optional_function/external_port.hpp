@@ -54,34 +54,36 @@ class DynamixelHandler::ExternalPort {
         bool verbose_write_    = false; // serial通信関係のverbose設定
         bool verbose_read_     = false; // serial通信関係のverbose設定
         bool verbose_read_err_ = false; // serial通信関係のverbose設定
-  
+
+        using id_t = uint8_t; // DynamixelのIDを表す型
+        using port_t = uint8_t; // ExternalPortのポート番号を表す型
         template<typename T> struct ex_port_t {
             T mode;
             T data;
         };
-        static inline unordered_map<DynamixelSeries, vector<uint8_t>> ex_port_indice_ = {
+        static inline unordered_map<DynamixelSeries, vector<port_t>> ex_port_indice_ = {
             {SERIES_X, {1,2,3}}, 
             {SERIES_P, {1,2,3,4}},
             {SERIES_PRO, {1,2,3,4}}
         };
 
         // 連結しているサーボの個々の状態を保持するmap
-        static inline map<uint8_t, map<uint8_t, ex_port_t<uint16_t>>> export_w_; // 各dynamixelの id と サーボへ書き込むExternalPortのマップ, ex_port は port番号と mode, data の組のマップとして扱う
-        static inline map<uint8_t, map<uint8_t, ex_port_t<uint16_t>>> export_r_; // 各dynamixelの id と サーボへ書き込むExternalPortのマップ, ex_port は port番号と mode, data の組のマップとして扱う
+        static inline map<id_t, map<port_t, ex_port_t<uint16_t>>> export_w_; // 各dynamixelの id と サーボへ書き込むExternalPortのマップ, ex_port は port番号と mode, data の組のマップとして扱う
+        static inline map<id_t, map<port_t, ex_port_t<uint16_t>>> export_r_; // 各dynamixelの id と サーボへ書き込むExternalPortのマップ, ex_port は port番号と mode, data の組のマップとして扱う
 
         // 上記の変数を適切に使うための補助的なフラグ
-        static inline ex_port_t<unordered_set<uint8_t>> updated_id_export_;    // topicのcallbackによって，ex_port_w_が更新されたサーボidの集合
-        static inline           unordered_set<uint8_t>  touched_id_export_;    // topicのcallbackによって，一度でも指令が送られたサーボidの集合
+        static inline ex_port_t<unordered_set<  id_t>> updated_id_export_;    // topicのcallbackによって，ex_port_w_が更新されたサーボidの集合
+        static inline map<id_t, unordered_set<port_t>> touched_port_export_;  // read/writeの対象となったport番号の集合のマップ
         //* Dynamixel単体との通信による下位機能
-        uint16_t ReadExternalPortMode(uint8_t servo_id, uint8_t port);
-        uint16_t ReadExternalPortData(uint8_t servo_id, uint8_t port);
-        bool WriteExternalPortMode(uint8_t servo_id, uint8_t port, uint16_t mode);
-        bool WriteExternalPortData(uint8_t servo_id, uint8_t port, uint16_t data);
+        uint16_t ReadExternalPortMode(id_t servo_id, port_t port);
+        uint16_t ReadExternalPortData(id_t servo_id, port_t port);
+        bool WriteExternalPortMode(id_t servo_id, port_t port, uint16_t mode);
+        bool WriteExternalPortData(id_t servo_id, port_t port, uint16_t data);
         //* 連結しているDynamixelに一括で読み書きするloopで使用する機能
-        template <typename Addr=AddrCommon> void SyncWriteExternalPortMode(unordered_set<uint8_t> updated_id_mode);
-        template <typename Addr=AddrCommon> void SyncWriteExternalPortData(unordered_set<uint8_t> updated_id_data);
-        template <typename Addr=AddrCommon> double SyncReadExternalPortMode(set<uint8_t> id_set);
-        template <typename Addr=AddrCommon> double SyncReadExternalPortData(set<uint8_t> id_set);
+        template <typename Addr=AddrCommon> void SyncWriteExternalPortMode(unordered_set<id_t> updated_id_mode);
+        template <typename Addr=AddrCommon> void SyncWriteExternalPortData(unordered_set<id_t> updated_id_data);
+        template <typename Addr=AddrCommon> double SyncReadExternalPortMode(unordered_set<id_t> id_set);
+        template <typename Addr=AddrCommon> double SyncReadExternalPortData(unordered_set<id_t> id_set);
 };
 
 #endif /* DYNAMIXEL_EXTERNAL_PORT_H */

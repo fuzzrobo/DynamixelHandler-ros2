@@ -53,18 +53,23 @@ void DynamixelHandler::ExternalPort::CallbackExternalPort(const DxlExternalPort:
     for (auto i : valid_indice) {
         auto   ID = msg->id_list[i];
         auto port = msg->port[i];
-        touched_id_export_.insert(ID);
-        if ( has_data ) {
-            export_w_[ID][port].data = msg->data[i];
-            updated_id_export_.data.insert(ID);
-        }
         if ( has_mode ) {
+            if ( msg->mode[i] == msg->MODE_UNSET ) {
+                touched_port_export_[ID].erase(port); // modeがUNSETの場合はポートを削除
+                continue;
+            }
+            auto mode_pre = export_w_[ID][port].mode; // 書き込み用のモード
                  if ( msg->mode[i] == msg->MODE_ANALOG_IN           ) export_w_[ID][port].mode = EXTERNAL_PORT_MODE_AIN;
             else if ( msg->mode[i] == msg->MODE_DIGITAL_OUT         ) export_w_[ID][port].mode = EXTERNAL_PORT_MODE_DOUT;
             else if ( msg->mode[i] == msg->MODE_DIGITAL_IN_PULLUP   ) export_w_[ID][port].mode = EXTERNAL_PORT_MODE_DIN_PULLUP;
             else if ( msg->mode[i] == msg->MODE_DIGITAL_IN_PULLDOWN ) export_w_[ID][port].mode = EXTERNAL_PORT_MODE_DIN_PULLDOWN;
             else {continue; ROS_WARN("  Invalid mode [%s]", msg->mode[i].c_str());} // verbose_callback_ に関わらず出力
-            updated_id_export_.mode.insert(ID);
+            touched_port_export_[ID].insert(port);
+            if ( mode_pre!=export_w_[ID][port].mode ) updated_id_export_.mode.insert(ID);
+        }
+        if ( has_data ) {
+            export_w_[ID][port].data = msg->data[i];
+            updated_id_export_.data.insert(ID);
         }
     }
     if ( verbose_callback_ ) ROS_INFO("------------------+------------------");
@@ -74,24 +79,28 @@ void DynamixelHandler::ExternalPort::CallbackExternalPort(const DxlExternalPort:
 void DynamixelHandler::ExternalPort::BroadcastExternalPort(){
     static auto& id_set_ = parent_.id_set_;
     DxlExternalPort msg;
-    for ( const auto& [id, export_map] : export_r_ ) if ( is_in(id, id_set_) ) {
-        for (const auto& [port, contents] : export_map) {
-            msg.id_list.push_back(id);
-            msg.port.push_back(port);
-            msg.data.push_back(contents.data);
-            switch ( contents.mode ){
-                case EXTERNAL_PORT_MODE_AIN         : msg.mode.push_back(msg.MODE_ANALOG_IN          ); break;
-                case EXTERNAL_PORT_MODE_DOUT        : msg.mode.push_back(msg.MODE_DIGITAL_OUT        ); break;
-                case EXTERNAL_PORT_MODE_DIN_PULLUP  : msg.mode.push_back(msg.MODE_DIGITAL_IN_PULLUP  ); break;
-                case EXTERNAL_PORT_MODE_DIN_PULLDOWN: msg.mode.push_back(msg.MODE_DIGITAL_IN_PULLDOWN); break;
-            }
+    msg.stamp = parent_.get_clock()->now();
+    for ( auto id : id_set_ ) for ( auto port : ex_port_indice_[series_[id]] ) {
+        msg.id_list.push_back(id);
+        msg.port.push_back(port);
+        if ( !is_in(port, touched_port_export_[id])) { 
+            msg.mode.push_back(msg.MODE_UNSET); 
+            msg.data.push_back(-1); // modeがUNSETの場合はdataは-1にする
+            continue; 
         }
+        switch ( export_r_[id][port].mode ){
+            case EXTERNAL_PORT_MODE_AIN         : msg.mode.push_back(msg.MODE_ANALOG_IN          ); break;
+            case EXTERNAL_PORT_MODE_DOUT        : msg.mode.push_back(msg.MODE_DIGITAL_OUT        ); break;
+            case EXTERNAL_PORT_MODE_DIN_PULLUP  : msg.mode.push_back(msg.MODE_DIGITAL_IN_PULLUP  ); break;
+            case EXTERNAL_PORT_MODE_DIN_PULLDOWN: msg.mode.push_back(msg.MODE_DIGITAL_IN_PULLDOWN); break;
+        }
+        msg.data.push_back(export_r_[id][port].data);
     }
 
     if(pub_ex_port_) pub_ex_port_->publish(msg);
 }
 
-uint16_t DynamixelHandler::ExternalPort::ReadExternalPortMode(uint8_t id, uint8_t port){
+uint16_t DynamixelHandler::ExternalPort::ReadExternalPortMode(id_t id, port_t port){
     DynamixelAddress addr = AddrX::external_port_data_1;
            if ( series_[id]==SERIES_X ) switch (port) {
         case 1: addr = AddrX::external_port_data_1; break;
@@ -114,7 +123,7 @@ uint16_t DynamixelHandler::ExternalPort::ReadExternalPortMode(uint8_t id, uint8_
     return parent_.dyn_comm_.tryRead(addr, id);
 }
 
-uint16_t DynamixelHandler::ExternalPort::ReadExternalPortData(uint8_t id, uint8_t port){
+uint16_t DynamixelHandler::ExternalPort::ReadExternalPortData(id_t id, port_t port){
     DynamixelAddress addr = AddrX::external_port_mode_1;
            if ( series_[id]==SERIES_X ) switch (port) {
         case 1: addr = AddrX::external_port_mode_1; break;
@@ -137,7 +146,7 @@ uint16_t DynamixelHandler::ExternalPort::ReadExternalPortData(uint8_t id, uint8_
     return parent_.dyn_comm_.tryRead(addr, id);
 }
 
-bool DynamixelHandler::ExternalPort::WriteExternalPortMode(uint8_t id, uint8_t port, uint16_t data){
+bool DynamixelHandler::ExternalPort::WriteExternalPortMode(id_t id, port_t port, uint16_t data){
     DynamixelAddress addr = AddrX::external_port_data_1;
            if ( series_[id]==SERIES_X ) switch (port) {
         case 1: addr = AddrX::external_port_data_1; break;
@@ -160,7 +169,7 @@ bool DynamixelHandler::ExternalPort::WriteExternalPortMode(uint8_t id, uint8_t p
     return parent_.dyn_comm_.tryWrite(addr, id, data);
 }
 
-bool DynamixelHandler::ExternalPort::WriteExternalPortData(uint8_t id, uint8_t port, uint16_t data){
+bool DynamixelHandler::ExternalPort::WriteExternalPortData(id_t id, port_t port, uint16_t data){
     DynamixelAddress addr = AddrX::external_port_mode_1;
            if ( series_[id]==SERIES_X ) switch (port) {
         case 1: addr = AddrX::external_port_mode_1; break;
@@ -183,22 +192,21 @@ bool DynamixelHandler::ExternalPort::WriteExternalPortData(uint8_t id, uint8_t p
     return parent_.dyn_comm_.tryWrite(addr, id, data);
 }
 
-template <> void DynamixelHandler::ExternalPort::SyncWriteExternalPortMode(unordered_set<uint8_t> updated_id_mode){
-    static auto& dyn_comm_ = parent_.dyn_comm_;
-    map<uint8_t, int64_t> id_torque_map_x, id_torque_map_p, id_torque_map_pro;
-    for (auto id : updated_id_mode) {
-        if ( series_[id]==AddrX::series() ) id_torque_map_x[id] = TORQUE_DISABLE;
-        if ( series_[id]==AddrP::series() ) id_torque_map_p[id] = TORQUE_DISABLE;
-        if ( series_[id]==AddrPro::series() ) id_torque_map_pro[id] = TORQUE_DISABLE;
-    }
-    if ( !id_torque_map_x.empty() ) dyn_comm_.SyncWrite(AddrX::torque_enable, id_torque_map_x);
-    if ( !id_torque_map_p.empty() ) dyn_comm_.SyncWrite(AddrP::torque_enable, id_torque_map_p);
-    if ( !id_torque_map_pro.empty() ) dyn_comm_.SyncWrite(AddrPro::torque_enable, id_torque_map_pro);
+template <> void DynamixelHandler::ExternalPort::SyncWriteExternalPortMode(unordered_set<id_t> updated_id_mode){
+    vector<id_t> id_list_x = parent_.id_filter(updated_id_mode, SERIES_X);
+    vector<id_t> id_list_p = parent_.id_filter(updated_id_mode, SERIES_P);
+    vector<id_t> id_list_pro = parent_.id_filter(updated_id_mode, SERIES_PRO);
+    if ( !id_list_x.empty() ) parent_.SyncWrite_log(AddrX::torque_enable, id_list_x, vector<int64_t>(id_list_x.size(), TORQUE_DISABLE), verbose_write_);
+    if ( !id_list_p.empty() ) parent_.SyncWrite_log(AddrP::torque_enable, id_list_p, vector<int64_t>(id_list_p.size(), TORQUE_DISABLE), verbose_write_);
+    if ( !id_list_pro.empty() ) parent_.SyncWrite_log(AddrPro::torque_enable, id_list_pro, vector<int64_t>(id_list_pro.size(), TORQUE_DISABLE), verbose_write_);
     SyncWriteExternalPortMode<AddrX>(updated_id_mode);
     SyncWriteExternalPortMode<AddrP>(updated_id_mode);
     SyncWriteExternalPortMode<AddrPro>(updated_id_mode);
+    if ( !id_list_x.empty() ) parent_.SyncWrite_log(AddrX::torque_enable, id_list_x, vector<int64_t>(id_list_x.size(), TORQUE_ENABLE), verbose_write_);
+    if ( !id_list_p.empty() ) parent_.SyncWrite_log(AddrP::torque_enable, id_list_p, vector<int64_t>(id_list_p.size(), TORQUE_ENABLE), verbose_write_);
+    if ( !id_list_pro.empty() ) parent_.SyncWrite_log(AddrPro::torque_enable, id_list_pro, vector<int64_t>(id_list_pro.size(), TORQUE_ENABLE), verbose_write_);
 }
-template <typename Addr> void DynamixelHandler::ExternalPort::SyncWriteExternalPortMode(unordered_set<uint8_t> updated_id_mode){
+template <typename Addr> void DynamixelHandler::ExternalPort::SyncWriteExternalPortMode(unordered_set<id_t> updated_id_mode){
     static auto& model_ = parent_.model_;
     //* 書き込みに必要な変数を用意
     vector<DynamixelAddress> exmode_addr_list;  // 書き込むコマンドのアドレスのベクタ
@@ -219,14 +227,15 @@ template <typename Addr> void DynamixelHandler::ExternalPort::SyncWriteExternalP
     if ( id_exmode_vec_map.empty() ) return; // 書き込むデータがない場合は即時return
     //*SyncWriteでまとめて書き込み
     parent_.SyncWrite_log(exmode_addr_list, id_exmode_vec_map, verbose_write_);
+    SyncReadExternalPortMode<Addr>(updated_id_mode); // 書き込んだ後に読み込みを行うことで、書き込みが成功したかどうかを確認する
 }
 
-template <> void DynamixelHandler::ExternalPort::SyncWriteExternalPortData(unordered_set<uint8_t> updated_id_data){
+template <> void DynamixelHandler::ExternalPort::SyncWriteExternalPortData(unordered_set<id_t> updated_id_data){
     SyncWriteExternalPortData<AddrX>(updated_id_data);
     SyncWriteExternalPortData<AddrP>(updated_id_data);
     SyncWriteExternalPortData<AddrPro>(updated_id_data);
 }
-template <typename Addr> void DynamixelHandler::ExternalPort::SyncWriteExternalPortData(unordered_set<uint8_t> updated_id_data){
+template <typename Addr> void DynamixelHandler::ExternalPort::SyncWriteExternalPortData(unordered_set<id_t> updated_id_data){
     static auto& model_ = parent_.model_;
     //* 書き込みに必要な変数を用意
     vector<DynamixelAddress> exdata_addr_list;  // 書き込むコマンドのアドレスのベクタ
@@ -242,7 +251,7 @@ template <typename Addr> void DynamixelHandler::ExternalPort::SyncWriteExternalP
         }
         const auto& addr = exdata_addr_list.back();
         for (auto id : updated_id_data) if ( series_[id]==Addr::series() ) //updated_id_dataがex_portを持つ妥当なサーボのIDを持つことは，CallbackExternalPortで担保されている
-            id_exdata_vec_map[id].push_back( addr.val2pulse( export_w_[id][port].mode, model_[id] ) ); //export_w_がすべてのID全てのportに対して妥当な値を持っていることは初期化時に担保する
+            id_exdata_vec_map[id].push_back( addr.val2pulse( export_w_[id][port].data, model_[id] ) ); //export_w_がすべてのID全てのportに対して妥当な値を持っていることは初期化時に担保する
     }
     if ( id_exdata_vec_map.empty() ) return; // 書き込むデータがない場合は即時return
     //*SyncWriteでまとめて書き込み
@@ -250,7 +259,7 @@ template <typename Addr> void DynamixelHandler::ExternalPort::SyncWriteExternalP
 }
 
 
-template <> double DynamixelHandler::ExternalPort::SyncReadExternalPortMode(set<uint8_t> id_set){
+template <> double DynamixelHandler::ExternalPort::SyncReadExternalPortMode(unordered_set<uint8_t> id_set){
     map<DynamixelSeries, size_t> num;
     for (auto id : id_set) num[series_[id]]++;
     double suc_rate_X = SyncReadExternalPortMode<AddrX>(id_set);
@@ -259,7 +268,7 @@ template <> double DynamixelHandler::ExternalPort::SyncReadExternalPortMode(set<
     auto num_all = num[SERIES_X] + num[SERIES_P] + num[SERIES_PRO];
     return (num_all==0) ? 1.0 : (suc_rate_X * num[SERIES_X] + suc_rate_P * num[SERIES_P] + suc_rate_Pro * num[SERIES_PRO]) / num_all;
 }
-template <typename Addr> double DynamixelHandler::ExternalPort::SyncReadExternalPortMode(set<uint8_t> id_set){
+template <typename Addr> double DynamixelHandler::ExternalPort::SyncReadExternalPortMode(unordered_set<uint8_t> id_set){
     //* 読み込みに必要な変数を用意
     vector<DynamixelAddress> exmode_addr_list;
     const auto& port_list = ex_port_indice_[Addr::series()];
@@ -287,7 +296,7 @@ template <typename Addr> double DynamixelHandler::ExternalPort::SyncReadExternal
     return N_suc/(double)N_total;
 }
 
-template <> double DynamixelHandler::ExternalPort::SyncReadExternalPortData(set<uint8_t> id_set){
+template <> double DynamixelHandler::ExternalPort::SyncReadExternalPortData(unordered_set<uint8_t> id_set){
     map<DynamixelSeries, size_t> num;
     for (auto id : id_set) num[series_[id]]++;
     double suc_rate_X = SyncReadExternalPortData<AddrX>(id_set);
@@ -296,7 +305,7 @@ template <> double DynamixelHandler::ExternalPort::SyncReadExternalPortData(set<
     auto num_all = num[SERIES_X] + num[SERIES_P] + num[SERIES_PRO];
     return (num_all==0) ? 1.0 : (suc_rate_X * num[SERIES_X] + suc_rate_P * num[SERIES_P] + suc_rate_Pro * num[SERIES_PRO]) / num_all;
 }
-template <typename Addr> double DynamixelHandler::ExternalPort::SyncReadExternalPortData(set<uint8_t> id_set){
+template <typename Addr> double DynamixelHandler::ExternalPort::SyncReadExternalPortData(unordered_set<uint8_t> id_set){
     //* 読み込みに必要な変数を用意
     vector<DynamixelAddress> exdata_addr_list;
     const auto& port_list = ex_port_indice_[Addr::series()];
@@ -343,9 +352,11 @@ DynamixelHandler::ExternalPort::ExternalPort(DynamixelHandler& parent) : parent_
 DynamixelHandler::ExternalPort::~ExternalPort(){ // デストラクタ,  終了処理を行う
 
 }
+
 void DynamixelHandler::ExternalPort::MainProccess(){
     static auto& ping_err_ = parent_.ping_err_;
     static int cnt = -1; cnt++;
+    static auto& id_set_ = parent_.id_set_;
 
     SyncWriteExternalPortMode(updated_id_export_.mode);
     updated_id_export_.mode.clear();
@@ -353,7 +364,8 @@ void DynamixelHandler::ExternalPort::MainProccess(){
     updated_id_export_.data.clear();
 
     double success_rate = 0;
-    set<uint8_t> target_id_set; for (auto id : touched_id_export_) if ( ping_err_[id]==0 ) target_id_set.insert(id);
+    unordered_set<uint8_t> target_id_set; 
+    for (auto id : id_set_) if ( !touched_port_export_[id].empty() && ping_err_[id]==0 ) target_id_set.insert(id);
     if ( pub_ratio_mode_ && cnt % pub_ratio_mode_ == 0 )
         success_rate += SyncReadExternalPortMode(target_id_set);
     if ( pub_ratio_data_ && cnt % pub_ratio_data_ == 0 )
