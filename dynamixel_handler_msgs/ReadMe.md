@@ -543,13 +543,13 @@ field 名はX,Pシリーズに合わせて構成されている．Proシリー�
 gainを読み書きするためのトピック `/dynamixel/command/gain` と `/dynamixel/state/gain` の型
    ```yml
    uint16[] id_list
-   float64[] velocity_i_gain_pulse
-   float64[] velocity_p_gain_pulse
-   float64[] position_d_gain_pulse  
-   float64[] position_i_gain_pulse
-   float64[] position_p_gain_pulse
-   float64[] feedforward_2nd_gain_pulse
-   float64[] feedforward_1st_gain_pulse
+   uint16[] velocity_i_gain_pulse
+   uint16[] velocity_p_gain_pulse
+   uint16[] position_d_gain_pulse  
+   uint16[] position_i_gain_pulse
+   uint16[] position_p_gain_pulse
+   uint16[] feedforward_2nd_gain_pulse
+   uint16[] feedforward_1st_gain_pulse
    ```
 
 field 名はX,Pシリーズに合わせて構成されている．Proシリーズは`position_d_gain_pulse`, `position_i_gain_pulse`, `feedforward_2nd_gain_pulse`, `feedforward_1st_gain_pulse` に非対応．
