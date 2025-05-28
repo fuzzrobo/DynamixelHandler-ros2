@@ -80,21 +80,22 @@ void DynamixelHandler::ExternalPort::BroadcastExternalPort(){
     static auto& id_set_ = parent_.id_set_;
     DxlExternalPort msg;
     msg.stamp = parent_.get_clock()->now();
-    for ( auto id : id_set_ ) for ( auto port : ex_port_indice_[series_[id]] ) {
-        msg.id_list.push_back(id);
-        msg.port.push_back(port);
-        if ( !is_in(port, touched_port_export_[id])) { 
-            msg.mode.push_back(msg.MODE_UNSET); 
-            msg.data.push_back(-1); // modeがUNSETの場合はdataは-1にする
-            continue; 
-        }
-        switch ( export_r_[id][port].mode ){
-            case EXTERNAL_PORT_MODE_AIN         : msg.mode.push_back(msg.MODE_ANALOG_IN          ); break;
-            case EXTERNAL_PORT_MODE_DOUT        : msg.mode.push_back(msg.MODE_DIGITAL_OUT        ); break;
-            case EXTERNAL_PORT_MODE_DIN_PULLUP  : msg.mode.push_back(msg.MODE_DIGITAL_IN_PULLUP  ); break;
-            case EXTERNAL_PORT_MODE_DIN_PULLDOWN: msg.mode.push_back(msg.MODE_DIGITAL_IN_PULLDOWN); break;
-        }
-        msg.data.push_back(export_r_[id][port].data);
+    for ( auto id : id_set_ ) if (has_external_port( model_[id])) 
+        for ( auto port : ex_port_indice_[series_[id]] ) {
+            msg.id_list.push_back(id);
+            msg.port.push_back(port);
+            if ( !is_in(port, touched_port_export_[id])) { 
+                msg.mode.push_back(msg.MODE_UNSET); 
+                msg.data.push_back(-1); // modeがUNSETの場合はdataは-1にする
+                continue; 
+            }
+            switch ( export_r_[id][port].mode ){
+                case EXTERNAL_PORT_MODE_AIN         : msg.mode.push_back(msg.MODE_ANALOG_IN          ); break;
+                case EXTERNAL_PORT_MODE_DOUT        : msg.mode.push_back(msg.MODE_DIGITAL_OUT        ); break;
+                case EXTERNAL_PORT_MODE_DIN_PULLUP  : msg.mode.push_back(msg.MODE_DIGITAL_IN_PULLUP  ); break;
+                case EXTERNAL_PORT_MODE_DIN_PULLDOWN: msg.mode.push_back(msg.MODE_DIGITAL_IN_PULLDOWN); break;
+            }
+            msg.data.push_back(export_r_[id][port].data);
     }
 
     if(pub_ex_port_) pub_ex_port_->publish(msg);
