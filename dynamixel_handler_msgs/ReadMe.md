@@ -222,7 +222,7 @@ profile_acc_deg_ss: [0.0, 0.0, 0.0, 0.0]" -1
 ## Topic type detail
 
 ### `dynamixel_handler_msgs::msg::DxlStates` type 
- `/dynamixel/states` topic　の型
+ `/dynamixel/states` topic の型
 ```cpp
 builtin_interfaces/Time stamp
 
@@ -234,7 +234,7 @@ dynamixel_handler/DynamixelLimit   limit
 dynamixel_handler/DynamixelError   error
 dynamixel_handler/DynamixelExtra   extra
 ```
-具体的な詳細については，[それぞれの要素の型定義](#それぞれの要素の型定義)を参照.　
+具体的な詳細については，[それぞれの要素の型定義](#それぞれの要素の型定義)を参照. 
 ↓ 出力例（これを見ればだいたいわかるはず）
 ```yaml 
 $ ros2 topic echo --flow-style /dynamixel/states #このtopicはコマンドラインから見る想定ではない．
@@ -262,7 +262,7 @@ goal: # DynamixelGoal型, pub_ratio/goalに一回 read され，読み取った�
    velocity_deg_s: [0.0, 0.0, 0.0, 0.0]      # 目標速度
    profile_acc_deg_ss: [0.0, 0.0, 0.0, 0.0]  # profileの加速度，Proシリーズのgoal_accelerationに対応．
    profile_vel_deg_s: [0.0, 0.0, 0.0, 0.0]   # profileの速度，Proシリーズは無し．
-   position_deg: [0.0, 0.0, 0.0, 0.0]　　　　　　 # 目標位置
+   position_deg: [0.0, 0.0, 0.0, 0.0]       # 目標位置
 limit: # DynamixelLimit型, pub_ratio/limitに一回 read され，読み取りに成功したら埋める．
    id_list: []
    temperature_limit_degc: []    # 温度上限 
@@ -273,7 +273,7 @@ limit: # DynamixelLimit型, pub_ratio/limitに一回 read され，読み取り�
    acceleration_limit_deg_ss: [] # 加速度上限, profile_accelerationはこれより大きな値を書き込めない
    velocity_limit_deg_s: []      # 速度上限, goal_velocityはこれより大きな値を書き込めない
    max_position_limit_deg: []    # 位置上限, goal_positionはこれより大きな値を書き込めない
-   min_position_limit_deg: []    #　位置下限, goal_positionはこれより小さな値を書き込めない
+   min_position_limit_deg: []    # 位置下限, goal_positionはこれより小さな値を書き込めない
 gain: # DynamixelGain型, pub_ratio/gainに一回 read され，読み取りに成功したら埋める．
    id_list: [1, 2, 3, 4]
    velocity_i_gain_pulse: [0, 0, 0, 0]      # 詳細はe-manualを参照
@@ -285,7 +285,7 @@ gain: # DynamixelGain型, pub_ratio/gainに一回 read され，読み取りに�
    feedforward_1st_gain_pulse: [0, 0, 0, 0] # 詳細はe-manualを参照, Proシリーズは無し．
 error: # DynamxielError型, pub_ratio/errorに一回 read され，読み取りに成功したら埋める．
    id_list: [1, 2, 3, 4]
-   input_voltage: [false, false, false, false]      #　入力電圧が上限下限に引っかかっている
+   input_voltage: [false, false, false, false]      # 入力電圧が上限下限に引っかかっている
    motor_hall_sensor: [false, false, false, false]  # ホールセンサの異常
    overheating: [false, false, false, false]        # 現在温度が温度上限を超えている
    motor_encoder: [false, false, false, false]      # エンコーダの異常
@@ -555,7 +555,7 @@ gainを読み書きするためのトピック `/dynamixel/command/gain` と `/d
 field 名はX,Pシリーズに合わせて構成されている．Proシリーズは`position_d_gain_pulse`, `position_i_gain_pulse`, `feedforward_2nd_gain_pulse`, `feedforward_1st_gain_pulse` に非対応．
 
 #### `DynamixelLimit` type
-limit値を読み書きするためのトピック `/dynamixel/command/limit`　と　`/dynamixel/state/limit`　の型
+limit値を読み書きするためのトピック `/dynamixel/command/limit` と `/dynamixel/state/limit` の型
    ```yml
    uint16[] id_list
    float64[] temperature_limit_degc
@@ -599,7 +599,7 @@ Xシリーズを電流制御モードで動かすためのトピック `/dynamix
    ```
 
 #### `DynamixelControlXVelocity` type
-Xシリーズを速度制御モードで動かすためのトピック　`/dynamixel/command/x/velocity_control`の型
+Xシリーズを速度制御モードで動かすためのトピック `/dynamixel/command/x/velocity_control`の型
    ```yml
    uint16[] id_list
    float64[] velocity_deg_s
@@ -607,7 +607,7 @@ Xシリーズを速度制御モードで動かすためのトピック　`/dynam
    ```
 
 #### `DynamixelControlXPosition` type
-Xシリーズを位置制御モードで動かすためのトピック　`/dynamixel/command/x/position_control`の型
+Xシリーズを位置制御モードで動かすためのトピック `/dynamixel/command/x/position_control`の型
    ```yml
    uint16[] id_list
    float64[] position_deg
@@ -616,7 +616,7 @@ Xシリーズを位置制御モードで動かすためのトピック　`/dynam
    ```
 
 #### `DynamixelControlXExtendedPosition` type
-Xシリーズを拡張位置制御モードで動かすためのトピック　`/dynamixel/command/x/extended_position_control`の型
+Xシリーズを拡張位置制御モードで動かすためのトピック `/dynamixel/command/x/extended_position_control`の型
    ```yml
    uint16[] id_list
    float64[] position_deg
@@ -625,7 +625,7 @@ Xシリーズを拡張位置制御モードで動かすためのトピック　`
    float64[] profile_acc_deg_ss
    ```
 
-#### `DynamixelControlXCurrentPosition` type　
+#### `DynamixelControlXCurrentPosition` type 
 Xシリーズを電流制限付き位置制御モードで動かすためのトピック `/dynamixel/command/x/current_position _control`の型
    ```yml
    uint16[] id_list
@@ -772,7 +772,7 @@ Dynamixelの起動、停止、エラー解除などをショートカット的�
 現在のstatusである，トルクのon/offやエラーの有無，応答状態と制御モードの確認に加えて，電流，速度，位置のgoal値とpresent値を読み取ることができる．
    ```yml
    DynamixelStatus status # トルクのon/offやエラーの有無，応答状態と制御モードの確認
-   DynamixelDebugElement current_ma     #　目標電流値と現在電流値の比較．
+   DynamixelDebugElement current_ma     # 目標電流値と現在電流値の比較．
    DynamixelDebugElement velocity_deg_s # 目標速度値と現在速度値の比較．
    DynamixelDebugElement position_deg   # 目標位置値と現在位置値の比較．
    ```
@@ -860,6 +860,6 @@ int16[] data
 string MODE_ANALOG_IN           = "a_in"    # 指定ポートをアナログ入力モードに設定する．
 string MODE_DIGITAL_OUT         = "d_out"   # 指定ポートをデジタル出力モードに設定する．
 string MODE_DIGITAL_IN_PULLUP   = "d_in_pu" # 指定ポートをデジタル入力モード(プルアップ)に設定する．
-string MODE_DIGITAL_IN_PULLDOWN = "d_in_pd" #　指定ポートをデジタル入力モード(プルダウン)に設定する．
-string MODE_UNSET               = "unset"   #　指定ポートのモードの設定を解除する．
+string MODE_DIGITAL_IN_PULLDOWN = "d_in_pd" # 指定ポートをデジタル入力モード(プルダウン)に設定する．
+string MODE_UNSET               = "unset"   # 指定ポートのモードの設定を解除する．
 ```
