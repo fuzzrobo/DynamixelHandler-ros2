@@ -73,9 +73,16 @@ add_executable(example1
 
 ament_target_dependencies(example1 ${dependencies})
 
+add_executable(example2
+  src/example2.cpp
+)
+
+ament_target_dependencies(example2 ${dependencies})
+
 ## Install
 install(TARGETS
   example1
+  example2
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -312,3 +319,7 @@ auto timer = node->create_wall_timer(1.0s, [&](){ // 1.0sごとに実行され�
     // ... 省略 ...
 });
 ```
+
+## Example 2
+
+基本は`example1`と同じだが，コードの記述形式が ROS 2 の推奨スタイルである class ベースに変更されている．

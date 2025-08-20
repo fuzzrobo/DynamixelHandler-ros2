@@ -30,9 +30,16 @@ add_executable(example1
 
 ament_target_dependencies(example1 ${dependencies})
 
+add_executable(example2
+  src/example2.cpp
+)
+
+ament_target_dependencies(example2 ${dependencies})
+
 ## Install
 install(TARGETS
   example1
+  example2
   DESTINATION lib/${PROJECT_NAME}
 )
 

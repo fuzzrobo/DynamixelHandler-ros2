@@ -157,9 +157,9 @@ Dynamixel Wizardでモータの動作確認ができる程度の状態を想定�
 ### 2. `dynamixel_handler`ノードの起動
 
 #### 2-1. 自分の環境とconfigの設定を合わせる
-`config/config_dynamixel_handler.yml`の該当部分を編集し，保存．   
+リポジトリ内の`dynamixel_handler/config/config_dynamixel_handler.yaml`の該当部分を編集し，保存．   
 以下は baudrate: $57600$ かつ device name: `/dec/ttyUSB0`かつ latency timer: $16$ ms の場合
-```yml
+```yaml
 # config/config_dynamixel_handler.launch
 /**:
     ros__parameters:
@@ -208,13 +208,17 @@ ros2 launch dynamixel_handler dynamixel_handler_launch.xml
 ### 3. Dynamixelの動作を制御
 
 コマンドラインから指令する用の topic として`/dynamixel/command/...`と`/dynamixel/shortcut`トピックが用意されている．     
+トピックを送るだけで動作の制御が可能である．
 
 topic の詳細については [Topic](#subscribed-topics) の章を参照．
+
+以下の例では ros2 topic コマンドを利用して topic をコマンドラインから pulish しているが，別のノードを作成して同様の topic を publish することでも動作を制御できる．
 
 #### 例：ID:5の Dynamixel(Xシリーズ) を位置制御モードで角度を90degに制御
 
 `/dynamixel/command/x/position_control`トピックにIDと角度を設定して publish．
 ```bash
+# 2-2. とは別のターミナルを開いて $ source ~/ros2_ws/install/setup.bash 実行後
 ros2 topic pub /dynamixel/command/x/position_control \
  dynamixel_handler_msgs/msg/DynamixelControlXPosition \
  "{id_list: [5], position_deg: [90], profile_vel_deg_s: [], profile_acc_deg_ss: []}" -1
@@ -224,8 +228,10 @@ ros2 topic pub /dynamixel/command/x/position_control \
 > ID:5のDynamixelの制御モードは自動的に位置制御に変換される．
 
 #### 例：ID:5の Dynamixel のトルクをOFF
+
 `/dynamixel/shortcut`トピックに`torque_off`コマンドとIDを設定して publish．
 ```bash
+# 2-2. とは別のターミナルを開いて $ source ~/ros2_ws/install/setup.bash 実行後
 ros2 topic pub /dynamixel/shortcut \
  dynamixel_handler_msgs/msg/DynamixelShortcut \
  "{command: 'torque_off', id_list: [5]}"
@@ -244,9 +250,10 @@ topic の詳細については [Topic](#published-topics) の章を参照．
 #### 例: Dynamixel の現在値の確認
 
 ```bash
+# 2-2. とは別のターミナルを開いて $ source ~/ros2_ws/install/setup.bash 実行後
 ros2 topic echo --flow-style /dynamixel/state/present # status, goal, gain, limit, error... など． 
 ```
-```yml
+```yaml
 --- # 出力例
 id_list: [5, 6] # 認識されているサーボのID
 pwm_percent: [0.0, 0.0] # 現在のPWM値
@@ -265,9 +272,10 @@ read & publish される情報の選択については [Parameters](#parameters)
 #### 例: Dynamixel のデバック用情報の確認
 
 ```bash
+# 2-2. とは別のターミナルを開いて $ source ~/ros2_ws/install/setup.bash 実行後
 ros2 topic echo --flow-style /dynamixel/debug
 ```
-```yml
+```yaml
 --- # 出力例
 status: # /dynamixel/state/status と同じ
   id_list: [1, 6, 7, 8, 9] # 認識されているサーボのID
@@ -322,6 +330,23 @@ IDにかかわらずすべてのサーボが上記の動作をしているはず
 コードの解説や pkg の構成については[`dynamixel_handler_examplesのREADME`](./dynamixel_handler_examples/ReadMe.md)を参照．
 
 ***************************
+
+### 6. ダミーサーボ機能を利用してデバックする
+
+`init/dummy_servo_list` パラメータに$-1$以外のIDを指定することで，実際のサーボが接続されていなくても，そのIDのサーボをダミーサーボとして簡易的にシミュレートすることができる．
+最も簡単に利用する方法は，`dynamixel_handler`ノードの起動時にパラメータを指定することである．
+
+```bash
+ros2 run dynamixel_handler dynamixel_handler --ros-args -p init/dummy_servo_list:=[1,2]
+```
+
+実サーボとダミーサーボを同時に利用することも可能である．  
+その場合はリポジトリ内の`dynamixel_handler/config/config_dynamixel_handler.yaml`の`init/dummy_servo_list`パラメータを編集する．
+```yaml 
+# config/config_dynamixel_handler.launch
+    # サーボの設定
+        init/dummy_servo_list: [1, 2] # ダミーのサーボを作成するIDのリスト,同じIDのサーボが存在する場合でもダミーが優先される． -1や255は無視される．
+```
 
 ## Topics
 
@@ -1072,7 +1097,7 @@ XH540とP・Proシリーズが持つExternal Port機能を扱うための topic�
 ## Parameters
 
 ### 通信関係の設定
-```yml
+```yaml
 # 通信機器の設定
   device_name: /dev/ttyUSB0 # 通信するデバイス名
   baudrate: 1000000 # 通信速度
@@ -1081,7 +1106,7 @@ XH540とP・Proシリーズが持つExternal Port機能を扱うための topic�
 基本的な通信の設定．自分の環境に合わせて設定する．
 
 ### 初期化・終了時等の挙動設定
-```yml
+```yaml
 # サーボの初期設定
   init/dummy_servo_list: [-1] # ダミーのサーボを作成するIDのリスト,同じIDのサーボが存在する場合でもダミーが優先される． [0, 254]の範囲外は無視される．
   init/baudrate_auto_set: false # 探索前に，全てのサーボと全てのBaudrateに対して，baudrateの書き込みをするかどうか
@@ -1106,7 +1131,7 @@ XH540とP・Proシリーズが持つExternal Port機能を扱うための topic�
 `init/expected_servo_num`が `0`でない場合は，その数だけservoが見つかるまでスキャンを繰り返す．  
 `init/servo_auto_search.retry_times`の回数分のスキャンが失敗した場合，初期化失敗で`dynamixel_handler`ノードは落ちる．
 
-```yml
+```yaml
 # デフォルト値の設定
   default/profile_acc: 600.0 # deg/s^2
   default/profile_vel: 100.0 # deg/s
@@ -1118,7 +1143,7 @@ XH540とP・Proシリーズが持つExternal Port機能を扱うための topic�
 
 `default/return_delay_time`はサーボの応答遅延時間を設定する．基本的に0でいいはず．
 
-```yml
+```yaml
 # 通信の設定
   dyn_comm/retry_num: 10 # 通信失敗時のリトライ回数
   dyn_comm/inerval_msec: 5 # 通信失敗時のインターバル時間
@@ -1130,7 +1155,7 @@ XH540とP・Proシリーズが持つExternal Port機能を扱うための topic�
 `dyn_comm/verbose`が `true`の時は，通信失敗時に詳細なエラーを出力する．基本は `false`で問題ない．
 
 ### 実行時の動作設定
-```yml
+```yaml
 # ループの設定
   loop_rate: 100 # メインループの周期
   verbose_ratio: 300 # メインループのlog出力の割合(処理時間，通信の成功率), ex 100なら100回に1回出力
@@ -1164,7 +1189,7 @@ present値のみ高速化のために各アドレス(pwm, current, ... , tempera
 `pub_outdated_present_value`が`true`の場合は古い値も含めて全てのアドレスの値を publish する．   
 `pub_outdated_present_value`が`false`の場合は，直近のループで読み取った値のみを publish する．  
 
-```yml
+```yaml
 # Read/Write方式
   method/fast_read: false # Fast Sync Read を使うかどうか
   method/split_read: false # 複数の情報を分割して読み取るかどうか
@@ -1183,7 +1208,7 @@ present値のみ高速化のために各アドレス(pwm, current, ... , tempera
 > 上記のread方式による速度の違いについては[速度に関してメモ](#速度に関してメモ)も参照.
 
 ### log出力関係
-```yml
+```yaml
 # デバッグ用
   max_log_width: 6 # 以下のlog出力で，サーボ何個ごとに改行を入れるか
   verbose/callback: true # コールバック関数の呼び出しを出力
@@ -1201,7 +1226,7 @@ present値のみ高速化のために各アドレス(pwm, current, ... , tempera
 `verbose/write_{~}`や`verbose/read_{~}`が`true`の場合は，書き込むアドレスと書き込むパルス値を直接確認できる．
 
 ### 開発用
-```yml
+```yaml
 # 開発用
   debug: false # true: デバイスとの接続に失敗してもエラーを出力しない/ false: エラーを出力して終了する
   no_use_command_line: false # true: プログラム用の topic のみ使用する/ false: コマンドライン用の topic も出力する
@@ -1214,7 +1239,7 @@ present値のみ高速化のために各アドレス(pwm, current, ... , tempera
 ### Optional機能
 Dynamixelの動作に直接関連しない，Optional 機能の設定．
 現在は特定のモデルに存在する External Port の設定のみ．Dynamixelプロトコル対応のIMUなどの機能を追加する予定．
-```yml
+```yaml
 # Optonal機能
   option/external_port:
       use : false # External Portの機能を使うかどうか
@@ -1371,9 +1396,9 @@ mode or data のどちらか一方でも読みだされた場合`/dynamixel/exte
 
 ## Baudrate の一括変更
 
-`config/config_dynamixel_unify_baudrate.yml`の以下の部分を編集し，保存
-```yml
-# config/config_dynamixel_unify_baudrate.yml
+`config/config_dynamixel_unify_baudrate.yaml`の以下の部分を編集し，保存
+```yaml
+# config/config_dynamixel_unify_baudrate.yaml
 /**:
     ros__parameters:
         # 通信機器の設定
@@ -1394,9 +1419,9 @@ ros2 launch dynamixel_handler dynamixel_unify_baudrate_launch.xml
 (USBデバイスのデフォルトは16msのようであり，高速な通信の妨げとなることが多い)
 安定した通信のためには，使用するUBSデバイスの latency timer と ros param の `laytency_timer`を一致させる必要がある．
 
-ros param の変更には，`config/config_dynamixel_handler.yml`の以下の部分を編集して保存する．
-```yml
-# config/config_dynamixel_handler.yml
+ros param の変更には，`config/config_dynamixel_handler.yaml`の以下の部分を編集して保存する．
+```yaml
+# config/config_dynamixel_handler.yaml
 latency_timer: 4 # 通信のインターバル
 ```
 

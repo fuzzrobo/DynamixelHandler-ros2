@@ -86,7 +86,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     int id_max      ; this->get_parameter_or("init/servo_auto_search.max_id"     , id_max      , 35);
     // id_set_の作成
     if ( num_expected>0 ) ROS_INFO(" '%d' servo(s) are expected", num_expected);
-    else                 {ROS_WARN(" Expected servo number is not set."); ROS_WARN(" > Free number of Dynamixel is allowed");}
+    else                 {ROS_WARN(" Expected servo number is not set."); ROS_WARN(" > Any number of Dynamixel is allowed");}
     ROS_INFO(" Auto scanning Dynamixel (id range '%d' to '%d') ...", id_min, id_max);
     ROS_INFO(" > series: X [%suse], P [%suse], PRO [%suse]", use_["x"]?"":"no ", use_["p"]?"":"no ", use_["pro"]?"":"no ");
     /* *********************** dynamixelを探索し，初期化する ***********************************/
