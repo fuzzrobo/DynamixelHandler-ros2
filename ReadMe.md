@@ -160,7 +160,7 @@ Dynamixel Wizardでモータの動作確認ができる程度の状態を想定�
 リポジトリ内の`dynamixel_handler/config/config_dynamixel_handler.yaml`の該当部分を編集し，保存．   
 以下は baudrate: $57600$ かつ device name: `/dec/ttyUSB0`かつ latency timer: $16$ ms の場合
 ```yaml
-# config/config_dynamixel_handler.launch
+# config/config_dynamixel_handler.yaml
 /**:
     ros__parameters:
         # 通信機器の設定
@@ -333,7 +333,7 @@ IDにかかわらずすべてのサーボが上記の動作をしているはず
 
 ### 6. ダミーサーボ機能を利用してデバックする
 
-`init/dummy_servo_list` パラメータに$-1$以外のIDを指定することで，実際のサーボが接続されていなくても，そのIDのサーボをダミーサーボとして簡易的にシミュレートすることができる．
+`init/dummy_servo_list` パラメータに $1, \ldots, 254$ のIDを指定することで，実際のサーボが接続されていなくても，そのIDのサーボをダミーサーボとして簡易的にシミュレートすることができる．
 最も簡単に利用する方法は，`dynamixel_handler`ノードの起動時にパラメータを指定することである．
 
 ```bash
@@ -343,7 +343,7 @@ ros2 run dynamixel_handler dynamixel_handler --ros-args -p init/dummy_servo_list
 実サーボとダミーサーボを同時に利用することも可能である．  
 その場合はリポジトリ内の`dynamixel_handler/config/config_dynamixel_handler.yaml`の`init/dummy_servo_list`パラメータを編集する．
 ```yaml 
-# config/config_dynamixel_handler.launch
+# config/config_dynamixel_handler.yaml
     # サーボの設定
         init/dummy_servo_list: [1, 2] # ダミーのサーボを作成するIDのリスト,同じIDのサーボが存在する場合でもダミーが優先される． -1や255は無視される．
 ```
@@ -1587,4 +1587,5 @@ ros2 launch dynamixel_handler launch_dynamixel_handler.py
 対応する``yaml``は``config/config_dynamixel_unify_baudrate.yaml``
 
 ※ 一度ビルドしていれば，yamlファイルの変更に伴うビルドは不要
+
 
