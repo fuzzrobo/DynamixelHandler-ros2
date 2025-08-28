@@ -362,10 +362,10 @@ DynamixelHandler::ExternalPort::ExternalPort(DynamixelHandler& parent) : parent_
 
     parent_.get_parameter_or("option/external_port.pub_ratio/mode", pub_ratio_mode_, 100u);
     parent_.get_parameter_or("option/external_port.pub_ratio/data", pub_ratio_data_, 10u);
-    parent_.get_parameter_or("option/external_port/verbose/callback", verbose_callback_, false);
-    parent_.get_parameter_or("option/external_port/verbose/write"   , verbose_write_   , false);
-    parent_.get_parameter_or("option/external_port/verbose/read/raw", verbose_read_    , false);
-    parent_.get_parameter_or("option/external_port/verbose/read/err", verbose_read_err_, false);
+    parent_.get_parameter_or("option/external_port.verbose/callback", verbose_callback_, false);
+    parent_.get_parameter_or("option/external_port.verbose/write"   , verbose_write_   , false);
+    parent_.get_parameter_or("option/external_port.verbose/read/raw", verbose_read_    , false);
+    parent_.get_parameter_or("option/external_port.verbose/read/err", verbose_read_err_, false);
 
     pub_ex_port_ = parent_.create_publisher<DxlExternalPort>("dynamixel/external_port/read", 4);
     sub_ex_port_ = parent_.create_subscription<DxlExternalPort>("dynamixel/external_port/write", 4, bind(&DynamixelHandler::ExternalPort::CallbackExternalPort, this, _1));
