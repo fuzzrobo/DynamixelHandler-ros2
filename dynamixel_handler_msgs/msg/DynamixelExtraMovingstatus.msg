@@ -1,4 +1,11 @@
 string[] velocity_profile
-string[] following_error
-string[] profile_ongoing
-string[] in_posision
+bool[] following_error
+bool[] profile_ongoing
+bool[] in_posision
+
+
+# velocity_profile
+string PROFILE_NONE="none"
+string PROFILE_RECTANGULAR="rectangular"
+string PROFILE_TRIANGULAR="triangular"
+string PROFILE_TRAPEZOIDAL="trapezoidal"

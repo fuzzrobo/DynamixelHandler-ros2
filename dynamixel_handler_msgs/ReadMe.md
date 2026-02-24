@@ -295,7 +295,7 @@ extra: # DynamixelExtra型, 未実装
    id_list: []
    model: [] # 未実装
    firmware_version: [] # 未実装
-   protocol_version: [] # 未実装
+   protocol_type: [] # 未実装
    drive_mode: # 未実装
       torque_on_by_goal_update: []
       profile_configuration: []
@@ -304,13 +304,14 @@ extra: # DynamixelExtra型, 未実装
       overload_error: []
       electrical_shock_error: []
       motor_encorder_error: []
+      motor_hall_sensor_error: []
       overheating_error: []
       input_voltage_error: []
    restore_configuration: # 未実装
       ram_restore: []
       startup_torque_on: []
    homing_offset_deg: [] # 未実装, デフォルトで使用している
-   bus_watchbdog_ms: [] # 未実装, デフォルトで使用している
+   bus_watchdog_ms: [] # 実装済み
    return_delay_time_us: [] # 未実装
    led: # 未実装
       red_percent: [] # Xシリーズは `0.0`と`100.0`の二値．切り上げ． 
@@ -318,15 +319,13 @@ extra: # DynamixelExtra型, 未実装
       green_percent: [] # Pシリーズのみ
    shadow_id: [] # 未実装
    moving_threshold_deg_s: [] # 未実装
-   status_return_level: [] # 未実装
    moving_status: # 未実装
       velocity_profile: []
       following_error: []
       profile_ongoing: []
       in_posision: []
-   realtime_tick_us: [] # 未実装
+   realtime_tick_s: [] # 未実装
    moving: [] # 未実装
-   registered_instruction: [] # 未実装
    reboot: [] # 未実装 
 ```
 
@@ -406,7 +405,7 @@ extra: # DynamixelExtra型, 未実装
    id_list: []
    model: [] # 未実装
    firmware_version: [] # 未実装
-   protocol_version: [] # 未実装
+   protocol_type: [] # 未実装
    drive_mode: # 未実装
       torque_on_by_goal_update: []
       profile_configuration: []
@@ -415,13 +414,14 @@ extra: # DynamixelExtra型, 未実装
       overload_error: []
       electrical_shock_error: []
       motor_encorder_error: []
+      motor_hall_sensor_error: []
       overheating_error: []
       input_voltage_error: []
    restore_configuration: # 未実装
       ram_restore: []
       startup_torque_on: []
    homing_offset_deg: [] # 未実装, デフォルトで使用している
-   bus_watchbdog_ms: [] # 未実装, デフォルトで使用している
+   bus_watchdog_ms: [] # 実装済み
    return_delay_time_us: [] # 未実装
    led: # 未実装
       red_percent: [] # Xシリーズは `0.0`と`100.0`の二値．切り上げ． 
@@ -429,15 +429,13 @@ extra: # DynamixelExtra型, 未実装
       green_percent: [] # Pシリーズのみ
    shadow_id: [] # 未実装
    moving_threshold_deg_s: [] # 未実装
-   status_return_level: [] # 未実装
    moving_status: # 未実装
       velocity_profile: []
       following_error: []
       profile_ongoing: []
       in_posision: []
-   realtime_tick_us: [] # 未実装
+   realtime_tick_s: [] # 未実装
    moving: [] # 未実装
-   registered_instruction: [] # 未実装
    reboot: [] # 未実装 
 ```
 

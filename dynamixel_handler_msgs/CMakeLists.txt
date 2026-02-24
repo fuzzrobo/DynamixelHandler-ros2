@@ -28,7 +28,7 @@ set(msg_files
   "msg/DynamixelExtra.msg"
   "msg/DynamixelExtraDrivemode.msg"
   "msg/DynamixelExtraShutdown.msg"
-  "msg/DynamixelExtraRestureconfig.msg"
+  "msg/DynamixelExtraRestoreconfig.msg"
   "msg/DynamixelExtraMovingstatus.msg"
   "msg/DynamixelExtraLed.msg"
 

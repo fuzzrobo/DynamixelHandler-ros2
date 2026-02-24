@@ -1,29 +1,27 @@
 uint16[] id_list
 
-# 書き込めない
+# 固定情報
 string[] model
+uint16[] model_number
+uint16[] protocol_type
 uint16[] firmware_version
 
-# 書き込める
-string[] protocol_version
-DynamixelExtraDrivemode drive_mode
-DynamixelExtraShutdown shutdown
-DynamixelExtraRestureconfig restore_configuration 
-float64[] homing_offset_deg
-float64[] return_delay_time_us
-float64[] bus_watchdog_ms          
-
-#　機能
-DynamixelExtraLed led                    
-uint8[] shadow_id
-float64[] moving_threshold_deg_s
-uint8[] status_return_level    
-
 # 状況
+float64[] realtime_tick_s          
 DynamixelExtraMovingstatus moving_status      
-float64[] realtime_tick_us          
-uint8[] moving                 
-uint8[] registered_instruction 
+bool[] moving
 
-# 追加での機能
-bool[] reboot
+#　設定
+float64[] return_delay_time_us
+DynamixelExtraDrivemode drive_mode
+uint16[] shadow_id
+float64[] homing_offset_deg
+float64[] moving_threshold_deg_s
+DynamixelExtraRestoreconfig restore_configuration 
+float64[] pwm_slope_percent
+DynamixelExtraShutdown shutdown
+
+# 機能
+DynamixelExtraLed led                    
+float64[] bus_watchdog_ms          
+bool[] reboot             
