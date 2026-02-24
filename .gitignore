@@ -15,3 +15,6 @@ __pycache__/
 build
 log
 install
+TODO.md
+KNOWLEDGE.md
+EXTRA_FIELD_TRAITS.md
