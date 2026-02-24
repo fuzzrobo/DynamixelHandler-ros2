@@ -1,10 +1,13 @@
 #include "dynamixel_handler.hpp"
 #include "myUtils/logging_like_ros1.hpp"
 #include "myUtils/make_iterator_convenient.hpp"
+#include <cmath>
+#include <limits>
 // 一定時間待つための関数
 static void rsleep(int millisec) { std::this_thread::sleep_for(std::chrono::milliseconds(millisec));}
 static constexpr double DEG = M_PI/180.0; // degを単位に持つ数字に掛けるとradになる
-
+const static double NaN = std::numeric_limits<double>::quiet_NaN();
+	
 //* 基本機能をまとめた関数たち
 // 各シリーズのDynamixelを検出する．
 bool DynamixelHandler::tryAddDynamixels(const set<id_t>& scan_id_set, uint32_t num_expected, uint32_t times_retry) {
@@ -78,6 +81,21 @@ bool DynamixelHandler::AddDynamixel(id_t id){
         use_fast_read_ = false; // 電流センサを持たないサーボの場合はfast_readを無効化する，エラーを起こしてfast_readに反応しなくなるので．
     }
 
+    extra_db_[id].fill(NaN);
+    extra_u8_[id].fill(0);
+
+    extra_u8_[id][EXTRA_FIRMWARE_VERSION] = ReadFirmwareVersion(id);
+    extra_u8_[id][EXTRA_PROTOCOL_TYPE   ] = ReadProtocolVersion(id);
+
+    if ( extra_u8_[id][EXTRA_PROTOCOL_TYPE] != 2 ) {
+        ROS_WARN("   protocol version is not 2.0");
+        return false;
+    }
+    if ( ReadStatusReturnLevel(id) != STATUS_RETURN_LEVEL_ALL ){
+        ROS_WARN("   status return level is not 'all'");
+        return false;
+    }
+
     WriteBusWatchdog (id, 0.0/*ms*/); // 最初にBusWatchdogを無効化することで，全てのGoal値の書き込みを許可する
     WriteProfileAcc(id, default_["profile_acc_deg_ss"]*DEG ); 
     WriteProfileVel(id, default_["profile_vel_deg_s"]*DEG );
@@ -89,10 +107,12 @@ bool DynamixelHandler::AddDynamixel(id_t id){
     while (SyncReadGain   ( gain_indice_read_   , tmp)<complete) {if(!rclcpp::ok()) ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading   gain   values...");} 
     while (SyncReadLimit  ( limit_indice_read_  , tmp)<complete) {if(!rclcpp::ok()) ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading  limit   values...");} 
     while (SyncReadHardwareErrors(tmp)                <complete) {if(!rclcpp::ok()) ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading hardware errors...");}
+           BulkReadExtra_rapid(tmp);
+           BulkReadExtra_slow (tmp);
 
     tq_mode_[id] = ReadTorqueEnable(id) ? TORQUE_ENABLE : TORQUE_DISABLE;
     op_mode_[id] = ReadOperatingMode(id);
-    dv_mode_[id] = ReadDriveMode(id);
+    stop_time_[id] = 500; // いったん固定値． のちのちにパラメータで設定できるようにするかも．
     limit_w_[id] = limit_r_[id];
     gain_w_[id] = gain_r_[id];
     goal_w_[id] = goal_r_[id];
@@ -357,11 +377,89 @@ uint8_t DynamixelHandler::ReadOperatingMode(id_t id){ switch ( series_[id] ) {
     default: return 0;
 } }
 
-uint8_t DynamixelHandler::ReadDriveMode(id_t id){ switch ( series_[id] ) {
+bitset<8> DynamixelHandler::ReadDriveMode(id_t id){ switch ( series_[id] ) {
     case SERIES_X:   return dyn_comm_.tryRead(AddrX::drive_mode, id);
     case SERIES_P:   return dyn_comm_.tryRead(AddrP::drive_mode, id);
     case SERIES_PRO: ROS_WARN("   = PRO series don't support 'drive_mode'"); return 0;
-    default: return 0; 
+    default:         return bitset<8>(extra_u8_[id][EXTRA_DRIVE_MODE]);
+} }
+uint8_t DynamixelHandler::ReadFirmwareVersion(id_t id){
+    if (series_[id] == SERIES_UNKNOWN) return 0;
+    return dyn_comm_.tryRead(AddrCommon::firmware_version, id);
+}
+uint8_t DynamixelHandler::ReadProtocolVersion(id_t id){ switch ( series_[id] ) {
+    case SERIES_X:   return dyn_comm_.tryRead(AddrX::protocol_version, id);
+    case SERIES_P:   return dyn_comm_.tryRead(AddrP::protocol_version, id);
+    case SERIES_PRO: return 2;
+    default:         return 0;
+} }
+bitset<8> DynamixelHandler::ReadShutdown(id_t id){ switch ( series_[id] ) {
+    case SERIES_X:   return bitset<8>(dyn_comm_.tryRead(AddrX::shutdown, id));
+    case SERIES_P:   return bitset<8>(dyn_comm_.tryRead(AddrP::shutdown, id));
+    case SERIES_PRO: return bitset<8>(dyn_comm_.tryRead(AddrPro::shutdown, id));
+    default:         return bitset<8>(extra_u8_[id][EXTRA_SHUTDOWN]);
+} }
+bitset<8> DynamixelHandler::ReadStartupConfiguration(id_t id) { switch ( series_[id] ) {
+    case SERIES_X:   return bitset<8>(dyn_comm_.tryRead(AddrX::startup_configuration, id));
+    case SERIES_P:   return bitset<8>(dyn_comm_.tryRead(AddrP::startup_configuration, id));
+    default:         return bitset<8>(extra_u8_[id][EXTRA_RESTORE_CONFIGURATION]);
+} }
+uint8_t DynamixelHandler::ReadShadowID(id_t id){ switch ( series_[id] ) {
+    case SERIES_X:   return dyn_comm_.tryRead(AddrX::shadow_id, id);
+    case SERIES_P:   return dyn_comm_.tryRead(AddrP::shadow_id, id);
+    default:         return 0;
+} }
+double DynamixelHandler::ReadMovingThreshold(id_t id){ switch ( series_[id] ) {
+    case SERIES_X:   return AddrX::moving_threshold  .pulse2val(dyn_comm_.tryRead(AddrX::moving_threshold  , id), model_[id]);
+    case SERIES_P:   return AddrP::moving_threshold  .pulse2val(dyn_comm_.tryRead(AddrP::moving_threshold  , id), model_[id]);
+    case SERIES_PRO: return AddrPro::moving_threshold.pulse2val(dyn_comm_.tryRead(AddrPro::moving_threshold, id), model_[id]);
+    default:         return 0.0;
+} }
+double DynamixelHandler::ReadPwmSlope(id_t id){ switch ( series_[id] ) {
+    case SERIES_X:   return has_pwm_slope(model_[id])
+                            ? AddrX::pwm_slope.pulse2val(dyn_comm_.tryRead(AddrX::pwm_slope, id), model_[id])
+                            : NaN; // pwm_slopeはX330系のみ有効
+    default:         return NaN;
+} }
+uint8_t DynamixelHandler::ReadStatusReturnLevel(id_t id){ switch ( series_[id] ) {
+    case SERIES_X:   return dyn_comm_.tryRead(AddrX::status_return_level, id);
+    case SERIES_P:   return dyn_comm_.tryRead(AddrP::status_return_level, id);
+    case SERIES_PRO: return dyn_comm_.tryRead(AddrPro::status_return_level, id);
+    default:         return 0;
+} }
+bitset<8> DynamixelHandler::ReadMovingStatus(id_t id) { switch ( series_[id] ) {
+    case SERIES_X: return bitset<8>(dyn_comm_.tryRead(AddrX::moving_status, id));
+    case SERIES_P: return bitset<8>(dyn_comm_.tryRead(AddrP::moving_status, id));
+    default:       return {};
+} }
+double DynamixelHandler::ReadRealtimeTickS(id_t id){ switch ( series_[id] ) {
+    case SERIES_X:   return AddrX::realtime_tick.pulse2val(dyn_comm_.tryRead(AddrX::realtime_tick, id), model_[id]) * 0.001;
+    case SERIES_P:   return AddrP::realtime_tick.pulse2val(dyn_comm_.tryRead(AddrP::realtime_tick, id), model_[id]) * 0.001;
+    default:         return 0.0;
+} }
+uint8_t DynamixelHandler::ReadMoving(id_t id){ switch ( series_[id] ) {
+    case SERIES_X:   return dyn_comm_.tryRead(AddrX::moving, id);
+    case SERIES_P:   return dyn_comm_.tryRead(AddrP::moving, id);
+    case SERIES_PRO: return dyn_comm_.tryRead(AddrPro::moving, id);
+    default:         return 0;
+} }
+uint8_t DynamixelHandler::ReadRegisteredInstruction(id_t id){ switch ( series_[id] ) {
+    case SERIES_X:   return dyn_comm_.tryRead(AddrX::registered_instruction, id);
+    case SERIES_P:   return dyn_comm_.tryRead(AddrP::registered_instruction, id);
+    case SERIES_PRO: return dyn_comm_.tryRead(AddrPro::registered_instruction, id);
+    default:         return 0;
+} }
+array<double, 3> DynamixelHandler::ReadLedColor(id_t id){ switch ( series_[id] ) {
+    case SERIES_X:   return {dyn_comm_.tryRead(AddrX::led, id) ? 100.0 : 0.0, NaN, NaN};
+    case SERIES_P:   return {
+        dyn_comm_.tryRead(AddrP::led_red  , id) * 100.0 / 255.0,
+        dyn_comm_.tryRead(AddrP::led_green, id) * 100.0 / 255.0,
+        dyn_comm_.tryRead(AddrP::led_blue , id) * 100.0 / 255.0};
+    case SERIES_PRO: return {
+        dyn_comm_.tryRead(AddrPro::led_red  , id) * 100.0 / 255.0,
+        dyn_comm_.tryRead(AddrPro::led_green, id) * 100.0 / 255.0,
+        dyn_comm_.tryRead(AddrPro::led_blue , id) * 100.0 / 255.0};
+    default:         return {NaN, NaN, NaN};
 } }
 double DynamixelHandler::ReadReturnDelayTime(id_t id){ switch ( series_[id] ) {
     case SERIES_X:   return AddrX::return_delay_time.pulse2val(dyn_comm_.tryRead(AddrX::return_delay_time, id), model_[id]);
@@ -434,7 +532,66 @@ bool DynamixelHandler::WriteBusWatchdog(id_t id, double time){ switch ( series_[
     case SERIES_PRO: ROS_WARN("   = PRO series don't support 'bus_watchdog'"); return false;
     default: return false;
 } }
-
+bool DynamixelHandler::WriteProtocolVersion(id_t id, uint8_t version){ switch ( series_[id] ) {
+    case SERIES_X: return dyn_comm_.tryWrite(AddrX::protocol_version, id, version);
+    case SERIES_P: return dyn_comm_.tryWrite(AddrP::protocol_version, id, version);
+    default: return false;
+} }
+bool DynamixelHandler::WriteStatusReturnLevel(id_t id, uint8_t level){ switch ( series_[id] ) {
+    case SERIES_X:   return dyn_comm_.tryWrite(AddrX::status_return_level, id, level);
+    case SERIES_P:   return dyn_comm_.tryWrite(AddrP::status_return_level, id, level);
+    case SERIES_PRO: return dyn_comm_.tryWrite(AddrPro::status_return_level, id, level);
+    default: return false;
+} }
+bool DynamixelHandler::WriteShutdown(id_t id, const bitset<8>& config){ switch ( series_[id] ) {
+    case SERIES_X:   return dyn_comm_.tryWrite(AddrX::shutdown, id, config.to_ulong());
+    case SERIES_P:   return dyn_comm_.tryWrite(AddrP::shutdown, id, config.to_ulong());
+    case SERIES_PRO: return dyn_comm_.tryWrite(AddrPro::shutdown, id, config.to_ulong());
+    default: return false;
+} }
+bool DynamixelHandler::WriteStartupConfiguration(id_t id, const bitset<8>& config) { switch ( series_[id] ) {
+    case SERIES_X:   return dyn_comm_.tryWrite(AddrX::startup_configuration, id, config.to_ulong());
+    case SERIES_P:   return dyn_comm_.tryWrite(AddrP::startup_configuration, id, config.to_ulong());
+    default: return false;
+} }
+bool DynamixelHandler::WriteShadowID(id_t id, uint8_t shadow_id){ switch ( series_[id] ) {
+    case SERIES_X: return dyn_comm_.tryWrite(AddrX::shadow_id, id, shadow_id);
+    case SERIES_P: return dyn_comm_.tryWrite(AddrP::shadow_id, id, shadow_id);
+    default: return false;
+} }
+bool DynamixelHandler::WriteMovingThreshold(id_t id, double threshold){ switch ( series_[id] ) {
+    case SERIES_X: return dyn_comm_.tryWrite(AddrX::moving_threshold, id, AddrX::moving_threshold.val2pulse(threshold, model_[id]));
+    case SERIES_P: return dyn_comm_.tryWrite(AddrP::moving_threshold, id, AddrP::moving_threshold.val2pulse(threshold, model_[id]));
+    case SERIES_PRO: return dyn_comm_.tryWrite(AddrPro::moving_threshold, id, AddrPro::moving_threshold.val2pulse(threshold, model_[id]));
+    default: return false;
+} }
+bool DynamixelHandler::WritePwmSlope(id_t id, double percent){ switch ( series_[id] ) {
+    case SERIES_X:   return dyn_comm_.tryWrite(AddrX::pwm_slope, id, AddrX::pwm_slope.val2pulse(percent, model_[id]));
+    case SERIES_P:   ROS_WARN("   = P series don't support 'pwm_slope'");   return false;
+    case SERIES_PRO: ROS_WARN("   = PRO series don't support 'pwm_slope'"); return false;
+    default: return false;
+} }
+bool DynamixelHandler::WriteLedColor(id_t id, double red_percent, double green_percent, double blue_percent){
+    auto is_valid = [](double percent){ return std::isfinite(percent) && 0.0 <= percent && percent <= 100.0; };
+    switch ( series_[id] ) {
+    case SERIES_X:
+        return dyn_comm_.tryWrite(AddrX::led, id, red_percent >= 50.0 ? 1 : 0);
+    case SERIES_P: {
+        bool is_success = true;
+        if ( is_valid(red_percent  )) is_success &= dyn_comm_.tryWrite(AddrP::led_red  , id, (uint8_t)(red_percent   * 255.0 / 100.0 + 0.5));
+        if ( is_valid(green_percent)) is_success &= dyn_comm_.tryWrite(AddrP::led_green, id, (uint8_t)(green_percent * 255.0 / 100.0 + 0.5));
+        if ( is_valid(blue_percent )) is_success &= dyn_comm_.tryWrite(AddrP::led_blue , id, (uint8_t)(blue_percent  * 255.0 / 100.0 + 0.5));
+        return is_success;
+    }
+    case SERIES_PRO: {
+        bool is_success = true;
+        if ( is_valid(red_percent  )) is_success &= dyn_comm_.tryWrite(AddrPro::led_red  , id, (uint8_t)(red_percent   * 255.0 / 100.0 + 0.5));
+        if ( is_valid(green_percent)) is_success &= dyn_comm_.tryWrite(AddrPro::led_green, id, (uint8_t)(green_percent * 255.0 / 100.0 + 0.5));
+        if ( is_valid(blue_percent )) is_success &= dyn_comm_.tryWrite(AddrPro::led_blue , id, (uint8_t)(blue_percent  * 255.0 / 100.0 + 0.5));
+        return is_success;
+    }
+    default: return false;
+} }
 bool DynamixelHandler::WriteGains(id_t id, array<uint16_t, _num_gain> gains){
     bool is_success = true;
     switch ( series_[id] ) {
@@ -464,13 +621,18 @@ bool DynamixelHandler::WriteOperatingMode(id_t id, uint8_t mode){ switch ( serie
     case SERIES_X:    return dyn_comm_.tryWrite(AddrX::operating_mode, id, mode);
     case SERIES_P:    return dyn_comm_.tryWrite(AddrP::operating_mode, id, mode);
     case SERIES_PRO:  return dyn_comm_.tryWrite(AddrPro::operating_mode, id, mode);
-    default:         return false;
+    default: return false;
+} }
+bool DynamixelHandler::WriteDriveMode(id_t id, const bitset<8>& config) { switch ( series_[id] ) {
+    case SERIES_X: return dyn_comm_.tryWrite(AddrX::drive_mode, id, static_cast<uint8_t>(config.to_ulong()));
+    case SERIES_P: return dyn_comm_.tryWrite(AddrP::drive_mode, id, static_cast<uint8_t>(config.to_ulong()));
+    default: return false;
 } }
 
 bool DynamixelHandler::WriteReturnDelayTime(id_t id, double time){ switch ( series_[id] ) {
     case SERIES_X:    return dyn_comm_.tryWrite(AddrX::return_delay_time, id, AddrX::return_delay_time.val2pulse(time, model_[id]));
     case SERIES_P:    return dyn_comm_.tryWrite(AddrP::return_delay_time, id, AddrP::return_delay_time.val2pulse(time, model_[id]));
     case SERIES_PRO:  return dyn_comm_.tryWrite(AddrPro::return_delay_time, id, AddrPro::return_delay_time.val2pulse(time, model_[id]));
-    default:          return false;
+    default: return false;
 } }
     

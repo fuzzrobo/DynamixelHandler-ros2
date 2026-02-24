@@ -4,6 +4,7 @@
 #include "dynamixel_handler_msgs/msg/dxl_states.hpp"
 #include "dynamixel_handler_msgs/msg/dynamixel_debug.hpp"
 #include "dynamixel_handler_msgs/msg/dynamixel_error.hpp"
+#include "dynamixel_handler_msgs/msg/dynamixel_extra.hpp"
 #include "dynamixel_handler_msgs/msg/dynamixel_gain.hpp"
 #include "dynamixel_handler_msgs/msg/dynamixel_goal.hpp"
 #include "dynamixel_handler_msgs/msg/dynamixel_limit.hpp"
@@ -77,6 +78,8 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     this->get_parameter_or("pub_ratio/gain"   , pub_ratio_["gain"] ,   0u);
     this->get_parameter_or("pub_ratio/limit"  , pub_ratio_["limit"],   0u);
     this->get_parameter_or("pub_ratio/error"  , pub_ratio_["error"], 100u);
+    this->get_parameter_or("pub_ratio/extra.dynamic_items", pub_ratio_["extra_dynamic"], 0u);
+    this->get_parameter_or("pub_ratio/extra.static_items" , pub_ratio_["extra_static"] , 0u);
     this->get_parameter_or("max_log_width"    , width_log_, 7u);
     this->get_parameter_or("method/split_write"    , use_split_write_    , false);
     this->get_parameter_or("method/split_read"     , use_split_read_     , false);
@@ -133,6 +136,8 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     this->get_parameter_or("verbose/read_gain.err"      , verbose_["r_gain_err"], false);
     this->get_parameter_or("verbose/read_limit.raw"     , verbose_["r_limit"    ], false);
     this->get_parameter_or("verbose/read_limit.err"     , verbose_["r_limit_err"], false);
+    this->get_parameter_or("verbose/read_extra.raw"     , verbose_["r_extra"    ], false);
+    this->get_parameter_or("verbose/read_extra.err"     , verbose_["r_extra_err"], false);
     this->get_parameter_or("verbose/read_hardware_error", verbose_["r_hwerr" ], false);
     this->get_parameter_or("no_response_id_auto_remove_count", auto_remove_count_   , 0u);
 
@@ -146,6 +151,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     BroadcastState_Gain();  
     BroadcastState_Goal();   
     BroadcastState_Error(); 
+    BroadcastState_Extra();
 
     bool use_ex_port; get_parameter_or("option/external_port.use", use_ex_port, false);
     if ( use_ex_port ) external_port_ = std::make_unique<ExternalPort>(*this);
@@ -165,7 +171,7 @@ using std::chrono::microseconds;
 using std::tie; 
 using std::ignore;
 
-enum state { STATUS, PRESENT, GOAL, GAIN, LIMIT, ERROR, _num_state };
+enum state { STATUS, PRESENT, GOAL, GAIN, LIMIT, ERROR, EXTRA_D, EXTRA_S , _num_state };
 
 void DynamixelHandler::MainLoop(){
     static int cnt = -1; cnt++;
@@ -235,11 +241,18 @@ void DynamixelHandler::MainLoop(){
         tie(success_rate[ERROR], ignore) = SyncReadHardwareErrors(target_id_set);
         if ( success_rate[ERROR  ]>0.0 ) msg.error = BroadcastState_Error();
     }
+    if ( pub_ratio_["extra_dynamic"] && cnt % pub_ratio_["extra_dynamic"] == 0 ) {
+        tie(success_rate[EXTRA_D], ignore) = BulkReadExtra_rapid(target_id_set);
+    }
+    if ( pub_ratio_["extra_static"] && cnt % pub_ratio_["extra_static"] == 0 ) {
+        tie(success_rate[EXTRA_S], ignore) = BulkReadExtra_slow(target_id_set);
+    }
+    if ( success_rate[EXTRA_D]+success_rate[EXTRA_S] > 0.0 ) msg.extra = BroadcastState_Extra();
     bool is_any_read = std::any_of( success_rate.begin(), success_rate.end(), [](auto& x){ return x > 0.0; });
     if ( is_any_read ) { 
         n_any_read++;
         BroadcastDebug();
-        publish_if(pub_dxl_states_, msg);
+        publish_if(pub_dxl_states_, msg); // todo BroadcastStates()を作りたいな．
     }
 /* 処理時間時間の計測 */ t_read += duration_cast<microseconds>(system_clock::now()-s_read).count() / 1000.0;
 /* 処理時間時間の計測 */ t_total += duration_cast<microseconds>(system_clock::now()-s_total).count() / 1000.0;

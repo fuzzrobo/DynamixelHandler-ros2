@@ -38,7 +38,9 @@
         pub_ratio/gain:   2313 # この回数に一回 Gain を読み取る, 0=初回のみ
         pub_ratio/limit:  6311 # この回数に一回 Limit を読み取る, 0=初回のみ
         pub_ratio/error:  1307 # この回数に一回 Hardware error を読み取る, 0=初回のみ
-        pub_ratio/extra: 90130 # この回数に一回 Hardware error を読み取る, 0=初回のみ
+        pub_ratio/extra:  # この回数に一回 Extra を読み取る, 0=初回のみ
+            dynamic_items: 90139 # realtime_tickやmoving_statusなどの動的に変化する項目を読み取る割合
+            static_items:  90137 # その他の静的な項目を読み取る割合
     # Read/Write方式
         method/fast_read:    true
         method/split_read:  false
@@ -74,6 +76,7 @@
         verbose/read_goal:    {raw: false, err: false}
         verbose/read_gain:    {raw: false, err: false}
         verbose/read_limit:   {raw: false, err: false}
+        verbose/read_extra:   {raw: false, err: false}
         verbose/read_hardware_error: true
     # 通信の設定
         dyn_comm/retry_num:    5

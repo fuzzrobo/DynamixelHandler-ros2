@@ -16,6 +16,7 @@
 #include "dynamixel_handler_msgs/msg/dynamixel_control_x_pwm.hpp"
 #include "dynamixel_handler_msgs/msg/dynamixel_control_x_velocity.hpp"
 #include "dynamixel_handler_msgs/msg/dynamixel_error.hpp"
+#include "dynamixel_handler_msgs/msg/dynamixel_extra.hpp"
 #include "dynamixel_handler_msgs/msg/dynamixel_gain.hpp"
 #include "dynamixel_handler_msgs/msg/dynamixel_goal.hpp"
 #include "dynamixel_handler_msgs/msg/dynamixel_limit.hpp"
@@ -114,6 +115,9 @@ void DynamixelHandler::SetupRosInterfaces_byCLI() {
     sub_limit_ = CreateGenericSubscriptionWithTypedCallback<DynamixelLimit>(
         this, "dynamixel/command/limit" , "dynamixel_handler_msgs/msg/DynamixelLimit" , 4,
         [this](const DynamixelLimit&  msg) { CallbackCmd_Limit(msg); });
+    sub_extra_ = CreateGenericSubscriptionWithTypedCallback<DynamixelExtra>(
+        this, "dynamixel/command/extra" , "dynamixel_handler_msgs/msg/DynamixelExtra" , 4,
+        [this](const DynamixelExtra&  msg) { CallbackCmd_Extra(msg); });
 
     pub_status_  = create_publisher<DynamixelStatus >("dynamixel/state/status" , 4);
     pub_present_ = create_publisher<DynamixelPresent>("dynamixel/state/present", 4);
@@ -121,4 +125,5 @@ void DynamixelHandler::SetupRosInterfaces_byCLI() {
     pub_gain_    = create_publisher<DynamixelGain   >("dynamixel/state/gain"   , 4);
     pub_limit_   = create_publisher<DynamixelLimit  >("dynamixel/state/limit"  , 4);
     pub_error_   = create_publisher<DynamixelError  >("dynamixel/state/error"  , 4);
+    pub_extra_   = create_publisher<DynamixelExtra  >("dynamixel/state/extra"  , 4);
 }
