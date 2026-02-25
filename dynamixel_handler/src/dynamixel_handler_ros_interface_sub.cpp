@@ -805,9 +805,9 @@ void DynamixelHandler::CallbackCmd_Extra_Func(const DynamixelExtra& msg, const v
                 if ( valid_led_g ) extra_db_[ID][EXTRA_LED_GREEN] = clamp(msg.led.green_percent[i], 0.0, 100.0);
                 if ( valid_led_b ) extra_db_[ID][EXTRA_LED_BLUE ] = clamp(msg.led.blue_percent[i] , 0.0, 100.0);
             } else {
-                const double R = (valid_led_r) ? msg.led.red_percent[i]   : NaN;
-                const double G = (valid_led_g) ? msg.led.green_percent[i] : NaN;
-                const double B = (valid_led_b) ? msg.led.blue_percent[i]  : NaN;
+                const double R = (valid_led_r) ? clamp(msg.led.red_percent[i]  , 0.0, 100.0) : NaN;
+                const double G = (valid_led_g) ? clamp(msg.led.green_percent[i], 0.0, 100.0) : NaN;
+                const double B = (valid_led_b) ? clamp(msg.led.blue_percent[i] , 0.0, 100.0) : NaN;
                 WriteLedColor(ID, R, G, B);
             }
         }

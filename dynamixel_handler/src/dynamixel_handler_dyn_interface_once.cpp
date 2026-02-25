@@ -76,9 +76,14 @@ bool DynamixelHandler::AddDynamixel(id_t id){
         default: ROS_WARN("  * No supported model [%d] servo ID [%d] is found, ignored", (int)dyn_model, id);
             return false;
     }
-    if ( use_fast_read_ && !has_current_sensor(dyn_model) ) {
-        ROS_WARN("   no current sensor is found, fast_read is disabled");
-        use_fast_read_ = false; // 電流センサを持たないサーボの場合はfast_readを無効化する，エラーを起こしてfast_readに反応しなくなるので．
+    if ( use_fast_read_ ){
+        if ( !has_current_sensor(dyn_model) ) {
+            ROS_WARN("    no current sensor series is found, fast_read is disabled");
+            use_fast_read_ = false; // 電流センサを持たないサーボの場合はfast_readを無効化する，エラーを起こしてfast_readに反応しなくなるので．
+        } else if ( series_[id] == SERIES_PRO ) {
+            ROS_WARN("    PRO series is found, fast_read is disabled");
+            use_fast_read_ = false; // PROシリーズはfast_readに対応していないので，fast_readを無効化する．エラーを起こしてfast_readに反応しなくなるので．
+        }
     }
 
     extra_db_[id].fill(NaN);
@@ -97,7 +102,6 @@ bool DynamixelHandler::AddDynamixel(id_t id){
     }
 
     WriteBusWatchdog(id, 0.0/*ms*/); // 最初にBusWatchdogを無効化することで，全てのGoal値の書き込みを許可する
-    WriteBusWatchdog(id, default_["bus_watchdog_ms"]/*ms*/);
     WriteProfileAcc(id, default_["profile_acc_deg_ss"]*DEG ); 
     WriteProfileVel(id, default_["profile_vel_deg_s"]*DEG );
     WriteReturnDelayTime(id, default_["return_delay_time_us"]);
@@ -108,9 +112,9 @@ bool DynamixelHandler::AddDynamixel(id_t id){
     while (SyncReadGoal   ( goal_indice_read_   , tmp)<complete) {if(!rclcpp::ok()) ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading   goal   values...");} 
     while (SyncReadGain   ( gain_indice_read_   , tmp)<complete) {if(!rclcpp::ok()) ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading   gain   values...");} 
     while (SyncReadLimit  ( limit_indice_read_  , tmp)<complete) {if(!rclcpp::ok()) ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading  limit   values...");} 
-    while (SyncReadHardwareErrors(tmp)                <complete) {if(!rclcpp::ok()) ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading hardware errors...");}
-           BulkReadExtra_rapid(tmp);
-           BulkReadExtra_slow (tmp);
+    while (SyncReadHardwareErrors(tmp)  <complete) {if(!rclcpp::ok())               ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading hardware errors...");}
+    while (BulkReadExtra_rapid   (tmp) < complete) {if(!rclcpp::ok())               ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading  extra d values...");}
+    while (BulkReadExtra_slow    (tmp) < complete) {if(!rclcpp::ok())               ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading  extra s values...");}
 
     tq_mode_[id] = ReadTorqueEnable(id) ? TORQUE_ENABLE : TORQUE_DISABLE;
     op_mode_[id] = ReadOperatingMode(id);
@@ -120,13 +124,13 @@ bool DynamixelHandler::AddDynamixel(id_t id){
     watchdog_w_[id] = -1.0; // command未指定
 
     if ( abs(default_["profile_acc_deg_ss"] - goal_r_[id][PROFILE_ACC]/DEG) > 3 ) 
-        ROS_WARN("   profile acc. '%2.1f' could not be set exactly (now '%2.1f')", default_["profile_acc_deg_ss"], goal_r_[id][PROFILE_ACC]/DEG);
+        ROS_WARN("    profile acc. '%2.1f' could not be set exactly (now '%2.1f')", default_["profile_acc_deg_ss"], goal_r_[id][PROFILE_ACC]/DEG);
     if ( abs(default_["profile_vel_deg_s"] - goal_r_[id][PROFILE_VEL]/DEG) > 1 ) 
-        ROS_WARN("   profile vel. '%2.1f' could not be set exactly (now '%2.1f')", default_["profile_vel_deg_s"], goal_r_[id][PROFILE_VEL]/DEG);
-    if ( abs(default_["bus_watchdog_ms"] - watchdog_r_[id]) > 1 ) 
-        ROS_WARN("   bus watchdog '%2.1f' could not be set exactly (now '%2.1f')", default_["bus_watchdog_ms"], watchdog_r_[id]<0 ? -1.0 : watchdog_r_[id]);
+        ROS_WARN("    profile vel. '%2.1f' could not be set exactly (now '%2.1f')", default_["profile_vel_deg_s"], goal_r_[id][PROFILE_VEL]/DEG);
+    if ( default_["bus_watchdog_ms"] < 0.0 || default_["bus_watchdog_ms"] > 508.0 ) 
+        ROS_WARN("    bus watchdog '%2.1f' is out of range (0.0-508.0)", default_["bus_watchdog_ms"]);
     if ( abs(default_["return_delay_time_us"] - extra_db_[id][EXTRA_RETURN_DELAY_TIME]) > 0.1 ) 
-        ROS_WARN("   return delay time '%2.1f' could not be set exactly (now '%2.1f')", default_["return_delay_time_us"], extra_db_[id][EXTRA_RETURN_DELAY_TIME]);
+        ROS_WARN("     return delay time '%2.1f' could not be set exactly (now '%2.1f')", default_["return_delay_time_us"], extra_db_[id][EXTRA_RETURN_DELAY_TIME]);
 
     if ( do_clean_hwerr_ ) ClearHardwareError(id); // 現在の状態を変えない
     if ( do_torque_on_ )   TorqueOn(id);           // 現在の状態を変えない
