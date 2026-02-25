@@ -3,7 +3,7 @@
     ros__parameters:
     # 通信機器の設定
         device_name: /dev/ttyUSB0 # 通信するデバイス名
-        baudrate: 1000000 # 通信速度
+        baudrate: 57600 # 通信速度
         latency_timer: 16 # 通信のインターバル
     # サーボの設定
         init/dummy_servo_list: [-1] # ダミーのサーボを作成するIDのリスト,同じIDのサーボが存在する場合でもダミーが優先される． 255は無視される．
@@ -75,7 +75,7 @@
         verbose/read_goal:    {raw: false, err: false}
         verbose/read_gain:    {raw: false, err: false}
         verbose/read_limit:   {raw: false, err: false}
-        verbose/read_extra:   {raw: true, err: false}
+        verbose/read_extra:   {raw: false, err: false}
         verbose/read_hardware_error: true
     # 通信の設定
         dyn_comm/retry_num:    5

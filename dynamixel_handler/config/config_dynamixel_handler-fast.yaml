@@ -9,7 +9,7 @@
     # サーボの設定
         init/dummy_servo_list: [255] # ダミーのサーボを作成するIDのリスト,同じIDのサーボが存在する場合でもダミーが優先される． 255は無視される．
         init/baudrate_auto_set: true # 探索前に，全てのサーボと全てのBaudrateに対して，baudrateの書き込みをするかどうか
-        init/used_servo_series: {X: true, P: true, Pro: true} # 使用するサーボのシリーズ
+        init/used_servo_series: {X: true, P: false, Pro: false} # 使用するサーボのシリーズ
         init/expected_servo_num: 0
         init/servo_auto_search: {min_id: 0, max_id: 20, retry_times: 0} # サーボのIDを自動で探索するかどうか
         init/hardware_error_auto_clean: true # 初期化時に Hardware error を自動でクリアするかどうか
@@ -31,16 +31,16 @@
             position:             2 # この回数に一回present_positionを読み取る
             velocity_trajectory:  0 # この回数に一回velocity_trajectoryを読み取る
             position_trajectory:  0 # この回数に一回position_trajectoryを読み取る
-            input_voltage:     1331 # この回数に一回present_input_voltageを読み取る
-            temperature:       1331 # この回数に一回present_temperatureを読み取る
+            input_voltage:     7331 # この回数に一回present_input_voltageを読み取る
+            temperature:       7331 # この回数に一回present_temperatureを読み取る
         pub_ratio/status: 1057 # この回数に一回 Status を読み取る, 0=初回のみ
-        pub_ratio/goal:   1101  # この回数に一回 Goal を読み取る, 0=初回のみ
+        pub_ratio/goal:    301  # この回数に一回 Goal を読み取る, 0=初回のみ
         pub_ratio/gain:   2313 # この回数に一回 Gain を読み取る, 0=初回のみ
         pub_ratio/limit:  6311 # この回数に一回 Limit を読み取る, 0=初回のみ
         pub_ratio/error:  1307 # この回数に一回 Hardware error を読み取る, 0=初回のみ
         pub_ratio/extra:  # この回数に一回 Extra を読み取る, 0=初回のみ
-            dynamic_items: 90139 # realtime_tickやmoving_statusなどの動的に変化する項目を読み取る割合
-            static_items:  90137 # その他の静的な項目を読み取る割合
+            dynamic_items:  439 # realtime_tickやmoving_statusなどの動的に変化する項目を読み取る割合
+            static_items:  5137 # その他の静的な項目を読み取る割合
     # Read/Write方式
         method/fast_read:    true
         method/split_read:  false
