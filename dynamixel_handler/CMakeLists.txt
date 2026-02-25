@@ -59,20 +59,20 @@ install(
 # ============================ dynamixel_handler ================================
 
 add_executable(
-  update_mylib_dynamixel
-  test/update_mylib_dynamixel.cpp
+  benchmark_dynamixel_communicator
+  tools/benchmark_dynamixel_communicator.cpp
 )
 target_compile_features(
-  update_mylib_dynamixel
+  benchmark_dynamixel_communicator
   PUBLIC cxx_std_17
 )
 target_link_libraries(
-  update_mylib_dynamixel
+  benchmark_dynamixel_communicator
   dynamixel_communicator
 )
 
 install(
-  TARGETS update_mylib_dynamixel
+  TARGETS benchmark_dynamixel_communicator
   DESTINATION lib/${PROJECT_NAME}
 )
 
