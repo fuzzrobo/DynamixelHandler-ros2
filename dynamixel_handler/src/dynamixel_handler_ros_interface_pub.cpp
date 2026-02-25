@@ -76,7 +76,7 @@ DynamixelError DynamixelHandler::BroadcastState_Error(){
         msg.motor_hall_sensor.push_back (hardware_err_[id][MOTOR_HALL_SENSOR ]);
         msg.overheating.push_back       (hardware_err_[id][OVERHEATING       ]);
         msg.motor_encoder.push_back     (hardware_err_[id][MOTOR_ENCODER     ]);
-        msg.electronical_shock.push_back(hardware_err_[id][ELECTRONICAL_SHOCK]);
+        msg.electrical_shock.push_back(hardware_err_[id][ELECTRONICAL_SHOCK]);
         msg.overload.push_back          (hardware_err_[id][OVERLOAD          ]);
     }
     publish_if(pub_error_, msg);
@@ -108,7 +108,7 @@ DynamixelExtra DynamixelHandler::BroadcastState_Extra() {
         const auto extra_s = bitset<8>(extra_u8_[id][EXTRA_SHUTDOWN]);
         msg.shutdown.overload_error.push_back        (extra_s[SHUTDOWN_OVERLOAD        ]);
         msg.shutdown.electrical_shock_error.push_back(extra_s[SHUTDOWN_ELECTRICAL_SHOCK]);
-        msg.shutdown.motor_encorder_error.push_back  (extra_s[SHUTDOWN_MOTOR_ENCODER   ]);
+        msg.shutdown.motor_encoder_error.push_back  (extra_s[SHUTDOWN_MOTOR_ENCODER   ]);
         msg.shutdown.motor_hall_sensor_error.push_back(extra_s[SHUTDOWN_MOTOR_HALL_SENSOR]);
         msg.shutdown.overheating_error.push_back     (extra_s[SHUTDOWN_OVERHEATING     ]);
         msg.shutdown.input_voltage_error.push_back   (extra_s[SHUTDOWN_INPUT_VOLTAGE   ]);
@@ -126,7 +126,7 @@ DynamixelExtra DynamixelHandler::BroadcastState_Extra() {
         }
         msg.moving_status.following_error.push_back(extra_ms[MOVING_STATUS_FOLLOWING_ERROR]);
         msg.moving_status.profile_ongoing.push_back(extra_ms[MOVING_STATUS_PROFILE_ONGOING]);
-        msg.moving_status.in_posision.push_back    (extra_ms[MOVING_STATUS_IN_POSITION    ]);
+        msg.moving_status.in_position.push_back    (extra_ms[MOVING_STATUS_IN_POSITION    ]);
         msg.moving.push_back         (extra_ms[EXTRA_U8_MOVING_STATUS_MOVING_BIT]);
 
         msg.led.red_percent.push_back  (extra_db_[id][EXTRA_LED_RED  ]);

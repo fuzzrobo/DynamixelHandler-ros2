@@ -1,7 +1,7 @@
 string[] velocity_profile
 bool[] following_error
 bool[] profile_ongoing
-bool[] in_posision
+bool[] in_position
 
 
 # velocity_profile

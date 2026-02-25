@@ -623,14 +623,14 @@ void DynamixelHandler::CallbackCmd_Extra_State(const DynamixelExtra& msg) {
     const size_t n_ms_vel  = msg.moving_status.velocity_profile.size();
     const size_t n_ms_fol  = msg.moving_status.following_error.size();
     const size_t n_ms_on   = msg.moving_status.profile_ongoing.size();
-    const size_t n_ms_pos  = msg.moving_status.in_posision.size();
+    const size_t n_ms_pos  = msg.moving_status.in_position.size();
     if ( verbose_callback_ ) {
         if ( n_tick  >0   ) ROS_WARN("  - read-only: realtime_tick_s               ");
         if ( n_moving>0   ) ROS_WARN("  - read-only: moving                        ");
         if ( n_ms_vel>0   ) ROS_WARN("  - read-only: moving_status.velocity_profile");
         if ( n_ms_fol>0   ) ROS_WARN("  - read-only: moving_status.following_error ");
         if ( n_ms_on >0   ) ROS_WARN("  - read-only: moving_status.profile_ongoing ");
-        if ( n_ms_pos>0   ) ROS_WARN("  - read-only: moving_status.in_posision     ");
+        if ( n_ms_pos>0   ) ROS_WARN("  - read-only: moving_status.in_position     ");
     }
 }
 
@@ -673,7 +673,7 @@ void DynamixelHandler::CallbackCmd_Extra_Config(const DynamixelExtra& msg, const
 
     const size_t n_sd_ovl   = msg.shutdown.overload_error.size();
     const size_t n_sd_esh  = msg.shutdown.electrical_shock_error.size();
-    const size_t n_sd_enc  = msg.shutdown.motor_encorder_error.size();
+    const size_t n_sd_enc  = msg.shutdown.motor_encoder_error.size();
     const size_t n_sd_hal  = msg.shutdown.motor_hall_sensor_error.size();
     const size_t n_sd_ovh  = msg.shutdown.overheating_error.size();
     const size_t n_sd_vin  = msg.shutdown.input_voltage_error.size();
@@ -736,7 +736,7 @@ void DynamixelHandler::CallbackCmd_Extra_Config(const DynamixelExtra& msg, const
             auto shutdown = bitset<8>(extra_u8_[ID][EXTRA_SHUTDOWN]);
             if ( has_sd_ovl ) shutdown[SHUTDOWN_OVERLOAD         ] = msg.shutdown.overload_error[i];
             if ( has_sd_esh ) shutdown[SHUTDOWN_ELECTRICAL_SHOCK ] = msg.shutdown.electrical_shock_error[i];
-            if ( has_sd_enc ) shutdown[SHUTDOWN_MOTOR_ENCODER    ] = msg.shutdown.motor_encorder_error[i];
+            if ( has_sd_enc ) shutdown[SHUTDOWN_MOTOR_ENCODER    ] = msg.shutdown.motor_encoder_error[i];
             if ( has_sd_hal ) shutdown[SHUTDOWN_MOTOR_HALL_SENSOR] = msg.shutdown.motor_hall_sensor_error[i]; // P, Proのみ
             if ( has_sd_ovh ) shutdown[SHUTDOWN_OVERHEATING      ] = msg.shutdown.overheating_error[i];
             if ( has_sd_vin ) shutdown[SHUTDOWN_INPUT_VOLTAGE    ] = msg.shutdown.input_voltage_error[i];
