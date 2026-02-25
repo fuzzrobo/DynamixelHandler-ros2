@@ -14,8 +14,6 @@
 #include "myUtils/logging_like_ros1.hpp"
 #include "myUtils/make_iterator_convenient.hpp"
 
-using std::bind;
-using std::placeholders::_1;
 using namespace std::string_literals;
 
 template <typename MsgT>
@@ -91,7 +89,8 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     this->get_parameter_or("term/servo_auto_stop"          , do_stop_end_   , true);
     this->get_parameter_or("default/profile_vel", default_["profile_vel_deg_s"], 100.0);
     this->get_parameter_or("default/profile_acc", default_["profile_acc_deg_ss"], 600.0);
-    this->get_parameter_or("default/return_delay_time", default_["return_delay_time_us"], 0.0);
+    this->get_parameter_or("default/return_delay_time", default_["return_delay_time_us"],   0.0);
+    this->get_parameter_or("default/bus_watchdog"     , default_["bus_watchdog_ms"     ], 500.0);
     // id_set_の作成に関連するもの    
     this->get_parameter_or("init/used_servo_series.X", use_["x"], true);
     this->get_parameter_or("init/used_servo_series.P", use_["p"], false);

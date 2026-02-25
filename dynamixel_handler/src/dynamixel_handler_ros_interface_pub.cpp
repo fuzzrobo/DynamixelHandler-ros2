@@ -76,7 +76,7 @@ DynamixelError DynamixelHandler::BroadcastState_Error(){
         msg.motor_hall_sensor.push_back (hardware_err_[id][MOTOR_HALL_SENSOR ]);
         msg.overheating.push_back       (hardware_err_[id][OVERHEATING       ]);
         msg.motor_encoder.push_back     (hardware_err_[id][MOTOR_ENCODER     ]);
-        msg.electrical_shock.push_back(hardware_err_[id][ELECTRONICAL_SHOCK]);
+        msg.electrical_shock.push_back  (hardware_err_[id][ELECTRONICAL_SHOCK]);
         msg.overload.push_back          (hardware_err_[id][OVERLOAD          ]);
     }
     publish_if(pub_error_, msg);
@@ -106,9 +106,9 @@ DynamixelExtra DynamixelHandler::BroadcastState_Extra() {
         msg.drive_mode.reverse_mode.push_back(extra_dv[DRV_MODE_REVERSE_MODE]);
 
         const auto extra_s = bitset<8>(extra_u8_[id][EXTRA_SHUTDOWN]);
-        msg.shutdown.overload_error.push_back        (extra_s[SHUTDOWN_OVERLOAD        ]);
-        msg.shutdown.electrical_shock_error.push_back(extra_s[SHUTDOWN_ELECTRICAL_SHOCK]);
-        msg.shutdown.motor_encoder_error.push_back  (extra_s[SHUTDOWN_MOTOR_ENCODER   ]);
+        msg.shutdown.overload_error.push_back         (extra_s[SHUTDOWN_OVERLOAD         ]);
+        msg.shutdown.electrical_shock_error.push_back (extra_s[SHUTDOWN_ELECTRICAL_SHOCK ]);
+        msg.shutdown.motor_encoder_error.push_back    (extra_s[SHUTDOWN_MOTOR_ENCODER    ]);
         msg.shutdown.motor_hall_sensor_error.push_back(extra_s[SHUTDOWN_MOTOR_HALL_SENSOR]);
         msg.shutdown.overheating_error.push_back     (extra_s[SHUTDOWN_OVERHEATING     ]);
         msg.shutdown.input_voltage_error.push_back   (extra_s[SHUTDOWN_INPUT_VOLTAGE   ]);
@@ -137,8 +137,8 @@ DynamixelExtra DynamixelHandler::BroadcastState_Extra() {
         msg.return_delay_time_us.push_back  (extra_db_[id][EXTRA_RETURN_DELAY_TIME]);
         msg.moving_threshold_deg_s.push_back(extra_db_[id][EXTRA_MOVING_THRESHOLD ] / DEG);
         msg.pwm_slope_percent.push_back     (extra_db_[id][EXTRA_PWM_SLOPE        ]);
-        msg.bus_watchdog_ms.push_back       (extra_db_[id][EXTRA_BUS_WATCHDOG     ]);
         msg.realtime_tick_s.push_back       (extra_db_[id][EXTRA_REALTIME_TICK    ] / 1000.0);
+        msg.bus_watchdog_ms.push_back       (watchdog_r_[id] < 0.0 ? -1.0 : watchdog_r_[id]);
 
         msg.reboot.push_back(false);
     }

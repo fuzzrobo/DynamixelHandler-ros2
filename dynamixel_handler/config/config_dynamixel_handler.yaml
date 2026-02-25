@@ -19,6 +19,7 @@
         default/profile_acc:      6008.0 # deg/s^2
         default/profile_vel:      1000.0 # deg/s
         default/return_delay_time:   0.0 # us [double]
+        default/bus_watchdog:      500.0 # ms [double], 0~508ms, 0ならば無効,
     # ループの設定
         loop_rate: 100 # メインループの周期
         verbose_ratio: 300 # メインループのlog出力の割合(処理時間，通信の成功率), ex 100なら100回に1回出力

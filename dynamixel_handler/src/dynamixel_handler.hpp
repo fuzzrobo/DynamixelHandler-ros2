@@ -241,7 +241,6 @@ class DynamixelHandler : public rclcpp::Node {
             EXTRA_MOVING_THRESHOLD,
             EXTRA_PWM_SLOPE,
             EXTRA_REALTIME_TICK,
-            EXTRA_BUS_WATCHDOG,
             EXTRA_LED_RED,
             EXTRA_LED_GREEN,
             EXTRA_LED_BLUE,
@@ -268,9 +267,10 @@ class DynamixelHandler : public rclcpp::Node {
         static inline unordered_map<id_t, model_t > model_;  // 各dynamixelの id と model のマップ
         static inline unordered_map<id_t, series_t> series_; // 各dynamixelの id と series のマップ
         static inline unordered_map<id_t, uint64_t> ping_err_; // 各dynamixelの id と 連続でpingに応答しなかった回数のマップ
-        static inline unordered_map<id_t, double  > stop_time_; // 各dynamixelの id と bus_watchdogによる停止時間のマップ
         static inline unordered_map<id_t, torque_t> tq_mode_;  // 各dynamixelの id と トルクON/OFF のマップ
         static inline unordered_map<id_t, uint8_t > op_mode_; // 各dynamixelの id と 制御モード のマップ
+        static inline unordered_map<id_t, double  > watchdog_w_; // 各dynamixelの id と bus_watchdogの目標値(ms)のマップ（<0: command未指定）
+        static inline unordered_map<id_t, double  > watchdog_r_; // 各dynamixelの id と bus_watchdogの実測値(ms)のマップ
         static inline unordered_map<id_t, array<bool,   _num_hw_err >> hardware_err_; // 各dynamixelの id と サーボが起こしたハードウェアエラーのマップ, 中身の並びはHWErrIndexに対応する
         static inline unordered_map<id_t, array<double, _num_present>> present_r_; // 各dynamixelの id と サーボから読み込んだ状態のマップ
         static inline unordered_map<id_t, array<double, _num_goal   >> goal_w_;    // 各dynamixelの id と サーボへ書き込む目標状態のマップ

@@ -96,7 +96,8 @@ bool DynamixelHandler::AddDynamixel(id_t id){
         return false;
     }
 
-    WriteBusWatchdog (id, 0.0/*ms*/); // 最初にBusWatchdogを無効化することで，全てのGoal値の書き込みを許可する
+    WriteBusWatchdog(id, 0.0/*ms*/); // 最初にBusWatchdogを無効化することで，全てのGoal値の書き込みを許可する
+    WriteBusWatchdog(id, default_["bus_watchdog_ms"]/*ms*/);
     WriteProfileAcc(id, default_["profile_acc_deg_ss"]*DEG ); 
     WriteProfileVel(id, default_["profile_vel_deg_s"]*DEG );
 
@@ -112,16 +113,17 @@ bool DynamixelHandler::AddDynamixel(id_t id){
 
     tq_mode_[id] = ReadTorqueEnable(id) ? TORQUE_ENABLE : TORQUE_DISABLE;
     op_mode_[id] = ReadOperatingMode(id);
-    stop_time_[id] = 500; // いったん固定値． のちのちにパラメータで設定できるようにするかも．
-    limit_w_[id] = limit_r_[id];
     gain_w_[id] = gain_r_[id];
     goal_w_[id] = goal_r_[id];
+    limit_w_[id] = limit_r_[id];
+    watchdog_w_[id] = -1.0; // command未指定
 
     if ( abs(default_["profile_acc_deg_ss"] - goal_r_[id][PROFILE_ACC]/DEG) > 3 ) 
-        ROS_WARN("   profile acc. '%2.1f' could not set (now '%2.1f')", default_["profile_acc_deg_ss"], goal_r_[id][PROFILE_ACC]/DEG);
+        ROS_WARN("   profile acc. '%2.1f' could not be set exactly (now '%2.1f')", default_["profile_acc_deg_ss"], goal_r_[id][PROFILE_ACC]/DEG);
     if ( abs(default_["profile_vel_deg_s"] - goal_r_[id][PROFILE_VEL]/DEG) > 1 ) 
-        ROS_WARN("   profile vel. '%2.1f' could not set (now '%2.1f')", default_["profile_vel_deg_s"], goal_r_[id][PROFILE_VEL]/DEG);
-
+        ROS_WARN("   profile vel. '%2.1f' could not be set exactly (now '%2.1f')", default_["profile_vel_deg_s"], goal_r_[id][PROFILE_VEL]/DEG);
+    if ( abs(default_["bus_watchdog_ms"] - watchdog_r_[id]) > 1 ) 
+        ROS_WARN("   bus watchdog '%2.1f' could not be set exactly (now '%2.1f')", default_["bus_watchdog_ms"], watchdog_r_[id]<0 ? -1.0 : watchdog_r_[id]);
     WriteReturnDelayTime(id, default_["return_delay_time_us"]);
     if ( abs(ReadReturnDelayTime(id) - default_["return_delay_time_us"]) > 0.1 ) 
         ROS_WARN("   return delay time '%2.1f' could not set (now '%2.1f')", default_["return_delay_time_us"], ReadReturnDelayTime(id));

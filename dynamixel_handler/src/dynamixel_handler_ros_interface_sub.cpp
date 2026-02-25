@@ -146,7 +146,7 @@ void DynamixelHandler::CallbackCmd_Status(const DynamixelStatus& msg) {
                                  switch (series_[ID]) { default:       ChangeOperatingMode(ID, OPERATING_MODE_CURRENT_BASE_POSITION); break;
                                                         case SERIES_P: ChangeOperatingMode(ID, OPERATING_MODE_EXTENDED_POSITION    );
                                                                        ROS_WARN("  ID [%d] is P-series, so alternative mode is selected", ID);}
-            else ROS_WARN("  Invalid operating mode [%s], please see CallbackCmd_Status.msg definition.", msg.mode[i].c_str());
+            else ROS_WARN("  Invalid operating mode [%s], please see DynamixelStatus.msg definition.", msg.mode[i].c_str());
         }
     } // 各単体関数(ClearHardwareErrorとか)が内部でROS_INFOを出力しているので，ここでは何も出力しない
     if ( verbose_callback_ ) ROS_INFO("==================+==================");
@@ -438,12 +438,12 @@ void DynamixelHandler::CallbackCmd_Goal(const DynamixelGoal& msg) { // mutex_goa
     if ( verbose_callback_ ) {
         ROS_INFO("Goal cmd '%zu' servo(s) are tried to update", valid_id_list.size());
         ROS_INFO_STREAM(id_list_layout(valid_id_list, "  ID")); // valid_id_list はここで必要なので，わざわざ独立したvectorとして用意している
-        if ( n_pwm>0 ){ if( valid_pwm) ROS_INFO("  - updated: goal pwm     "); else ROS_WARN("  - skieped: goal pwm      %s", n_pwm!=N?warn_s:warn_n);}
-        if ( n_cur>0 ){ if( valid_cur) ROS_INFO("  - updated: goal current "); else ROS_WARN("  - skieped: goal current  %s", n_cur!=N?warn_s:warn_n);}
-        if ( n_vel>0 ){ if( valid_vel) ROS_INFO("  - updated: goal velocity"); else ROS_WARN("  - skieped: goal velocity %s", n_vel!=N?warn_s:warn_n);}
-        if ( n_pos>0 ){ if( valid_pos) ROS_INFO("  - updated: goal position"); else ROS_WARN("  - skieped: goal position %s", n_pos!=N?warn_s:warn_n);}
-        if ( n_pv >0 ){ if( valid_pv ) ROS_INFO("  - updated: profile vel. "); else ROS_WARN("  - skieped: profile vel.  %s", n_pv !=N?warn_s:warn_n);}
-        if ( n_pa >0 ){ if( valid_pa ) ROS_INFO("  - updated: profile acc. "); else ROS_WARN("  - skieped: profile acc.  %s", n_pa !=N?warn_s:warn_n);}
+        if ( n_pwm>0 ){ if( valid_pwm) ROS_INFO("  - updated: goal pwm     "); else ROS_WARN("  - skipped: goal pwm      %s", n_pwm!=N?warn_s:warn_n);}
+        if ( n_cur>0 ){ if( valid_cur) ROS_INFO("  - updated: goal current "); else ROS_WARN("  - skipped: goal current  %s", n_cur!=N?warn_s:warn_n);}
+        if ( n_vel>0 ){ if( valid_vel) ROS_INFO("  - updated: goal velocity"); else ROS_WARN("  - skipped: goal velocity %s", n_vel!=N?warn_s:warn_n);}
+        if ( n_pos>0 ){ if( valid_pos) ROS_INFO("  - updated: goal position"); else ROS_WARN("  - skipped: goal position %s", n_pos!=N?warn_s:warn_n);}
+        if ( n_pv >0 ){ if( valid_pv ) ROS_INFO("  - updated: profile vel. "); else ROS_WARN("  - skipped: profile vel.  %s", n_pv !=N?warn_s:warn_n);}
+        if ( n_pa >0 ){ if( valid_pa ) ROS_INFO("  - updated: profile acc. "); else ROS_WARN("  - skipped: profile acc.  %s", n_pa !=N?warn_s:warn_n);}
     } 
     if ( !valid_pwm && !valid_cur && !valid_vel && !valid_pos && !valid_pv && !valid_pa ) return; // 有効なIDがあるが，有効な要素がない場合は何もしない
     // goal_indice_write_　の更新
@@ -495,13 +495,13 @@ void DynamixelHandler::CallbackCmd_Gain(const DynamixelGain& msg) { // mutex_gai
     if ( verbose_callback_ ) {
         ROS_INFO("Gain cmd, '%zu' servo(s) are tried to update", valid_id_list.size());
         ROS_INFO_STREAM(id_list_layout(valid_id_list, "  ID")); // valid_id_list はここで必要なので，わざわざ独立したvectorとして用意している
-        if ( n_vi>0 ){ if(valid_vi) ROS_INFO("  - updated: velocity i gain "); else ROS_WARN("  - skieped: velocity i gain %s", warn_s);}
-        if ( n_vp>0 ){ if(valid_vp) ROS_INFO("  - updated: velocity p gain "); else ROS_WARN("  - skieped: velocity p gain %s", warn_s);}
-        if ( n_pd>0 ){ if(valid_pd) ROS_INFO("  - updated: position d gain "); else ROS_WARN("  - skieped: position d gain %s", warn_s);}
-        if ( n_pi>0 ){ if(valid_pi) ROS_INFO("  - updated: position i gain "); else ROS_WARN("  - skieped: position i gain %s", warn_s);}
-        if ( n_pp>0 ){ if(valid_pp) ROS_INFO("  - updated: position p gain "); else ROS_WARN("  - skieped: position p gain %s", warn_s);}
-        if ( n_fa>0 ){ if(valid_fa) ROS_INFO("  - updated: feedforward 2nd gain "); else ROS_WARN("  - skieped: feedforward 2nd gain %s", warn_s);}
-        if ( n_fv>0 ){ if(valid_fv) ROS_INFO("  - updated: feedforward 1st gain "); else ROS_WARN("  - skieped: feedforward 1st gain %s", warn_s);}
+        if ( n_vi>0 ){ if(valid_vi) ROS_INFO("  - updated: velocity i gain "); else ROS_WARN("  - skipped: velocity i gain %s", warn_s);}
+        if ( n_vp>0 ){ if(valid_vp) ROS_INFO("  - updated: velocity p gain "); else ROS_WARN("  - skipped: velocity p gain %s", warn_s);}
+        if ( n_pd>0 ){ if(valid_pd) ROS_INFO("  - updated: position d gain "); else ROS_WARN("  - skipped: position d gain %s", warn_s);}
+        if ( n_pi>0 ){ if(valid_pi) ROS_INFO("  - updated: position i gain "); else ROS_WARN("  - skipped: position i gain %s", warn_s);}
+        if ( n_pp>0 ){ if(valid_pp) ROS_INFO("  - updated: position p gain "); else ROS_WARN("  - skipped: position p gain %s", warn_s);}
+        if ( n_fa>0 ){ if(valid_fa) ROS_INFO("  - updated: feedforward 2nd gain "); else ROS_WARN("  - skipped: feedforward 2nd gain %s", warn_s);}
+        if ( n_fv>0 ){ if(valid_fv) ROS_INFO("  - updated: feedforward 1st gain "); else ROS_WARN("  - skipped: feedforward 1st gain %s", warn_s);}
     }
     if ( !valid_vi && !valid_vp && !valid_pd && !valid_pi && !valid_pp && !valid_fa && !valid_fv ) return; // 有効なIDがあるが，有効な要素がない場合は何もしない
     // gain_indice_write_　の更新
@@ -548,15 +548,15 @@ void DynamixelHandler::CallbackCmd_Limit(const DynamixelLimit& msg) { // mutex_l
     if ( verbose_callback_ ) {
         ROS_INFO("Limit cmd, '%zu' servo(s) are tried to update", valid_id_list.size());
         ROS_INFO_STREAM(id_list_layout(valid_id_list, "  ID")); // valid_id_list はここで必要なので，わざわざ独立したvectorとして用意している
-        if ( n_temp>0 ){ if( valid_temp) ROS_INFO("  - updated: temperature limit "); else ROS_WARN("  - skieped: temperature limit  %s", n_temp!=N?warn_s:warn_n);}
-        if ( n_maxv>0 ){ if( valid_maxv) ROS_INFO("  - updated: max voltage limit "); else ROS_WARN("  - skieped: max voltage limit  %s", n_maxv!=N?warn_s:warn_n);}
-        if ( n_minv>0 ){ if( valid_minv) ROS_INFO("  - updated: min voltage limit "); else ROS_WARN("  - skieped: min voltage limit  %s", n_minv!=N?warn_s:warn_n);}
-        if ( n_pwm >0 ){ if( valid_pwm ) ROS_INFO("  - updated: pwm limit         "); else ROS_WARN("  - skieped: pwm limit          %s", n_pwm !=N?warn_s:warn_n);}
-        if ( n_cur >0 ){ if( valid_cur ) ROS_INFO("  - updated: current limit     "); else ROS_WARN("  - skieped: current limit      %s", n_cur !=N?warn_s:warn_n);}
-        if ( n_acc >0 ){ if( valid_acc ) ROS_INFO("  - updated: acceleration limit"); else ROS_WARN("  - skieped: acceleration limit %s", n_acc !=N?warn_s:warn_n);}
-        if ( n_vel >0 ){ if( valid_vel ) ROS_INFO("  - updated: velocity limit    "); else ROS_WARN("  - skieped: velocity limit     %s", n_vel !=N?warn_s:warn_n);}
-        if ( n_maxp>0 ){ if( valid_maxp) ROS_INFO("  - updated: max position limit"); else ROS_WARN("  - skieped: max position limit %s", n_maxp!=N?warn_s:warn_n);}
-        if ( n_minp>0 ){ if( valid_minp) ROS_INFO("  - updated: min position limit"); else ROS_WARN("  - skieped: min position limit %s", n_minp!=N?warn_s:warn_n);}
+        if ( n_temp>0 ){ if( valid_temp) ROS_INFO("  - updated: temperature limit "); else ROS_WARN("  - skipped: temperature limit  %s", n_temp!=N?warn_s:warn_n);}
+        if ( n_maxv>0 ){ if( valid_maxv) ROS_INFO("  - updated: max voltage limit "); else ROS_WARN("  - skipped: max voltage limit  %s", n_maxv!=N?warn_s:warn_n);}
+        if ( n_minv>0 ){ if( valid_minv) ROS_INFO("  - updated: min voltage limit "); else ROS_WARN("  - skipped: min voltage limit  %s", n_minv!=N?warn_s:warn_n);}
+        if ( n_pwm >0 ){ if( valid_pwm ) ROS_INFO("  - updated: pwm limit         "); else ROS_WARN("  - skipped: pwm limit          %s", n_pwm !=N?warn_s:warn_n);}
+        if ( n_cur >0 ){ if( valid_cur ) ROS_INFO("  - updated: current limit     "); else ROS_WARN("  - skipped: current limit      %s", n_cur !=N?warn_s:warn_n);}
+        if ( n_acc >0 ){ if( valid_acc ) ROS_INFO("  - updated: acceleration limit"); else ROS_WARN("  - skipped: acceleration limit %s", n_acc !=N?warn_s:warn_n);}
+        if ( n_vel >0 ){ if( valid_vel ) ROS_INFO("  - updated: velocity limit    "); else ROS_WARN("  - skipped: velocity limit     %s", n_vel !=N?warn_s:warn_n);}
+        if ( n_maxp>0 ){ if( valid_maxp) ROS_INFO("  - updated: max position limit"); else ROS_WARN("  - skipped: max position limit %s", n_maxp!=N?warn_s:warn_n);}
+        if ( n_minp>0 ){ if( valid_minp) ROS_INFO("  - updated: min position limit"); else ROS_WARN("  - skipped: min position limit %s", n_minp!=N?warn_s:warn_n);}
     }
     if ( !valid_temp && !valid_maxv && !valid_minv && !valid_pwm 
          && !valid_cur && !valid_acc && !valid_vel && !valid_maxp && !valid_minp ) return; // 有効なIDがあるが，有効な要素がない場合は何もしない
@@ -610,10 +610,10 @@ void DynamixelHandler::CallbackCmd_Extra_Info(const DynamixelExtra& msg) {
     const size_t n_fw       = msg.firmware_version.size();
     const size_t n_protocol = msg.protocol_type.size();
     if ( verbose_callback_ ) {
-        if ( n_model   >0 ) ROS_WARN("  - read-only: model                ");
-        if ( n_model_no>0 ) ROS_WARN("  - read-only: model_number         ");
-        if ( n_fw      >0 ) ROS_WARN("  - read-only: firmware_version     ");
-        if ( n_protocol>0 ) ROS_WARN("  - read-only(policy): protocol_type");
+        if ( n_model   >0 ) ROS_WARN("  - skipped: model                  (read-only)");
+        if ( n_model_no>0 ) ROS_WARN("  - skipped: model_number           (read-only)");
+        if ( n_fw      >0 ) ROS_WARN("  - skipped: firmware_version       (read-only)");
+        if ( n_protocol>0 ) ROS_WARN("  - skipped: protocol_type          (read-only)");
     }
 }
 
@@ -624,13 +624,15 @@ void DynamixelHandler::CallbackCmd_Extra_State(const DynamixelExtra& msg) {
     const size_t n_ms_fol  = msg.moving_status.following_error.size();
     const size_t n_ms_on   = msg.moving_status.profile_ongoing.size();
     const size_t n_ms_pos  = msg.moving_status.in_position.size();
+    const bool has_ms = n_ms_vel>0 || n_ms_fol>0 || n_ms_on>0 || n_ms_pos>0 ;
     if ( verbose_callback_ ) {
-        if ( n_tick  >0   ) ROS_WARN("  - read-only: realtime_tick_s               ");
-        if ( n_moving>0   ) ROS_WARN("  - read-only: moving                        ");
-        if ( n_ms_vel>0   ) ROS_WARN("  - read-only: moving_status.velocity_profile");
-        if ( n_ms_fol>0   ) ROS_WARN("  - read-only: moving_status.following_error ");
-        if ( n_ms_on >0   ) ROS_WARN("  - read-only: moving_status.profile_ongoing ");
-        if ( n_ms_pos>0   ) ROS_WARN("  - read-only: moving_status.in_position     ");
+        if ( n_tick  >0   ) ROS_WARN("  - skipped: realtime_tick_s        (read-only)");
+        if ( n_moving>0   ) ROS_WARN("  - skipped: moving                 (read-only)");
+        if ( has_ms ) ROS_WARN("  - moving_status");
+        if ( n_ms_vel>0   ) ROS_WARN("   -- skipped: .velocity_profile    (read-only)");
+        if ( n_ms_fol>0   ) ROS_WARN("   -- skipped: .following_error     (read-only)");
+        if ( n_ms_on >0   ) ROS_WARN("   -- skipped: .profile_ongoing     (read-only)");
+        if ( n_ms_pos>0   ) ROS_WARN("   -- skipped: .in_position         (read-only)");
     }
 }
 
@@ -650,11 +652,11 @@ void DynamixelHandler::CallbackCmd_Extra_Config(const DynamixelExtra& msg, const
     const bool valid_ret_delay = n_ret_delay  == N && is_valid(msg.return_delay_time_us  );
 
     if ( verbose_callback_ ) {
-        if ( n_shadow_id >0 ){ if(has_shadow_id  ) ROS_INFO("  - updated: shadow_id             "); else ROS_WARN("  - skieped: shadow_id              %s", warn_s);}
-        if ( n_homing    >0 ){ if(valid_homing   ) ROS_INFO("  - updated: homing_offset_deg     "); else ROS_WARN("  - skieped: homing_offset_deg      %s", n_homing   !=N?warn_s:warn_n);}
-        if ( n_threshold >0 ){ if(valid_threshold) ROS_INFO("  - updated: moving_threshold_deg_s"); else ROS_WARN("  - skieped: moving_threshold_deg_s %s", n_threshold!=N?warn_s:warn_n);}
-        if ( n_pwm_slope >0 ){ if(valid_pwm_slope) ROS_INFO("  - updated: pwm_slope_percent     "); else ROS_WARN("  - skieped: pwm_slope_percent      %s", n_pwm_slope!=N?warn_s:warn_n);}
-        if ( n_ret_delay >0 ){ if(valid_ret_delay) ROS_INFO("  - updated: return_delay_time_us  "); else ROS_WARN("  - skieped: return_delay_time_us   %s", n_ret_delay!=N?warn_s:warn_n);}
+        if ( n_shadow_id >0 ){ if(has_shadow_id  ) ROS_INFO("  - updated: shadow_id             "); else ROS_WARN("  - skipped: shadow_id              %s", warn_s);}
+        if ( n_homing    >0 ){ if(valid_homing   ) ROS_INFO("  - updated: homing_offset_deg     "); else ROS_WARN("  - skipped: homing_offset_deg      %s", n_homing   !=N?warn_s:warn_n);}
+        if ( n_threshold >0 ){ if(valid_threshold) ROS_INFO("  - updated: moving_threshold_deg_s"); else ROS_WARN("  - skipped: moving_threshold_deg_s %s", n_threshold!=N?warn_s:warn_n);}
+        if ( n_pwm_slope >0 ){ if(valid_pwm_slope) ROS_INFO("  - updated: pwm_slope_percent     "); else ROS_WARN("  - skipped: pwm_slope_percent      %s", n_pwm_slope!=N?warn_s:warn_n);}
+        if ( n_ret_delay >0 ){ if(valid_ret_delay) ROS_INFO("  - updated: return_delay_time_us  "); else ROS_WARN("  - skipped: return_delay_time_us   %s", n_ret_delay!=N?warn_s:warn_n);}
     }
 
     const size_t n_drive_tq     = msg.drive_mode.torque_on_by_goal_update.size();
@@ -666,40 +668,43 @@ void DynamixelHandler::CallbackCmd_Extra_Config(const DynamixelExtra& msg, const
         const bool has_drive = has_drive_tq || has_drive_prof || has_drive_rev;
 
     if ( verbose_callback_ ) {
-        if ( n_drive_tq   >0 ){ if(has_drive_tq  ) ROS_INFO("  - updated: drive_mode.torque_on_by_g..."); else ROS_WARN("  - skieped: drive_mode.torque_on_by_g... %s", n_drive_tq  !=N?warn_s:warn_n);}
-        if ( n_drive_prof >0 ){ if(has_drive_prof) ROS_INFO("  - updated: drive_mode.profile_config..."); else ROS_WARN("  - skieped: drive_mode.profile_config... %s", n_drive_prof!=N?warn_s:warn_n);}
-        if ( n_drive_rev  >0 ){ if(has_drive_rev ) ROS_INFO("  - updated: drive_mode.reverse_mode     "); else ROS_WARN("  - skieped: drive_mode.reverse_mode      %s", n_drive_rev !=N?warn_s:warn_n);}
+        if ( has_drive ) ROS_INFO("  - drive_mode");
+        if ( n_drive_tq   >0 ){ if(has_drive_tq  ) ROS_INFO("   -- updated: .torque_on_by_goa..."); else ROS_WARN("   -- skipped: .torque_on_by_goa... %s", warn_s);}
+        if ( n_drive_prof >0 ){ if(has_drive_prof) ROS_INFO("   -- updated: .profile_configur..."); else ROS_WARN("   -- skipped: .profile_configur... %s", warn_s);}
+        if ( n_drive_rev  >0 ){ if(has_drive_rev ) ROS_INFO("   -- updated: .reverse_mode       "); else ROS_WARN("   -- skipped: .reverse_mode        %s", warn_s);}
     }
 
-    const size_t n_sd_ovl   = msg.shutdown.overload_error.size();
-    const size_t n_sd_esh  = msg.shutdown.electrical_shock_error.size();
-    const size_t n_sd_enc  = msg.shutdown.motor_encoder_error.size();
-    const size_t n_sd_hal  = msg.shutdown.motor_hall_sensor_error.size();
-    const size_t n_sd_ovh  = msg.shutdown.overheating_error.size();
-    const size_t n_sd_vin  = msg.shutdown.input_voltage_error.size();
-    const bool has_sd_ovl  = n_sd_ovl == N; const bool has_sd_esh = n_sd_esh == N; 
-    const bool has_sd_enc  = n_sd_enc == N; const bool has_sd_hal = n_sd_hal == N; 
-    const bool has_sd_ovh  = n_sd_ovh == N; const bool has_sd_vin = n_sd_vin == N; 
-        const bool has_shutdown = has_sd_ovl || has_sd_esh || has_sd_enc || has_sd_hal || has_sd_ovh || has_sd_vin;
+    const size_t n_sd_ovl = msg.shutdown.overload_error.size();
+    const size_t n_sd_esh = msg.shutdown.electrical_shock_error.size();
+    const size_t n_sd_enc = msg.shutdown.motor_encoder_error.size();
+    const size_t n_sd_hal = msg.shutdown.motor_hall_sensor_error.size();
+    const size_t n_sd_ovh = msg.shutdown.overheating_error.size();
+    const size_t n_sd_vin = msg.shutdown.input_voltage_error.size();
+    const bool has_sd_ovl = n_sd_ovl == N; const bool has_sd_esh = n_sd_esh == N;
+    const bool has_sd_enc = n_sd_enc == N; const bool has_sd_hal = n_sd_hal == N;
+    const bool has_sd_ovh = n_sd_ovh == N; const bool has_sd_vin = n_sd_vin == N;
+    const bool has_shutdown = has_sd_ovl || has_sd_esh || has_sd_enc || has_sd_hal || has_sd_ovh || has_sd_vin;
 
-        if ( verbose_callback_ ) {
-        if ( n_sd_ovl >0 ){ if(has_sd_ovl) ROS_INFO("  - updated: shutdown.overload_error     "); else ROS_WARN("  - skieped: shutdown.overload_error      %s", n_sd_ovl!=N?warn_s:warn_n);}
-        if ( n_sd_esh >0 ){ if(has_sd_esh) ROS_INFO("  - updated: shutdown.electrical_shock..."); else ROS_WARN("  - skieped: shutdown.electrical_shock... %s", n_sd_esh!=N?warn_s:warn_n);}
-        if ( n_sd_enc >0 ){ if(has_sd_enc) ROS_INFO("  - updated: shutdown.motor_encorder_e..."); else ROS_WARN("  - skieped: shutdown.motor_encorder_e... %s", n_sd_enc!=N?warn_s:warn_n);}
-        if ( n_sd_hal >0 ){ if(has_sd_hal) ROS_INFO("  - updated: shutdown.motor_hall_senso..."); else ROS_WARN("  - skieped: shutdown.motor_hall_senso... %s", n_sd_hal!=N?warn_s:warn_n);}
-        if ( n_sd_ovh >0 ){ if(has_sd_ovh) ROS_INFO("  - updated: shutdown.overheating_error  "); else ROS_WARN("  - skieped: shutdown.overheating_error   %s", n_sd_ovh!=N?warn_s:warn_n);}
-        if ( n_sd_vin >0 ){ if(has_sd_vin) ROS_INFO("  - updated: shutdown.input_voltage_error"); else ROS_WARN("  - skieped: shutdown.input_voltage_error %s", n_sd_vin!=N?warn_s:warn_n);}
+    if ( verbose_callback_ ) {
+        if ( has_shutdown ) ROS_INFO("  - shutdown");
+        if ( n_sd_ovl >0 ){ if(has_sd_ovl) ROS_INFO("   -- updated: .overload_error     "); else ROS_WARN("   -- skipped: .overload_error      %s", warn_s);}
+        if ( n_sd_esh >0 ){ if(has_sd_esh) ROS_INFO("   -- updated: .electrical_shock..."); else ROS_WARN("   -- skipped: .electrical_shock... %s", warn_s);}
+        if ( n_sd_enc >0 ){ if(has_sd_enc) ROS_INFO("   -- updated: .motor_encoder_er..."); else ROS_WARN("   -- skipped: .motor_encoder_er... %s", warn_s);}
+        if ( n_sd_hal >0 ){ if(has_sd_hal) ROS_INFO("   -- updated: .motor_hall_senso..."); else ROS_WARN("   -- skipped: .motor_hall_senso... %s", warn_s);}
+        if ( n_sd_ovh >0 ){ if(has_sd_ovh) ROS_INFO("   -- updated: .overheating_error  "); else ROS_WARN("   -- skipped: .overheating_error   %s", warn_s);}
+        if ( n_sd_vin >0 ){ if(has_sd_vin) ROS_INFO("   -- updated: .input_voltage_error"); else ROS_WARN("   -- skipped: .input_voltage_error %s", warn_s);}
     }
     
-    const size_t n_restore_ram  = msg.restore_configuration.ram_restore.size();
-    const size_t n_restore_tq   = msg.restore_configuration.startup_torque_on.size();
-    const bool has_restore_ram  = n_restore_ram  == N; 
-    const bool has_restore_tq   = n_restore_tq   == N;
-        const bool has_restore      = has_restore_ram || has_restore_tq;
+    const size_t n_restore_ram = msg.restore_configuration.ram_restore.size();
+    const size_t n_restore_tq  = msg.restore_configuration.startup_torque_on.size();
+    const bool has_restore_ram = n_restore_ram == N;
+    const bool has_restore_tq  = n_restore_tq == N;
+    const bool has_restore     = has_restore_ram || has_restore_tq;
     
     if ( verbose_callback_ ) {
-        if ( n_restore_ram >0 ){ if(has_restore_ram) ROS_INFO("  - updated: restore_config.ram_restore  "); else ROS_WARN("  - skieped: restore_configuration.ram_restore   %s", n_restore_ram !=N?warn_s:warn_n);}
-        if ( n_restore_tq  >0 ){ if(has_restore_tq ) ROS_INFO("  - updated: restore_config.startup_to..."); else ROS_WARN("  - skieped: restore_configuration.startup_to... %s", n_restore_tq  !=N?warn_s:warn_n);}
+        if ( has_restore ) ROS_INFO("  - restore_config");  
+        if ( n_restore_ram >0 ){ if(has_restore_ram) ROS_INFO("   -- updated: .ram_restore      "); else ROS_WARN("   -- skipped: .ram_restore         %s", warn_s);}
+        if ( n_restore_tq  >0 ){ if(has_restore_tq ) ROS_INFO("   -- updated: .startup_torque_on"); else ROS_WARN("   -- skipped: .startup_torque_on   %s", warn_s);}
     }
 
     if ( !has_shadow_id && !valid_homing && !valid_threshold && !valid_pwm_slope 
@@ -724,10 +729,7 @@ void DynamixelHandler::CallbackCmd_Extra_Config(const DynamixelExtra& msg, const
             if ( has_drive_prof ) { const auto& cfg = msg.drive_mode.profile_configuration[i];
                 if      ( cfg == msg.drive_mode.TIME_BASED     ) mode[DRV_MODE_PROFILE_TIME_BASED] = true;
                 else if ( cfg == msg.drive_mode.VELOCITY_BASED ) mode[DRV_MODE_PROFILE_TIME_BASED] = false;
-                else if ( verbose_callback_ ) {
-                    ROS_WARN("  - skipped: invalid profile_config... '%s' (valid: '%s' or '%s'), ID [%d]",
-                             cfg.c_str(), msg.drive_mode.TIME_BASED.c_str(), msg.drive_mode.VELOCITY_BASED.c_str(), ID);
-                }
+                else if ( verbose_callback_ ) ROS_WARN("   Invalid profile_config [%s], please see DynamixelExtraDrivemode.msg definition", cfg.c_str());
             }
             if ( is_dummy ) extra_u8_[ID][EXTRA_DRIVE_MODE] = mode.to_ulong();
             else            WriteDriveMode(ID, mode);
@@ -770,8 +772,8 @@ void DynamixelHandler::CallbackCmd_Extra_Config(const DynamixelExtra& msg, const
 void DynamixelHandler::CallbackCmd_Extra_Func(const DynamixelExtra& msg, const vector<uint8_t>& valid_id_list) {
     const auto N = msg.id_list.size();
 
-    const size_t n_watchdog = msg.bus_watchdog_ms.size(); 
-    const bool valid_watchdog = n_watchdog == N && is_valid(msg.bus_watchdog_ms);
+    const size_t n_watch = msg.bus_watchdog_ms.size(); 
+    const bool valid_watch = n_watch == N && is_valid(msg.bus_watchdog_ms);
 
     const size_t n_led_r  = msg.led.red_percent.size();   
     const size_t n_led_g  = msg.led.green_percent.size(); 
@@ -785,13 +787,13 @@ void DynamixelHandler::CallbackCmd_Extra_Func(const DynamixelExtra& msg, const v
     const bool valid_reboot   = n_reboot == N;
     
     if ( verbose_callback_ ) {
-        if ( n_led_r >0   ) { if ( valid_led_r    ) ROS_INFO("  - updated: led.red_percent"  ); else ROS_WARN("  - skipped: led.red_percent   %s", warn_s); }
-        if ( n_led_g >0   ) { if ( valid_led_g    ) ROS_INFO("  - updated: led.green_percent"); else ROS_WARN("  - skipped: led.green_percent %s", warn_s); }
-        if ( n_led_b >0   ) { if ( valid_led_b    ) ROS_INFO("  - updated: led.blue_percent" ); else ROS_WARN("  - skipped: led.blue_percent  %s", warn_s); }
-        if ( n_watchdog>0 ) { if ( valid_watchdog ) ROS_INFO("  - updated: bus_watchdog_ms  "); else ROS_WARN("  - skipped: bus_watchdog_ms   %s", warn_s); }
-        if ( n_reboot>0   ) { if ( valid_reboot   ) ROS_INFO("  - execute: reboot"           ); else ROS_WARN("  - skipped: reboot %s"           , warn_s); }
+        if ( n_led_r >0 ) { if ( valid_led_r ) ROS_INFO("  - updated: led.red_percent  "); else ROS_WARN("  - skipped: led.red_percent        %s",n_led_r !=N?warn_s:warn_n); }
+        if ( n_led_g >0 ) { if ( valid_led_g ) ROS_INFO("  - updated: led.green_percent"); else ROS_WARN("  - skipped: led.green_percent      %s",n_led_g !=N?warn_s:warn_n); }
+        if ( n_led_b >0 ) { if ( valid_led_b ) ROS_INFO("  - updated: led.blue_percent "); else ROS_WARN("  - skipped: led.blue_percent       %s",n_led_b !=N?warn_s:warn_n); }
+        if ( n_watch >0 ) { if ( valid_watch ) ROS_INFO("  - updated: bus_watchdog_ms  "); else ROS_WARN("  - skipped: bus_watchdog_ms        %s",n_watch !=N?warn_s:warn_n); }
+        if ( n_reboot>0 ) { if ( valid_reboot) ROS_INFO("  - execute: reboot           "); else ROS_WARN("  - skipped: reboot                 %s", warn_s); }
     }
-    if ( !valid_led && !valid_watchdog && !valid_reboot ) return;
+    if ( !valid_led && !valid_watch && !valid_reboot ) return;
 
     static constexpr double NaN = std::numeric_limits<double>::quiet_NaN();
     for (size_t i=0; i<msg.id_list.size(); i++) if ( id_t ID = msg.id_list[i]; is_in(ID, valid_id_list) ) {
@@ -803,17 +805,17 @@ void DynamixelHandler::CallbackCmd_Extra_Func(const DynamixelExtra& msg, const v
                 if ( valid_led_g ) extra_db_[ID][EXTRA_LED_GREEN] = clamp(msg.led.green_percent[i], 0.0, 100.0);
                 if ( valid_led_b ) extra_db_[ID][EXTRA_LED_BLUE ] = clamp(msg.led.blue_percent[i] , 0.0, 100.0);
             } else {
-            const double R = (valid_led_r) ? msg.led.red_percent[i]   : NaN;
-            const double G = (valid_led_g) ? msg.led.green_percent[i] : NaN;
-            const double B = (valid_led_b) ? msg.led.blue_percent[i]  : NaN;
-            WriteLedColor(ID, R, G, B);
+                const double R = (valid_led_r) ? msg.led.red_percent[i]   : NaN;
+                const double G = (valid_led_g) ? msg.led.green_percent[i] : NaN;
+                const double B = (valid_led_b) ? msg.led.blue_percent[i]  : NaN;
+                WriteLedColor(ID, R, G, B);
             }
         }
 
-        if ( valid_watchdog && IsSupported(Trait(ExtraField::BUS_WATCHDOG), series_[ID]) ) {
-            stop_time_[ID] =  clamp(msg.bus_watchdog_ms[i], 0.0, 508.0 /*ms*/);
-            if ( is_dummy ) extra_db_[ID][EXTRA_BUS_WATCHDOG] = stop_time_[ID];
-            else            WriteBusWatchdog(ID, stop_time_[ID]);
+        if ( valid_watch && IsSupported(Trait(ExtraField::BUS_WATCHDOG), series_[ID]) ) {
+            watchdog_w_[ID] = clamp(msg.bus_watchdog_ms[i], 0.0, 508.0 /*ms*/);
+            if ( is_dummy ) watchdog_r_[ID] = watchdog_w_[ID];
+            else            WriteBusWatchdog(ID, watchdog_w_[ID]);
         }
 
         if ( valid_reboot && IsSupported(Trait(ExtraField::REBOOT), series_[ID] ) )

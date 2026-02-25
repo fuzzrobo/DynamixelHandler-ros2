@@ -633,10 +633,8 @@ tuple<double, uint8_t> DynamixelHandler::BulkReadExtra_slow(const set<id_t>& id_
         const auto id_data_vec_map = BulkRead_log(id_addrs_map_f2, verbose_["r_extra"], verbose_["r_extra_err"]);
         const int N_total = id_addrs_map_f2.size();
         const int N_suc   = id_data_vec_map.size();
-        for ( const auto& [id, data] : id_data_vec_map ) {
-            if ( data.size() != 1 ) continue;
-            extra_db_[id][EXTRA_BUS_WATCHDOG] = id_addrs_map_f2[id][0].pulse2val(data[0], model_[id]);
-        }
+        for ( const auto& [id, data] : id_data_vec_map ) // X, P ともに1つ要素しか持たないという事前情報で簡略化して書いてる．
+            watchdog_r_[id] = id_addrs_map_f2[id][0].pulse2val(data[0], model_[id]);
         sum_rate += N_total == 0 ? 0.0 : N_suc / (double)N_total;
         n_rate   += 1.0;
     }
@@ -684,18 +682,24 @@ template <typename Addr> void DynamixelHandler::CheckDynamixels(const set<id_t>&
     vector<id_t> target_id_list = id_filter(id_set, Addr::series());
     if ( target_id_list.empty() ) return; // 読み込むデータがない場合は即時return
 
-    // bus_watchdogの書き込み．
-    SyncWrite_log(Addr::bus_watchdog, target_id_list, vector<int64_t>(target_id_list.size(), 0/*OFF*/), verbose_["w_status"]);
-    if ( do_stop_end_ ) { //　恒常的に動くモードの場合はbus_watchdogを有効にし，通信断絶で止まるようにする．
-        map<id_t, vector<int64_t>> bus_watchdog_map;
-        for (auto id : target_id_list) switch (op_mode_[id]){ 
-            case OPERATING_MODE_VELOCITY: [[fallthrough]];
-            case OPERATING_MODE_CURRENT : [[fallthrough]];
-            case OPERATING_MODE_PWM     : 
-                bus_watchdog_map[id].push_back(Addr::bus_watchdog.val2pulse(stop_time_[id]/*ms*/, model_[id]));
-        } // position系のモードもセットしたいが， homing_offsetのバグがあるので，一旦保留
-        if ( !bus_watchdog_map.empty() ) SyncWrite_log({Addr::bus_watchdog}, bus_watchdog_map, verbose_["w_status"]);
+    // bus_watchdogのエラーの確認．エラーでてたら0書き込みで解除する．
+    vector<id_t> bw_err_id_list;
+    for (auto id : target_id_list) if (watchdog_r_[id] < 0.0) bw_err_id_list.push_back(id);
+    if (!bw_err_id_list.empty())
+        SyncWrite_log(Addr::bus_watchdog, bw_err_id_list, vector<int64_t>(bw_err_id_list.size(), 0/*OFF*/), verbose_["w_status"]);
+
+    // bus_watchdogの書き込み． command指定値があればそれを優先し，未指定( <0 )なら do_stop_end_ の設定に従う．
+    map<id_t, vector<int64_t>> bus_watchdog_map;
+    for (auto id : target_id_list) switch (op_mode_[id]) { // position系は homing_offset の既知問題があるため除外
+        case OPERATING_MODE_VELOCITY: [[fallthrough]];
+        case OPERATING_MODE_CURRENT : [[fallthrough]];
+        case OPERATING_MODE_PWM     : {
+            if ( !do_stop_end_ && watchdog_w_[id] <= 0) continue; // do_stop_end_ も false かつ， コマンド指定値もなく，  なら，書き込まない．
+            double time_ms = watchdog_w_[id] >= 0.0 ? watchdog_w_[id] : default_["bus_watchdog_ms"];
+            bus_watchdog_map[id].push_back(Addr::bus_watchdog.val2pulse(time_ms, model_[id]));
+        }
     }
+    if ( !bus_watchdog_map.empty() ) SyncWrite_log({Addr::bus_watchdog}, bus_watchdog_map, verbose_["w_status"]);
 
     // トルクの確認
     auto id_torque_map = SyncRead_log(Addr::torque_enable, target_id_list, verbose_["r_status"], verbose_["r_status_err"]);
