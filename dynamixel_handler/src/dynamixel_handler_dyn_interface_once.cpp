@@ -100,6 +100,7 @@ bool DynamixelHandler::AddDynamixel(id_t id){
     WriteBusWatchdog(id, default_["bus_watchdog_ms"]/*ms*/);
     WriteProfileAcc(id, default_["profile_acc_deg_ss"]*DEG ); 
     WriteProfileVel(id, default_["profile_vel_deg_s"]*DEG );
+    WriteReturnDelayTime(id, default_["return_delay_time_us"]);
 
     set<uint8_t> tmp = {id};
     static constexpr tuple<double, uint8_t> complete = {1.0-1e-6, 1};
@@ -124,9 +125,8 @@ bool DynamixelHandler::AddDynamixel(id_t id){
         ROS_WARN("   profile vel. '%2.1f' could not be set exactly (now '%2.1f')", default_["profile_vel_deg_s"], goal_r_[id][PROFILE_VEL]/DEG);
     if ( abs(default_["bus_watchdog_ms"] - watchdog_r_[id]) > 1 ) 
         ROS_WARN("   bus watchdog '%2.1f' could not be set exactly (now '%2.1f')", default_["bus_watchdog_ms"], watchdog_r_[id]<0 ? -1.0 : watchdog_r_[id]);
-    WriteReturnDelayTime(id, default_["return_delay_time_us"]);
-    if ( abs(ReadReturnDelayTime(id) - default_["return_delay_time_us"]) > 0.1 ) 
-        ROS_WARN("   return delay time '%2.1f' could not set (now '%2.1f')", default_["return_delay_time_us"], ReadReturnDelayTime(id));
+    if ( abs(default_["return_delay_time_us"] - extra_db_[id][EXTRA_RETURN_DELAY_TIME]) > 0.1 ) 
+        ROS_WARN("   return delay time '%2.1f' could not be set exactly (now '%2.1f')", default_["return_delay_time_us"], extra_db_[id][EXTRA_RETURN_DELAY_TIME]);
 
     if ( do_clean_hwerr_ ) ClearHardwareError(id); // 現在の状態を変えない
     if ( do_torque_on_ )   TorqueOn(id);           // 現在の状態を変えない
