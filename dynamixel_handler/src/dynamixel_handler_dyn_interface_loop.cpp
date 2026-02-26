@@ -627,13 +627,14 @@ tuple<double, uint8_t> DynamixelHandler::BulkReadExtra_slow(const set<id_t>& id_
     for ( auto id : valid_id_set ) switch ( series_[id] ) {
         case SERIES_X: id_addrs_map_f2[id] = {AddrX::bus_watchdog}; break;
         case SERIES_P: id_addrs_map_f2[id] = {AddrP::bus_watchdog}; break;
-        default: break; // ここに来るのはSERIES_UNKNOWNとSERIES_PROだけのはず(SERIES_PROはbus_watchdogを持っていない)
+        case SERIES_PRO: id_addrs_map_f2[id] = {AddrPro::bus_watchdog}; break; // dummy address
+        default: break; // ここに来るのはSERIES_UNKNOWNだけのはず
     }
     if ( !id_addrs_map_f2.empty() ) {
         const auto id_data_vec_map = BulkRead_log(id_addrs_map_f2, verbose_["r_extra"], verbose_["r_extra_err"]);
         const int N_total = id_addrs_map_f2.size();
         const int N_suc   = id_data_vec_map.size();
-        for ( const auto& [id, data] : id_data_vec_map ) // X, P ともに1つ要素しか持たないという事前情報で簡略化して書いてる．
+        for ( const auto& [id, data] : id_data_vec_map ) // 全シリーズとも1要素のみ
             watchdog_r_[id] = id_addrs_map_f2[id][0].pulse2val(data[0], model_[id]);
         sum_rate += N_total == 0 ? 0.0 : N_suc / (double)N_total;
         n_rate   += 1.0;

@@ -295,11 +295,11 @@ extra:                                           # DynamixelExtra型
    id_list: [1, 2, 3, 4]
    model: ["X", "X", "P", "Pro"]
    model_number: [0, 0, 0, 0]
-   protocol_type: [2, 2, 2, 0]
+   protocol_type: [2, 2, 2, 2]
    firmware_version: [0, 0, 0, 0]
    realtime_tick_s: [0.0, 0.0, 0.0, .nan]
    moving_status:
-      velocity_profile: ["none", "none", "none", ""]
+      velocity_profile: ["none", "none", "none", "none"]
       following_error: [false, false, false, false]
       profile_ongoing: [false, false, false, false]
       in_position: [false, false, false, false]
@@ -307,7 +307,7 @@ extra:                                           # DynamixelExtra型
    return_delay_time_us: [0.0, 0.0, 0.0, 0.0]
    drive_mode:
       torque_on_by_goal_update: [false, false, false, false]
-      profile_configuration: ["velocity_based", "velocity_based", "velocity_based", ""]
+      profile_configuration: ["velocity_based", "velocity_based", "velocity_based", "velocity_based"]
       reverse_mode: [false, false, false, false]
    shadow_id: [255, 255, 255, 0]
    homing_offset_deg: [0.0, 0.0, 0.0, 0.0]
@@ -325,8 +325,8 @@ extra:                                           # DynamixelExtra型
       input_voltage_error: [false, false, false, false]
    led:
       red_percent: [0.0, 0.0, 0.0, 0.0]
-      blue_percent: [.nan, .nan, 0.0, .nan]
-      green_percent: [.nan, .nan, 0.0, .nan]
+      blue_percent: [.nan, .nan, 0.0, 0.0]
+      green_percent: [.nan, .nan, 0.0, 0.0]
    bus_watchdog_ms: [500.0, 500.0, 500.0, .nan]
    reboot: [false, false, false, false]
 ```
