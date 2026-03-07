@@ -609,6 +609,14 @@ extraを読み書きするためのトピック `/dynamixel/command/extra` と `
    bool[] reboot
    ```
 
+非対応機種の `/dynamixel/state/extra` では，項目ごとに次の値が入る．
+- `float64[]` 系の項目は `nan`
+- `uint16[]` / `uint8[]` 系の項目は `0`
+- `string[]` 系の項目は空文字 `""`
+- `bool[]` 系の項目は `false`
+- `moving_status.velocity_profile` は `"none"`
+- `drive_mode.profile_configuration` は `"velocity_based"`
+
 #### `DynamixelExtraMovingstatus` type
    ```yml
    string[] velocity_profile

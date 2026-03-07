@@ -179,7 +179,7 @@ void DynamixelHandler::MainLoop(){
 
 /* 処理時間時間の計測 */ auto s_total = system_clock::now();
     //* Additional function
-    if (external_port_) external_port_->MainProccess();
+    if (external_port_) external_port_->MainProcess();
     if (imu_opencr_   ) imu_opencr_->MainProcess();
 
     //* topicをSubscribe & Dynamixelへ目標角をWrite

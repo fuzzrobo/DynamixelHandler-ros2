@@ -35,7 +35,7 @@ class DynamixelHandler::ExternalPort {
         //* ROS 初期設定とメインループ 
         ExternalPort(DynamixelHandler& parent); // コンストラクタ, 初期設定を行う
         ~ExternalPort(); // デストラクタ,  終了処理を行う
-        void MainProccess(); // 本体のdynamixel_handlerのメインループで実行したい処理．
+        void MainProcess(); // 本体のdynamixel_handlerのメインループで実行したい処理．
 
         // DynamixelHandlerのインスタンスを保持するための変数
         DynamixelHandler& parent_;

@@ -55,8 +55,8 @@ Dynamixelとやり取りを行うライブラリは[別のリポジトリ](https
 
 ***************************
 
-## 未実装機能
- - extra に分類した情報の read/writeの実装
+## 残課題
+ - `extra` の公開トピック仕様の整理
  - write するタイミングの検討について
    - 現在の方法：sub callback でストアしメインループで write
      - [＋] write回数が抑えられる．
@@ -175,7 +175,7 @@ if (use_<function_name>) {
 }
 
 // MainLoop() 内
-if (<function_ptr>_) <function_ptr>_->MainProcess(); // 既存命名に合わせる
+if (<function_ptr>_) <function_ptr>_->MainProcess();
 ```
 
 `config/config_dynamixel_handler*.yaml`

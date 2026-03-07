@@ -102,52 +102,75 @@ void DynamixelHandler::ExternalPort::BroadcastExternalPort(){
 }
 
 uint16_t DynamixelHandler::ExternalPort::ReadExternalPortMode(id_t id, port_t port){
-    DynamixelAddress addr = AddrX::external_port_data_1;
+    DynamixelAddress addr = AddrX::external_port_mode_1;
            if ( series_[id]==SERIES_X ) switch (port) {
-        case 1: addr = AddrX::external_port_data_1; break;
-        case 2: addr = AddrX::external_port_data_2; break;
-        case 3: addr = AddrX::external_port_data_3; break;
+        case 1: addr = AddrX::external_port_mode_1; break;
+        case 2: addr = AddrX::external_port_mode_2; break;
+        case 3: addr = AddrX::external_port_mode_3; break;
         default: return 0;
     } else if ( series_[id]==SERIES_P ) switch (port) {
-        case 1: addr = AddrP::external_port_data_1; break;
-        case 2: addr = AddrP::external_port_data_2; break;
-        case 3: addr = AddrP::external_port_data_3; break;
-        case 4: addr = AddrP::external_port_data_4; break;
+        case 1: addr = AddrP::external_port_mode_1; break;
+        case 2: addr = AddrP::external_port_mode_2; break;
+        case 3: addr = AddrP::external_port_mode_3; break;
+        case 4: addr = AddrP::external_port_mode_4; break;
         default: return 0;
     } else if ( series_[id]==SERIES_PRO ) switch (port) {
-        case 1: addr = AddrPro::external_port_data_1; break;
-        case 2: addr = AddrPro::external_port_data_2; break;
-        case 3: addr = AddrPro::external_port_data_3; break;
-        case 4: addr = AddrPro::external_port_data_4; break;
+        case 1: addr = AddrPro::external_port_mode_1; break;
+        case 2: addr = AddrPro::external_port_mode_2; break;
+        case 3: addr = AddrPro::external_port_mode_3; break;
+        case 4: addr = AddrPro::external_port_mode_4; break;
         default: return 0;
     } else       return 0;
     return parent_.dyn_comm_.tryRead(addr, id);
 }
 
 uint16_t DynamixelHandler::ExternalPort::ReadExternalPortData(id_t id, port_t port){
-    DynamixelAddress addr = AddrX::external_port_mode_1;
+    DynamixelAddress addr = AddrX::external_port_data_1;
            if ( series_[id]==SERIES_X ) switch (port) {
-        case 1: addr = AddrX::external_port_mode_1; break;
-        case 2: addr = AddrX::external_port_mode_2; break;
-        case 3: addr = AddrX::external_port_mode_3; break;
+        case 1: addr = AddrX::external_port_data_1; break;
+        case 2: addr = AddrX::external_port_data_2; break;
+        case 3: addr = AddrX::external_port_data_3; break;
         default: return 0;
     } else if ( series_[id]==SERIES_P ) switch (port) {
-        case 1: addr = AddrP::external_port_mode_1; break;
-        case 2: addr = AddrP::external_port_mode_2; break;
-        case 3: addr = AddrP::external_port_mode_3; break;
-        case 4: addr = AddrP::external_port_mode_4; break;
+        case 1: addr = AddrP::external_port_data_1; break;
+        case 2: addr = AddrP::external_port_data_2; break;
+        case 3: addr = AddrP::external_port_data_3; break;
+        case 4: addr = AddrP::external_port_data_4; break;
         default: return 0;
     } else if ( series_[id]==SERIES_PRO ) switch (port) {
-        case 1: addr = AddrPro::external_port_mode_1; break;
-        case 2: addr = AddrPro::external_port_mode_2; break;
-        case 3: addr = AddrPro::external_port_mode_3; break;
-        case 4: addr = AddrPro::external_port_mode_4; break;
+        case 1: addr = AddrPro::external_port_data_1; break;
+        case 2: addr = AddrPro::external_port_data_2; break;
+        case 3: addr = AddrPro::external_port_data_3; break;
+        case 4: addr = AddrPro::external_port_data_4; break;
         default: return 0;
     } else       return 0;
     return parent_.dyn_comm_.tryRead(addr, id);
 }
 
 bool DynamixelHandler::ExternalPort::WriteExternalPortMode(id_t id, port_t port, uint16_t data){
+    DynamixelAddress addr = AddrX::external_port_mode_1;
+           if ( series_[id]==SERIES_X ) switch (port) {
+        case 1: addr = AddrX::external_port_mode_1; break;
+        case 2: addr = AddrX::external_port_mode_2; break;
+        case 3: addr = AddrX::external_port_mode_3; break;
+        default: return false;
+    } else if ( series_[id]==SERIES_P ) switch (port) {
+        case 1: addr = AddrP::external_port_mode_1; break;
+        case 2: addr = AddrP::external_port_mode_2; break;
+        case 3: addr = AddrP::external_port_mode_3; break;
+        case 4: addr = AddrP::external_port_mode_4; break;
+        default: return false;
+    } else if ( series_[id]==SERIES_PRO ) switch (port) {
+        case 1: addr = AddrPro::external_port_mode_1; break;
+        case 2: addr = AddrPro::external_port_mode_2; break;
+        case 3: addr = AddrPro::external_port_mode_3; break;
+        case 4: addr = AddrPro::external_port_mode_4; break;
+        default: return false;
+    } else       return false;
+    return parent_.dyn_comm_.tryWrite(addr, id, data);
+}
+
+bool DynamixelHandler::ExternalPort::WriteExternalPortData(id_t id, port_t port, uint16_t data){
     DynamixelAddress addr = AddrX::external_port_data_1;
            if ( series_[id]==SERIES_X ) switch (port) {
         case 1: addr = AddrX::external_port_data_1; break;
@@ -165,29 +188,6 @@ bool DynamixelHandler::ExternalPort::WriteExternalPortMode(id_t id, port_t port,
         case 2: addr = AddrPro::external_port_data_2; break;
         case 3: addr = AddrPro::external_port_data_3; break;
         case 4: addr = AddrPro::external_port_data_4; break;
-        default: return false;
-    } else       return false;
-    return parent_.dyn_comm_.tryWrite(addr, id, data);
-}
-
-bool DynamixelHandler::ExternalPort::WriteExternalPortData(id_t id, port_t port, uint16_t data){
-    DynamixelAddress addr = AddrX::external_port_mode_1;
-           if ( series_[id]==SERIES_X ) switch (port) {
-        case 1: addr = AddrX::external_port_mode_1; break;
-        case 2: addr = AddrX::external_port_mode_2; break;
-        case 3: addr = AddrX::external_port_mode_3; break;
-        default: return false;
-    } else if ( series_[id]==SERIES_P ) switch (port) {
-        case 1: addr = AddrP::external_port_mode_1; break;
-        case 2: addr = AddrP::external_port_mode_2; break;
-        case 3: addr = AddrP::external_port_mode_3; break;
-        case 4: addr = AddrP::external_port_mode_4; break;
-        default: return false;
-    } else if ( series_[id]==SERIES_PRO ) switch (port) {
-        case 1: addr = AddrPro::external_port_mode_1; break;
-        case 2: addr = AddrPro::external_port_mode_2; break;
-        case 3: addr = AddrPro::external_port_mode_3; break;
-        case 4: addr = AddrPro::external_port_mode_4; break;
         default: return false;
     } else       return false;
     return parent_.dyn_comm_.tryWrite(addr, id, data);
@@ -354,7 +354,7 @@ DynamixelHandler::ExternalPort::~ExternalPort(){ // デストラクタ,  終了�
 
 }
 
-void DynamixelHandler::ExternalPort::MainProccess(){
+void DynamixelHandler::ExternalPort::MainProcess(){
     static auto& ping_err_ = parent_.ping_err_;
     static int cnt = -1; cnt++;
     static auto& id_set_ = parent_.id_set_;
