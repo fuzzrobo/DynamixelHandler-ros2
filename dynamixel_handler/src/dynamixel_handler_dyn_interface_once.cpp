@@ -147,7 +147,7 @@ bool DynamixelHandler::RemoveDynamixel(id_t id){
 // 回転数が消えることを考慮して，モータをリブートする．
 bool DynamixelHandler::ClearHardwareError(id_t id, bool use_offset){
     if ( !is_in(id, id_set_) ) return false;
-    if ( !has_hardware_error_[id] ) return true; // エラーがない場合は何もしない
+    if ( hw_err_r_[id].none() ) return true; // エラーがない場合は何もしない
     if ( series_[id] == SERIES_UNKNOWN ) return true; // ダミーの場合はリブート処理を行わない，エラーもないことにする．
     if ( get_clock()->now().seconds() - when_hw_error_cleared_[id] < hwerr_clear_interval_ ) {
         ROS_WARN("   ID [%d] skip clear error (<%.3g s)", id, hwerr_clear_interval_);
@@ -171,10 +171,9 @@ bool DynamixelHandler::ClearHardwareError(id_t id, bool use_offset){
     else                       while ( !dyn_comm_.Ping(id)            && rclcpp::ok() ) rsleep(10);
     tq_mode_[id] = false;
     // 結果を確認
-    has_hardware_error_[id] = (ReadHardwareError(id) != 0b00000000); // todo, ReadHardwareError(id)の内，extra_u8_[id][EXTRA_SHUTDOWN]で1な場所が0になっているかを確認するべきかもしれない．
-    if ( !has_hardware_error_[id] ) ROS_INFO ("   ID [%d] is cleared error", id);
-    else                            ROS_ERROR("   ID [%d] failed to clear error", id);
-    return !has_hardware_error_[id];
+    hw_err_r_[id] = ReadHardwareError(id); // todo, ReadHardwareError(id)の内，extra_u8_[id][EXTRA_SHUTDOWN]で1な場所が0になっているかを確認するべきかもしれない．
+    if ( hw_err_r_[id].none() ) {ROS_INFO ("   ID [%d] is cleared error"     , id); return  true;}
+    else                        {ROS_ERROR("   ID [%d] failed to clear error", id); return false;}
 }
 
 // モータの動作モードを変更する．連続で変更するときは指定インターバルを入れる
@@ -183,7 +182,7 @@ bool DynamixelHandler::ChangeOperatingMode(id_t id, DynamixelOperatingMode mode)
     if ( op_mode_[id] == mode ) return true; // 既に同じモードの場合は何もしない
     if ( series_[id] == SERIES_UNKNOWN ) { op_mode_[id] = mode; return true; } // ダミーの場合は即時反映
     if ( get_clock()->now().seconds() - when_op_mode_updated_[id] < opmode_change_interval_ ) {
-        ROS_WARN("   ID [%d] skip mode change (<%.3g s)", id, opmode_change_interval_);
+        ROS_WARN("   ID [%d] skip operating mode change (<%.3g s)", id, opmode_change_interval_);
         return false; // 指定間隔以内に変更した場合は次回以降に回す
     }
     // 変更前のトルク状態を確認
@@ -202,9 +201,8 @@ bool DynamixelHandler::ChangeOperatingMode(id_t id, DynamixelOperatingMode mode)
     WriteTorqueEnable(id, prev_torque );
     // 結果を確認
     op_mode_[id] = ReadOperatingMode(id);
-    if ( op_mode_[id]==mode ) ROS_INFO ("   ID [%d] is changed operating mode [%d]", id, mode);
-    else                      ROS_ERROR("   ID [%d] failed to change operating mode", id); 
-    return op_mode_[id]==mode;
+    if ( op_mode_[id]==mode ) {ROS_INFO ("   ID [%d] is changed operating mode [%d]", id, mode); return  true;}
+    else                      {ROS_ERROR("   ID [%d] failed to change operating mode", id     ); return false;}
 }
 
 // モータを停止させてからトルクを入れる．
@@ -232,9 +230,8 @@ bool DynamixelHandler::TorqueOn(id_t id){
     }
     // 結果を確認
     tq_mode_[id] = ReadTorqueEnable(id);
-    if ( !tq_mode_[id] ) ROS_ERROR("   ID [%d] failed to enable torque", id);
-    else                 ROS_INFO( "   ID [%d] is enabled torque"      , id);
-    return tq_mode_[id];
+    if ( tq_mode_[id] ) {ROS_INFO( "   ID [%d] is enabled torque"      , id); return  true;}
+    else                {ROS_ERROR("   ID [%d] failed to enable torque", id); return false;}
 }
 
 // トルクを切る
@@ -246,9 +243,8 @@ bool DynamixelHandler::TorqueOff(id_t id){
     WriteTorqueEnable(id, false);
     // 結果を確認
     tq_mode_[id] = ReadTorqueEnable(id);
-    if ( tq_mode_[id] ) ROS_ERROR("   ID [%d] failed to disable torque", id);
-    else                ROS_INFO( "   ID [%d] is disabled torque"      , id); 
-    return !tq_mode_[id];
+    if ( !tq_mode_[id] ) {ROS_INFO( "   ID [%d] is disabled torque"      , id); return  true;}
+    else                 {ROS_ERROR("   ID [%d] failed to disable torque", id); return false;}
 }
 
 bool DynamixelHandler::UnifyBaudrate(uint64_t baudrate) {
@@ -292,12 +288,6 @@ bool DynamixelHandler::Reboot(id_t id){
 }
 
 //* 基本機能たち Read
-uint8_t DynamixelHandler::ReadHardwareError(id_t id){ switch ( series_[id] ) {
-    case SERIES_X:    return dyn_comm_.tryRead(AddrX::hardware_error_status, id);
-    case SERIES_P:    return dyn_comm_.tryRead(AddrP::hardware_error_status, id);
-    case SERIES_PRO:  return dyn_comm_.tryRead(AddrPro::hardware_error_status, id);
-    default:          return 0b00000000;
-} }
 
 bool DynamixelHandler::ReadTorqueEnable(id_t id){ switch ( series_[id] ) {
     case SERIES_X:    return dyn_comm_.tryRead(AddrX::torque_enable, id) == TORQUE_ENABLE;
@@ -395,6 +385,13 @@ uint8_t DynamixelHandler::ReadOperatingMode(id_t id){ switch ( series_[id] ) {
     case SERIES_P:   return dyn_comm_.tryRead(AddrP::operating_mode, id);
     case SERIES_PRO: return dyn_comm_.tryRead(AddrPro::operating_mode, id);
     default: return 0;
+} }
+
+bitset<8> DynamixelHandler::ReadHardwareError(id_t id){ switch ( series_[id] ) {
+    case SERIES_X:    return dyn_comm_.tryRead(AddrX::hardware_error_status, id);
+    case SERIES_P:    return dyn_comm_.tryRead(AddrP::hardware_error_status, id);
+    case SERIES_PRO:  return dyn_comm_.tryRead(AddrPro::hardware_error_status, id);
+    default:          return bitset<8>(0b00000000);
 } }
 
 bitset<8> DynamixelHandler::ReadDriveMode(id_t id){ switch ( series_[id] ) {

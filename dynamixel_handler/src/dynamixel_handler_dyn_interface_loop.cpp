@@ -299,30 +299,23 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadHardwa
     auto id_error_map = SyncRead_log(Addr::hardware_error_status, target_id_list, false, false);
     if ( dyn_comm_.timeout_last_read() ) return {0.0, target_id_list.size() }; // 読み込み失敗
 
-    //  hardware_error_とhas_hardware_error_に反映
+    // hw_err_r_に反映
     bool has_any_error = false;
-    for (const auto& [id, error] : id_error_map ){
-        hardware_err_[id].fill(false);
-        if ((error >> HARDWARE_ERROR_INPUT_VOLTAGE     )& 0b1 ) hardware_err_[id][INPUT_VOLTAGE     ] = true;
-        if ((error >> HARDWARE_ERROR_MOTOR_HALL_SENSOR )& 0b1 ) hardware_err_[id][MOTOR_HALL_SENSOR ] = true;
-        if ((error >> HARDWARE_ERROR_OVERHEATING       )& 0b1 ) hardware_err_[id][OVERHEATING       ] = true;
-        if ((error >> HARDWARE_ERROR_MOTOR_ENCODER     )& 0b1 ) hardware_err_[id][MOTOR_ENCODER     ] = true;
-        if ((error >> HARDWARE_ERROR_ELECTRONICAL_SHOCK)& 0b1 ) hardware_err_[id][ELECTRONICAL_SHOCK] = true;
-        if ((error >> HARDWARE_ERROR_OVERLOAD          )& 0b1 ) hardware_err_[id][OVERLOAD          ] = true;
-        has_hardware_error_[id] = std::any_of(hardware_err_[id].begin(), hardware_err_[id].end(), [](bool b){return b;});
-        if ( has_hardware_error_[id] ) has_any_error = true;
+    for (const auto& [id, error] : id_error_map ) {
+        hw_err_r_[id] = bitset<8>(error);
+        if ( hw_err_r_[id].any() ) has_any_error = true;
     }
 
     // コンソールへの表示
-    if ( verbose_["r_hwerr"] ) if ( has_any_error ) {
+    if ( verbose_["r_hwerr"] ) if ( has_any_error ) { //todo shutdown の各ビットを見て，  WARN/ERROR の切り替えや， パラメータに応じた表示のON/OFFをしたいなぁ
         ROS_WARN( "Hardware error are detected");
-        for (auto id : target_id_list) {
-            if (hardware_err_[id][INPUT_VOLTAGE     ]) ROS_WARN ("  * servo ID [%d] has INPUT_VOLTAGE error"     ,id);
-            if (hardware_err_[id][MOTOR_HALL_SENSOR ]) ROS_ERROR("  * servo ID [%d] has MOTOR_HALL_SENSOR error" ,id);
-            if (hardware_err_[id][OVERHEATING       ]) ROS_ERROR("  * servo ID [%d] has OVERHEATING error"       ,id);
-            if (hardware_err_[id][MOTOR_ENCODER     ]) ROS_ERROR("  * servo ID [%d] has MOTOR_ENCODER error"     ,id);
-            if (hardware_err_[id][ELECTRONICAL_SHOCK]) ROS_ERROR("  * servo ID [%d] has ELECTRONICAL_SHOCK error",id);
-            if (hardware_err_[id][OVERLOAD          ]) ROS_ERROR("  * servo ID [%d] has OVERLOAD error"          ,id);
+        for (auto id : target_id_list) { const auto& e = hw_err_r_[id];
+            if (e[HARDWARE_ERROR_INPUT_VOLTAGE     ]) ROS_WARN ("  * servo ID [%d] has INPUT_VOLTAGE error"     , id);
+            if (e[HARDWARE_ERROR_MOTOR_HALL_SENSOR ]) ROS_ERROR("  * servo ID [%d] has MOTOR_HALL_SENSOR error" , id);
+            if (e[HARDWARE_ERROR_OVERHEATING       ]) ROS_ERROR("  * servo ID [%d] has OVERHEATING error"       , id);
+            if (e[HARDWARE_ERROR_MOTOR_ENCODER     ]) ROS_ERROR("  * servo ID [%d] has MOTOR_ENCODER error"     , id);
+            if (e[HARDWARE_ERROR_ELECTRONICAL_SHOCK]) ROS_ERROR("  * servo ID [%d] has ELECTRONICAL_SHOCK error", id);
+            if (e[HARDWARE_ERROR_OVERLOAD          ]) ROS_ERROR("  * servo ID [%d] has OVERLOAD error"          , id);
         }
     }
     return {id_error_map.size()/double(target_id_list.size()), target_id_list.size()};

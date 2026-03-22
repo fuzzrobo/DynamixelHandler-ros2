@@ -205,15 +205,6 @@ class DynamixelHandler : public rclcpp::Node {
             PRESENT_TEMPERATURE  ,
             /*Indexの最大値*/_num_present
         };
-        enum HWErrIndex { // hardware_error_のIndex, サーボが起こしたハードウェアエラー
-            INPUT_VOLTAGE    ,
-            MOTOR_HALL_SENSOR,
-            OVERHEATING      ,
-            MOTOR_ENCODER    ,
-            ELECTRONICAL_SHOCK ,
-            OVERLOAD         ,
-            /*Indexの最大値*/_num_hw_err
-        };
         enum LimitIndex { // limit_w/r_のIndex, 各種の制限値
             NONE = -1, // Indexには使わない特殊値
             TEMPERATURE_LIMIT ,
@@ -255,7 +246,7 @@ class DynamixelHandler : public rclcpp::Node {
             EXTRA_SHUTDOWN,
             EXTRA_RESTORE_CONFIGURATION,
             EXTRA_SHADOW_ID,
-            EXTRA_MOVING_STATUS,
+            EXTRA_MOVING_STATUS, // moving status と moving を 1つにまとめてる． EXTRA_U8_MOVING_STATUS_MOVING_BIT が　movingのビット位置
             _num_extra_u8
         };
         static constexpr uint8_t EXTRA_U8_MOVING_STATUS_MOVING_BIT = 7;
@@ -270,9 +261,8 @@ class DynamixelHandler : public rclcpp::Node {
         static inline unordered_map<id_t, uint64_t> ping_err_; // 各dynamixelの id と 連続でpingに応答しなかった回数のマップ
         static inline unordered_map<id_t, bool    > tq_mode_;  // 各dynamixelの id と トルクON/OFF のマップ
         static inline unordered_map<id_t, uint8_t > op_mode_;  // 各dynamixelの id と 制御モード のマップ
-        static inline unordered_map<id_t, double  > watchdog_w_; // 各dynamixelの id と bus_watchdogの目標値(ms)のマップ（<0: command未指定）
-        static inline unordered_map<id_t, double  > watchdog_r_; // 各dynamixelの id と bus_watchdogの実測値(ms)のマップ
-        static inline unordered_map<id_t, array<bool,   _num_hw_err >> hardware_err_; // 各dynamixelの id と サーボが起こしたハードウェアエラーのマップ, 中身の並びはHWErrIndexに対応する
+        // static inline unordered_map<id_t, bool    >  hw_err_w_;    // ハードウェアエラーを起こしているかどうか
+        static inline unordered_map<id_t, bitset<8>> hw_err_r_;    // 各dynamixelの id と 読み込んだhardware error statusのマップ
         static inline unordered_map<id_t, array<double, _num_present>> present_r_; // 各dynamixelの id と サーボから読み込んだ状態のマップ
         static inline unordered_map<id_t, array<double, _num_goal   >> goal_w_;    // 各dynamixelの id と サーボへ書き込む目標状態のマップ
         static inline unordered_map<id_t, array<double ,_num_goal   >> goal_r_;    // 各dynamixelの id と サーボから読み込んだ目標状態のマップ
@@ -282,6 +272,8 @@ class DynamixelHandler : public rclcpp::Node {
         static inline unordered_map<id_t, array<double, _num_limit  >> limit_r_;   // 各dynamixelの id と サーボから読み込んだ制限値のマップ
         static inline unordered_map<id_t, array<double , _num_extra_db>> extra_db_; // 各dynamixelの id と extraのdouble系データ
         static inline unordered_map<id_t, array<uint8_t, _num_extra_u8>> extra_u8_; // 各dynamixelの id と extraのuint8系データ
+        static inline unordered_map<id_t, double> watchdog_w_; // 各dynamixelの id と bus_watchdogの目標値(ms)のマップ（<0: command未指定）
+        static inline unordered_map<id_t, double> watchdog_r_; // 各dynamixelの id と bus_watchdogの実測値(ms)のマップ
 
         // 上記の変数を適切に使うための補助的なフラグ
         static inline unordered_map<id_t, double> when_op_mode_updated_; // 各dynamixelの id と op_mode_ が更新された時刻のマップ
@@ -289,7 +281,6 @@ class DynamixelHandler : public rclcpp::Node {
         static inline unordered_set<id_t> updated_id_goal_;    // topicのcallbackによって，goal_w_が更新されたidの集合
         static inline unordered_set<id_t> updated_id_gain_;    // topicのcallbackによって，limit_w_が更新されたidの集合
         static inline unordered_set<id_t> updated_id_limit_;   // topicのcallbackによって，limit_w_が更新されたidの集合
-        static inline unordered_map<id_t, bool> has_hardware_error_;    // ハードウェアエラーを起こしているかどうか
         // 各周期で実行するserial通信の内容を決めるためのset, 順序が必要なのでset
         static inline set<GoalIndex   > goal_indice_write_;
         static inline set<GainIndex   > gain_indice_write_;
@@ -339,12 +330,12 @@ class DynamixelHandler : public rclcpp::Node {
         double  ReadPwmSlope(id_t servo_id);
         uint8_t ReadMoving(id_t servo_id);
         uint8_t ReadShadowID(id_t servo_id);
-        uint8_t ReadHardwareError(id_t servo_id);
         uint8_t ReadOperatingMode(id_t servo_id);
         uint8_t ReadFirmwareVersion(id_t servo_id);
         uint8_t ReadProtocolVersion(id_t servo_id);
         uint8_t ReadStatusReturnLevel(id_t servo_id);
         uint8_t ReadRegisteredInstruction(id_t servo_id);
+        bitset<8> ReadHardwareError(id_t servo_id);
         bitset<8> ReadShutdown(id_t servo_id);
         bitset<8> ReadDriveMode(id_t servo_id);
         bitset<8> ReadMovingStatus(id_t servo_id);

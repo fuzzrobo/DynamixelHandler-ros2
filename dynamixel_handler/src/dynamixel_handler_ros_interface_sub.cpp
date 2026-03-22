@@ -133,9 +133,9 @@ void DynamixelHandler::CallbackCmd_Status(const DynamixelStatus& msg) {
     }
     // 各IDに対して，msg内の指令をもとに処理を行う
     for (size_t i=0; i<msg.id_list.size(); i++) if ( auto ID = msg.id_list[i]; is_in(ID, valid_id_list) ) { // 順番がずれるのでわざとこの書き方をしている．
+        if ( has_error  ) if ( ClearHardwareError(ID, msg.error[i]) ) TorqueOn(ID); // エラー解除できたらトルクON
         if ( has_ping   ) msg.ping[i]   ? AddDynamixel(ID) : RemoveDynamixel(ID); // 先にAddDynamixelを行わないと，他の処理ができない.
         if ( has_torque ) msg.torque[i] ? TorqueOn(ID)     : TorqueOff(ID)      ;
-        if ( has_error  ) if ( ClearHardwareError(ID, msg.error[i]) ) TorqueOn(ID); // エラー解除できたらトルクON
         if ( has_mode   ) {
                  if (msg.mode[i] == msg.CONTROL_PWM                  ) ChangeOperatingMode(ID, OPERATING_MODE_PWM                  );
             else if (msg.mode[i] == msg.CONTROL_CURRENT              ) ChangeOperatingMode(ID, OPERATING_MODE_CURRENT              );

@@ -22,7 +22,7 @@ DynamixelStatus DynamixelHandler::BroadcastState_Status(){
     for (const auto id : id_set_ ) {
         msg.id_list.push_back(id);
         msg.torque.push_back(tq_mode_[id]);
-        msg.error.push_back(has_hardware_error_[id]);
+        msg.error.push_back(hw_err_r_[id].any());
         msg.ping.push_back(ping_err_[id]==0);
         switch(op_mode_[id]) {
             case OPERATING_MODE_PWM:                  msg.mode.push_back(msg.CONTROL_PWM                  ); break;
@@ -72,12 +72,12 @@ DynamixelError DynamixelHandler::BroadcastState_Error(){
     DynamixelError msg;
     for (const auto id: id_set_) {
         msg.id_list.push_back(id);
-        msg.input_voltage.push_back     (hardware_err_[id][INPUT_VOLTAGE     ]);
-        msg.motor_hall_sensor.push_back (hardware_err_[id][MOTOR_HALL_SENSOR ]);
-        msg.overheating.push_back       (hardware_err_[id][OVERHEATING       ]);
-        msg.motor_encoder.push_back     (hardware_err_[id][MOTOR_ENCODER     ]);
-        msg.electrical_shock.push_back  (hardware_err_[id][ELECTRONICAL_SHOCK]);
-        msg.overload.push_back          (hardware_err_[id][OVERLOAD          ]);
+        msg.input_voltage.push_back    (hw_err_r_[id][HARDWARE_ERROR_INPUT_VOLTAGE     ]);
+        msg.motor_hall_sensor.push_back(hw_err_r_[id][HARDWARE_ERROR_MOTOR_HALL_SENSOR ]);
+        msg.overheating.push_back      (hw_err_r_[id][HARDWARE_ERROR_OVERHEATING       ]);
+        msg.motor_encoder.push_back    (hw_err_r_[id][HARDWARE_ERROR_MOTOR_ENCODER     ]);
+        msg.electrical_shock.push_back (hw_err_r_[id][HARDWARE_ERROR_ELECTRONICAL_SHOCK]);
+        msg.overload.push_back         (hw_err_r_[id][HARDWARE_ERROR_OVERLOAD          ]);
     }
     publish_if(pub_error_, msg);
     return msg;
@@ -201,7 +201,7 @@ DynamixelDebug DynamixelHandler::BroadcastDebug(){
     for (const auto id : id_set_ ) {
         msg.status.id_list.push_back(id);
         msg.status.torque.push_back(tq_mode_[id]);
-        msg.status.error.push_back(has_hardware_error_[id]);
+        msg.status.error.push_back(hw_err_r_[id].any());
         msg.status.ping.push_back(ping_err_[id]==0);
         switch(op_mode_[id]) {
             case OPERATING_MODE_PWM:                  msg.status.mode.push_back(msg.status.CONTROL_PWM                  ); break;
