@@ -401,7 +401,7 @@ bitset<8> DynamixelHandler::ReadDriveMode(id_t id){ switch ( series_[id] ) {
     case SERIES_X:   return dyn_comm_.tryRead(AddrX::drive_mode, id);
     case SERIES_P:   return dyn_comm_.tryRead(AddrP::drive_mode, id);
     case SERIES_PRO: ROS_WARN("   = PRO series don't support 'drive_mode'"); return 0;
-    default:         return bitset<8>(extra_u8_[id][EXTRA_DRIVE_MODE]);
+    default:         return bitset<8>(0b00000000);
 } }
 uint8_t DynamixelHandler::ReadFirmwareVersion(id_t id){
     if (series_[id] == SERIES_UNKNOWN) return 0;
@@ -417,12 +417,12 @@ bitset<8> DynamixelHandler::ReadShutdown(id_t id){ switch ( series_[id] ) {
     case SERIES_X:   return bitset<8>(dyn_comm_.tryRead(AddrX::shutdown, id));
     case SERIES_P:   return bitset<8>(dyn_comm_.tryRead(AddrP::shutdown, id));
     case SERIES_PRO: return bitset<8>(dyn_comm_.tryRead(AddrPro::shutdown, id));
-    default:         return bitset<8>(extra_u8_[id][EXTRA_SHUTDOWN]);
+    default:         return bitset<8>(0b00000000);
 } }
 bitset<8> DynamixelHandler::ReadStartupConfiguration(id_t id) { switch ( series_[id] ) {
     case SERIES_X:   return bitset<8>(dyn_comm_.tryRead(AddrX::startup_configuration, id));
     case SERIES_P:   return bitset<8>(dyn_comm_.tryRead(AddrP::startup_configuration, id));
-    default:         return bitset<8>(extra_u8_[id][EXTRA_RESTORE_CONFIGURATION]);
+    default:         return bitset<8>(0b00000000);
 } }
 uint8_t DynamixelHandler::ReadShadowID(id_t id){ switch ( series_[id] ) {
     case SERIES_X:   return dyn_comm_.tryRead(AddrX::shadow_id, id);
