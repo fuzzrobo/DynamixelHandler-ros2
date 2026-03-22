@@ -3,6 +3,9 @@
 #include "myUtils/logging_like_ros1.hpp"
 #include "myUtils/make_iterator_convenient.hpp" // enum のインクリメントと， is_in 関数の実装
 #include <limits>
+
+using std::to_string;
+
 template <typename Container>
 vector<uint8_t> DynamixelHandler::id_filter(const Container& id_set, series_t series){
     vector<id_t> id_list;
@@ -23,9 +26,12 @@ void DynamixelHandler::SyncWrite_log(
 void DynamixelHandler::SyncWrite_log(
     const vector<DynamixelAddress>& addr_list, const map<id_t, vector<int64_t>>& id_data_vec_map, bool verbose
 ){
-    if ( verbose ) ROS_INFO_STREAM( "  '" << id_data_vec_map.size() << "' servo(s) will be written"
-                                    << control_table_layout(width_log_, id_data_vec_map, addr_list) );
-    dyn_comm_.SyncWrite(addr_list, id_data_vec_map); fflush(stdout);
+    const bool is_success = dyn_comm_.SyncWrite(addr_list, id_data_vec_map); fflush(stdout);
+    if ( verbose ) {
+        const auto log_text = "  '" + to_string(id_data_vec_map.size()) + "' servo(s) " + (is_success ? "were written" : "write failed")
+                                    + control_table_layout(width_log_, id_data_vec_map, addr_list);
+        if ( is_success ) ROS_INFO_STREAM(log_text); else ROS_WARN_STREAM(log_text);
+    }
 }
 
 map<uint8_t, int64_t> DynamixelHandler::SyncRead_log(
@@ -97,7 +103,7 @@ template <typename Addr> void DynamixelHandler::SyncWriteGoal(set<GoalIndex> goa
     if ( goal_indice_write.empty() ) return; // 空なら即時return
     //* 書き込む範囲のイテレータを取得, 分割書き込みが有効な場合書き込む範囲を1つ目のみに制限,残りは再帰的に処理する．
     auto [start,end] = minmax_element(goal_indice_write.begin(), goal_indice_write.end()); 
-    /*flagによる分割*/ if ( use_split_write_ ) end = start; // 分割書き込みが有効な場合は書き込む範囲を1つ目のみに制限
+    /*フラグによる分割*/ if ( use_split_write_ ) end = start; // 分割書き込みが有効な場合は書き込む範囲を1つ目のみに制限
     //* 書き込みに必要な変数を用意
     vector<DynamixelAddress> goal_addr_list;  // 書き込むコマンドのアドレスのベクタ
     map<id_t, vector<int64_t>> id_goal_vec_map; // id と 書き込むデータのベクタのマップ
@@ -135,8 +141,9 @@ template <typename Addr> void DynamixelHandler::SyncWriteGain(set<GainIndex> gai
     if ( gain_indice_write.empty() ) return; // 空なら即時return
     //* 書き込む範囲のイテレータを取得, 分割書き込みが有効な場合書き込む範囲を1つ目のみに制限,残りは再帰的に処理する．
     auto [start,end] = minmax_element(gain_indice_write.begin(), gain_indice_write.end());
-    /*flagによる分割*/  if ( use_split_write_ ) end = start; // 分割書き込みが有効な場合は書き込む範囲を1つ目のみに制限
+    /*フラグによる分割*/   if ( use_split_write_ ) end = start; // 分割書き込みが有効な場合は書き込む範囲を1つ目のみに制限
     /*データ数による分割*/ if ( updated_id_gain.size() * (*end-*start+1) > 12*_num_gain ) end = start; // 一度に書き込むデータ数が多い場合は分割する
+    /*内容による分割*/   if ( *start <= POSITION_P_GAIN && FEEDFORWARD_ACC_GAIN <= *end ) end = start;
     //* 書き込みに必要な変数を用意
     vector<DynamixelAddress> gain_addr_list;  // 書き込むコマンドのアドレスのベクタ
     map<id_t, vector<int64_t>> id_gain_vec_map; // id と 書き込むデータのベクタのマップ
@@ -186,8 +193,9 @@ template <typename Addr> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> l
     if ( limit_indice_write.empty() ) return; // 空なら即時return
     //* 書き込む範囲のイテレータを取得, 分割書き込みが有効な場合書き込む範囲を1つ目のみに制限,残りは再帰的に処理する．
     auto [start,end] = minmax_element(limit_indice_write.begin(), limit_indice_write.end()); 
-    /*flagによる分割*/ if ( use_split_write_ ) end = start; // 分割書き込みを常に有効にする．
+    /*フラグによる分割*/   if ( use_split_write_ ) end = start; // 分割書き込みを常に有効にする．
     /*データ数による分割*/ if ( updated_id_limit.size() * (*end-*start+1) > 12*_num_limit ) end = start; // 一度に書き込むデータ数が多い場合は分割する
+    /*内容による分割*/   if ( *start <= CURRENT_LIMIT && VELOCITY_LIMIT <= *end ) end = start;
     //* 書き込みに必要な変数を用意
     vector<DynamixelAddress> limit_addr_list;  // 書き込むコマンドのアドレスのベクタ
     map<id_t, vector<int64_t>> id_limit_vec_map; // id と 書き込むデータのベクタのマップ
@@ -247,7 +255,7 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadPresen
     //* 読み込む範囲のstate_addr_listのインデックスを取得
     auto [start, end] = minmax_element(present_indice_read.begin(), present_indice_read.end());
     if ( present_indice_read.empty() ) return {1.0, target_id_list.size()}; // ↑との対称性のためあえてminmax_elementの後に書いている, 再帰するときのreturnはここ．
-    /*flagによる分割*/ if ( use_split_read_ ) end = start; // 分割読み込みが有効な場合は読み込む範囲を1つ目のみに制限
+    /*フラグによる分割*/ if ( use_split_read_ ) end = start; // 分割読み込みが有効な場合は読み込む範囲を1つ目のみに制限
     //* 読み込みに必要な変数を用意
     vector<DynamixelAddress> state_addr_list;
     for (PresentIndex st=*start; st<=*end; st++) switch (st) {
@@ -341,7 +349,7 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadGain(s
     //* 読み込む範囲のgain_addr_listのインデックスを取得
     auto [start, end] = minmax_element(gain_indice_read.begin(), gain_indice_read.end());
     if ( gain_indice_read.empty() ) return {1.0, target_id_list.size()}; // ↑との対称性のためあえてminmax_elementの後に書いている
-    /*flagによる分割*/  if ( use_split_read_ ) end = start; // 分割読み込みを常に有効にする．
+    /*フラグによる分割*/  if ( use_split_read_ ) end = start; // 分割読み込みを常に有効にする．
     /*データ数による分割*/ if ( target_id_list.size() * (*end-*start+1) > 12*_num_gain ) end = start; // 分割読み込みを常に有効にする．
     //* 読み込みに必要な変数を用意
     vector<DynamixelAddress> gain_addr_list;
@@ -394,7 +402,7 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadLimit(
     //* 読み込む範囲のlimit_addr_listのインデックスを取得
     auto [start, end] = minmax_element(limit_indice_read.begin(), limit_indice_read.end());
     if ( limit_indice_read.empty() ) return {1.0, target_id_list.size()}; // ↑との対称性のためあえてminmax_elementの後に書いている
-    /*flagによる分割*/  if ( use_split_read_ ) end = start; // 分割読み込みを常に有効にする．
+    /*フラグによる分割*/  if ( use_split_read_ ) end = start; // 分割読み込みを常に有効にする．
     /*データ数による分割*/ if ( target_id_list.size() * (*end-*start+1) > 12*_num_limit ) end = start; // 分割読み込みを常に有効にする．
     //* 読み込みに必要な変数を用意
     vector<DynamixelAddress> limit_addr_list;
@@ -449,7 +457,7 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadGoal(s
     //* 読み込む範囲のgoal_addr_listのインデックスを取得
     auto [start, end] = minmax_element(goal_indice_read.begin(), goal_indice_read.end());
     if ( goal_indice_read.empty() ) return {1.0, target_id_list.size()}; // ↑との対称性のためあえてminmax_elementの後に書いている
-    /*flagによる分割*/ if ( use_split_read_ ) end = start; // 分割読み込みを常に有効にする．
+    /*フラグによる分割*/ if ( use_split_read_ ) end = start; // 分割読み込みを常に有効にする．
     /*データ数による分割*/ if ( target_id_list.size() * (*end-*start+1) > 12*_num_goal ) end = start; // 分割読み込みを常に有効にする．
     //* 読み込みに必要な変数を用意
     vector<DynamixelAddress> goal_addr_list;
