@@ -139,6 +139,8 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     this->get_parameter_or("verbose/read_extra.err"     , verbose_["r_extra_err"], false);
     this->get_parameter_or("verbose/read_hardware_error", verbose_["r_hwerr" ], false);
     this->get_parameter_or("no_response_id_auto_remove_count", auto_remove_count_   , 0u);
+    this->get_parameter_or("mode_change_interval_sec", opmode_change_interval_, 1.0);
+    this->get_parameter_or("clear_error_interval_sec", hwerr_clear_interval_, 1.0);
 
     bool no_use_command_line; get_parameter_or("no_use_command_line", no_use_command_line, false);
 

@@ -85,3 +85,6 @@
     # 開発用
         debug: false # true: デバイスとの接続に失敗してもエラーを出力しない/ false: エラーを出力して終了する
         no_use_command_line: false # true: プログラム用のトピックのみ使用する/ false: コマンドライン用のトピックも出力する
+        no_response_id_auto_remove_count: 0 # 連続で応答しないIDを自動で削除するまでの回数, 0なら無効
+        mode_change_interval_sec: 1.0 # operating mode を連続変更しない最小間隔 [s]
+        clear_error_interval_sec: 1.0 # hardware error clear を連続実行しない最小間隔 [s]

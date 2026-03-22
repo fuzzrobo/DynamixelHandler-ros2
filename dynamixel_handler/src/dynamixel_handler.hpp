@@ -163,8 +163,7 @@ class DynamixelHandler : public rclcpp::Node {
 
         //* 各種のフラグとパラメータ
         unsigned int  loop_rate_ = 50;
-        unsigned int  ratio_mainloop_   = 100; // 0の時は初回のみ
-        unsigned int  auto_remove_count_ = 0;
+        unsigned int  ratio_mainloop_ = 100; // 0の時は初回のみ
         unsigned int  width_log_ = 7;
         map<string, bool> use_;
         map<string, bool> verbose_; // 各種のverboseフラグ
@@ -175,9 +174,12 @@ class DynamixelHandler : public rclcpp::Node {
         bool do_pub_pre_all_ = true;
         bool do_torque_off_  = true;
         bool do_stop_end_    = true;
-        bool use_split_write_     = false;
-        bool use_split_read_      = false;
-        bool use_fast_read_       = false;
+        bool use_split_write_ = false;
+        bool use_split_read_  = false;
+        bool use_fast_read_   = false;
+        double hwerr_clear_interval_   = 1.0;
+        double opmode_change_interval_ = 1.0;
+        unsigned int  auto_remove_count_ = 0;
 
         //* Dynamixelとの通信
         DynamixelCommunicator dyn_comm_;
@@ -236,7 +238,7 @@ class DynamixelHandler : public rclcpp::Node {
             /*Indexの最大値*/_num_gain           
         };
         enum ExtraDoubleIndex {
-            EXTRA_HOMING_OFFSET = 0,
+            EXTRA_HOMING_OFFSET,
             EXTRA_RETURN_DELAY_TIME,
             EXTRA_MOVING_THRESHOLD,
             EXTRA_PWM_SLOPE,
@@ -247,7 +249,7 @@ class DynamixelHandler : public rclcpp::Node {
             _num_extra_db
         };
         enum ExtraIntIndex {
-            EXTRA_FIRMWARE_VERSION = 0,
+            EXTRA_FIRMWARE_VERSION,
             EXTRA_PROTOCOL_TYPE,
             EXTRA_DRIVE_MODE,
             EXTRA_SHUTDOWN,
@@ -267,7 +269,7 @@ class DynamixelHandler : public rclcpp::Node {
         static inline unordered_map<id_t, series_t> series_; // 各dynamixelの id と series のマップ
         static inline unordered_map<id_t, uint64_t> ping_err_; // 各dynamixelの id と 連続でpingに応答しなかった回数のマップ
         static inline unordered_map<id_t, bool    > tq_mode_;  // 各dynamixelの id と トルクON/OFF のマップ
-        static inline unordered_map<id_t, uint8_t > op_mode_; // 各dynamixelの id と 制御モード のマップ
+        static inline unordered_map<id_t, uint8_t > op_mode_;  // 各dynamixelの id と 制御モード のマップ
         static inline unordered_map<id_t, double  > watchdog_w_; // 各dynamixelの id と bus_watchdogの目標値(ms)のマップ（<0: command未指定）
         static inline unordered_map<id_t, double  > watchdog_r_; // 各dynamixelの id と bus_watchdogの実測値(ms)のマップ
         static inline unordered_map<id_t, array<bool,   _num_hw_err >> hardware_err_; // 各dynamixelの id と サーボが起こしたハードウェアエラーのマップ, 中身の並びはHWErrIndexに対応する
@@ -283,6 +285,7 @@ class DynamixelHandler : public rclcpp::Node {
 
         // 上記の変数を適切に使うための補助的なフラグ
         static inline unordered_map<id_t, double> when_op_mode_updated_; // 各dynamixelの id と op_mode_ が更新された時刻のマップ
+        static inline unordered_map<id_t, double> when_hw_error_cleared_;   // 各dynamixelの id と hardware error をクリアした時刻のマップ
         static inline unordered_set<id_t> updated_id_goal_;    // topicのcallbackによって，goal_w_が更新されたidの集合
         static inline unordered_set<id_t> updated_id_gain_;    // topicのcallbackによって，limit_w_が更新されたidの集合
         static inline unordered_set<id_t> updated_id_limit_;   // topicのcallbackによって，limit_w_が更新されたidの集合
@@ -296,8 +299,8 @@ class DynamixelHandler : public rclcpp::Node {
         static inline set<GainIndex   > gain_indice_read_    = {VELOCITY_I_GAIN, VELOCITY_P_GAIN, POSITION_D_GAIN, POSITION_I_GAIN, POSITION_P_GAIN, FEEDFORWARD_ACC_GAIN, FEEDFORWARD_VEL_GAIN};
         static inline set<LimitIndex  > limit_indice_read_   = {TEMPERATURE_LIMIT, MAX_VOLTAGE_LIMIT, MIN_VOLTAGE_LIMIT, PWM_LIMIT, CURRENT_LIMIT, ACCELERATION_LIMIT, VELOCITY_LIMIT, MAX_POSITION_LIMIT, MIN_POSITION_LIMIT};
         // read & publish の周期を決めるためのmap
-        static inline unordered_map<string, unsigned int>       pub_ratio_; // present value以外の周期
-        static inline array<unsigned int, _num_present> pub_ratio_present_;
+        static inline unordered_map<string, unsigned int> pub_ratio_; // present value以外の周期
+        static inline array<unsigned int, _num_present>   pub_ratio_present_;
 
         //* 実装の上でどうしても必要になったUtility関数群
         template <typename Container> 
@@ -309,13 +312,14 @@ class DynamixelHandler : public rclcpp::Node {
         bool AddDynamixel(id_t servo_id);
         bool RemoveDynamixel(id_t servo_id);
         bool DummyUpDynamixel(id_t servo_id);
-        bool ClearHardwareError(id_t servo_id);
+        bool ClearHardwareError(id_t servo_id, bool use_offset = true);
         bool ChangeOperatingMode(id_t servo_id, DynamixelOperatingMode mode);
         bool TorqueOn(id_t servo_id);
         bool TorqueOff(id_t servo_id);
         bool UnifyBaudrate(uint64_t baudrate);
 
         //* Dynamixel単体との通信による下位機能
+        bool Reboot(id_t servo_id);
         bool ReadTorqueEnable(id_t servo_id);
         double  ReadPresentPWM(id_t servo_id);
         double  ReadPresentCurrent(id_t servo_id);

@@ -145,40 +145,52 @@ bool DynamixelHandler::RemoveDynamixel(id_t id){
 }
 
 // 回転数が消えることを考慮して，モータをリブートする．
-bool DynamixelHandler::ClearHardwareError(id_t id){
+bool DynamixelHandler::ClearHardwareError(id_t id, bool use_offset){
     if ( !is_in(id, id_set_) ) return false;
     if ( !has_hardware_error_[id] ) return true; // エラーがない場合は何もしない
+    if ( series_[id] == SERIES_UNKNOWN ) return true; // ダミーの場合はリブート処理を行わない，エラーもないことにする．
+    if ( get_clock()->now().seconds() - when_hw_error_cleared_[id] < hwerr_clear_interval_ ) {
+        ROS_WARN("   ID [%d] skip clear error (<%.3g s)", id, hwerr_clear_interval_);
+        return false; // 指定間隔以内に再度クリアした場合は次回以降に回す
+    }
 
-    const auto now_pos = ReadPresentPosition(id); // 失敗すると0が返って危ないので成功した場合だけリブート処理を行う
-    const bool pos_success = !dyn_comm_.timeout_last_read() && !dyn_comm_.comm_error_last_read();
-    const auto now_offset = ReadHomingOffset(id); // 失敗すると0が返って危ないので成功した場合だけリブート処理を行う
-    const bool offset_success = !dyn_comm_.timeout_last_read() && !dyn_comm_.comm_error_last_read();
-    if ( pos_success && offset_success ) {
+    double offset = NaN;
+    if ( use_offset ) {
+        const auto now_pos = ReadPresentPosition(id); // 失敗すると0が返って危ないので成功した場合だけリブート処理を行う
+        const bool pos_success = !dyn_comm_.timeout_last_read() && !dyn_comm_.comm_error_last_read();
+        const auto now_offset = ReadHomingOffset(id); // 失敗すると0が返って危ないので成功した場合だけリブート処理を行う
+        const bool offset_success = !dyn_comm_.timeout_last_read() && !dyn_comm_.comm_error_last_read();
+        if ( !pos_success || !offset_success ) return false; // 位置かオフセットのどちらかの読み取りに失敗した場合はリブート処理を行わない
         int now_rot = (now_pos-now_offset+M_PI) / (2*M_PI);
         if (now_pos < -M_PI) now_rot--;
-        const double offset = now_offset+now_rot*(2*M_PI);
-        /*リブート処理*/dyn_comm_.Reboot(id); //** RAMのデータが消えるが，この処理の後は電源喪失と同じ扱いなので，ここでは気にしない．
-        // homing offsetが書き込めるまで待機する．
-        while ( !WriteHomingOffset(id, offset) && rclcpp::ok() ) rsleep(10);
-        tq_mode_[id] = false;
+        offset = now_offset+now_rot*(2*M_PI);
     }
+    /*リブート処理*/Reboot(id); //** RAMのデータが消えるが，この処理の後は電源喪失と同じ扱いなので，ここでは気にしない．
+    when_hw_error_cleared_[id] = get_clock()->now().seconds();
+    if ( !std::isnan(offset) ) while ( !WriteHomingOffset(id, offset) && rclcpp::ok() ) rsleep(10);  // homing offsetが書き込めるまで待機する．
+    else                       while ( !dyn_comm_.Ping(id)            && rclcpp::ok() ) rsleep(10);
+    tq_mode_[id] = false;
     // 結果を確認
-    bool is_clear = (ReadHardwareError(id) == 0b00000000);
-    if (is_clear) ROS_INFO ("   ID [%d] is cleared error", id);
-    else          ROS_ERROR("   ID [%d] failed to clear error", id);
-    return is_clear;
+    has_hardware_error_[id] = (ReadHardwareError(id) != 0b00000000); // todo, ReadHardwareError(id)の内，extra_u8_[id][EXTRA_SHUTDOWN]で1な場所が0になっているかを確認するべきかもしれない．
+    if ( !has_hardware_error_[id] ) ROS_INFO ("   ID [%d] is cleared error", id);
+    else                            ROS_ERROR("   ID [%d] failed to clear error", id);
+    return !has_hardware_error_[id];
 }
 
-// モータの動作モードを変更する．連続で変更するときは1秒のインターバルを入れる
+// モータの動作モードを変更する．連続で変更するときは指定インターバルを入れる
 bool DynamixelHandler::ChangeOperatingMode(id_t id, DynamixelOperatingMode mode){
     if ( !is_in(id, id_set_) ) return false;
     if ( op_mode_[id] == mode ) return true; // 既に同じモードの場合は何もしない
-    if ( series_[id] == SERIES_UNKNOWN ) { op_mode_[id] = mode; return true;} // ダミーの場合は即時反映
-    if ( get_clock()->now().seconds() - when_op_mode_updated_[id] < 1.0 ) rsleep(1000); // 1秒以内に変更した場合は1秒待つ
+    if ( series_[id] == SERIES_UNKNOWN ) { op_mode_[id] = mode; return true; } // ダミーの場合は即時反映
+    if ( get_clock()->now().seconds() - when_op_mode_updated_[id] < opmode_change_interval_ ) {
+        ROS_WARN("   ID [%d] skip mode change (<%.3g s)", id, opmode_change_interval_);
+        return false; // 指定間隔以内に変更した場合は次回以降に回す
+    }
     // 変更前のトルク状態を確認
     const bool prev_torque = ReadTorqueEnable(id); // read失敗しても0が返ってくるので問題ない
     WriteTorqueEnable(id, false);
     /*モード変更*/WriteOperatingMode(id, mode);  //**RAMのデータが消えるので注意, これは電源喪失とは異なるのでRAMデータの回復を入れる
+    when_op_mode_updated_[id] = get_clock()->now().seconds();
     // goal_w_を全部書き込んで，本体とこのプログラムの同期行う．
     if ( op_mode_[id] != OPERATING_MODE_PWM      )  WriteGoalPWM     (id, goal_w_[id][GOAL_PWM     ]);
     if ( op_mode_[id] != OPERATING_MODE_CURRENT  )  WriteGoalCurrent (id, goal_w_[id][GOAL_CURRENT ]);
@@ -189,15 +201,10 @@ bool DynamixelHandler::ChangeOperatingMode(id_t id, DynamixelOperatingMode mode)
     // WriteGains(id, gain_r_[id]);　// ** Gain値のデフォルトも変わる．面倒な．．．
     WriteTorqueEnable(id, prev_torque );
     // 結果を確認
-    bool is_changed = (ReadOperatingMode(id) == mode);
-    if ( is_changed ) {
-        op_mode_[id] = mode;
-        when_op_mode_updated_[id] = get_clock()->now().seconds();
-        ROS_INFO ("   ID [%d] is changed operating mode [%d]", id, mode);
-    } else {
-        ROS_ERROR("   ID [%d] failed to change operating mode", id); 
-    }
-    return is_changed;
+    op_mode_[id] = ReadOperatingMode(id);
+    if ( op_mode_[id]==mode ) ROS_INFO ("   ID [%d] is changed operating mode [%d]", id, mode);
+    else                      ROS_ERROR("   ID [%d] failed to change operating mode", id); 
+    return op_mode_[id]==mode;
 }
 
 // モータを停止させてからトルクを入れる．
@@ -275,6 +282,13 @@ bool DynamixelHandler::UnifyBaudrate(uint64_t baudrate) {
     }
     dyn_comm_.set_baudrate(baudrate);
     return dyn_comm_.OpenPort();
+}
+
+bool DynamixelHandler::Reboot(id_t id){
+    if ( !is_in(id, id_set_) ) return false;
+    if ( series_[id] == SERIES_UNKNOWN ) return false;
+    dyn_comm_.Reboot(id);
+    return true;
 }
 
 //* 基本機能たち Read
@@ -423,8 +437,7 @@ double DynamixelHandler::ReadMovingThreshold(id_t id){ switch ( series_[id] ) {
 } }
 double DynamixelHandler::ReadPwmSlope(id_t id){ switch ( series_[id] ) {
     case SERIES_X:   return has_pwm_slope(model_[id])
-                            ? AddrX::pwm_slope.pulse2val(dyn_comm_.tryRead(AddrX::pwm_slope, id), model_[id])
-                            : NaN; // pwm_slopeはX330系のみ有効
+                            ? AddrX::pwm_slope.pulse2val(dyn_comm_.tryRead(AddrX::pwm_slope, id), model_[id]) : NaN; // pwm_slopeはX330系のみ有効
     default:         return NaN;
 } }
 uint8_t DynamixelHandler::ReadStatusReturnLevel(id_t id){ switch ( series_[id] ) {
