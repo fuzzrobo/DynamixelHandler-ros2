@@ -21,7 +21,7 @@ DynamixelStatus DynamixelHandler::BroadcastState_Status(){
     DynamixelStatus msg;
     for (const auto id : id_set_ ) {
         msg.id_list.push_back(id);
-        msg.torque.push_back(tq_mode_[id]==TORQUE_ENABLE);
+        msg.torque.push_back(tq_mode_[id]);
         msg.error.push_back(has_hardware_error_[id]);
         msg.ping.push_back(ping_err_[id]==0);
         switch(op_mode_[id]) {
@@ -200,7 +200,7 @@ DynamixelDebug DynamixelHandler::BroadcastDebug(){
     DynamixelDebug msg;
     for (const auto id : id_set_ ) {
         msg.status.id_list.push_back(id);
-        msg.status.torque.push_back(tq_mode_[id]==TORQUE_ENABLE);
+        msg.status.torque.push_back(tq_mode_[id]);
         msg.status.error.push_back(has_hardware_error_[id]);
         msg.status.ping.push_back(ping_err_[id]==0);
         switch(op_mode_[id]) {

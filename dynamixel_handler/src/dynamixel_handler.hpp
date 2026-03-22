@@ -261,13 +261,12 @@ class DynamixelHandler : public rclcpp::Node {
         using id_t     = uint8_t;
         using model_t  = uint16_t; // DynamixelModelNumber 型を使うと, read(model_number) の結果をそのまま使えないので，uint16_t にしている
         using series_t = DynamixelSeries;
-        using torque_t = DynamixelTorquePermission;
         static inline set<id_t> id_set_; // chained dynamixel id list // 順序を保持する必要があうのでset
         // 連結しているサーボの個々の状態を保持するunordered_map
         static inline unordered_map<id_t, model_t > model_;  // 各dynamixelの id と model のマップ
         static inline unordered_map<id_t, series_t> series_; // 各dynamixelの id と series のマップ
         static inline unordered_map<id_t, uint64_t> ping_err_; // 各dynamixelの id と 連続でpingに応答しなかった回数のマップ
-        static inline unordered_map<id_t, torque_t> tq_mode_;  // 各dynamixelの id と トルクON/OFF のマップ
+        static inline unordered_map<id_t, bool    > tq_mode_;  // 各dynamixelの id と トルクON/OFF のマップ
         static inline unordered_map<id_t, uint8_t > op_mode_; // 各dynamixelの id と 制御モード のマップ
         static inline unordered_map<id_t, double  > watchdog_w_; // 各dynamixelの id と bus_watchdogの目標値(ms)のマップ（<0: command未指定）
         static inline unordered_map<id_t, double  > watchdog_r_; // 各dynamixelの id と bus_watchdogの実測値(ms)のマップ

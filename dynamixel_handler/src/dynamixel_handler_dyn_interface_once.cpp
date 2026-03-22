@@ -116,7 +116,7 @@ bool DynamixelHandler::AddDynamixel(id_t id){
     while (BulkReadExtra_rapid   (tmp) < complete) {if(!rclcpp::ok())               ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading  extra d values...");}
     while (BulkReadExtra_slow    (tmp) < complete) {if(!rclcpp::ok())               ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading  extra s values...");}
 
-    tq_mode_[id] = ReadTorqueEnable(id) ? TORQUE_ENABLE : TORQUE_DISABLE;
+    tq_mode_[id] = ReadTorqueEnable(id);
     op_mode_[id] = ReadOperatingMode(id);
     gain_w_[id] = gain_r_[id];
     goal_w_[id] = goal_r_[id];
@@ -160,7 +160,7 @@ bool DynamixelHandler::ClearHardwareError(id_t id){
         /*リブート処理*/dyn_comm_.Reboot(id); //** RAMのデータが消えるが，この処理の後は電源喪失と同じ扱いなので，ここでは気にしない．
         // homing offsetが書き込めるまで待機する．
         while ( !WriteHomingOffset(id, offset) && rclcpp::ok() ) rsleep(10);
-        tq_mode_[id] = TORQUE_DISABLE;
+        tq_mode_[id] = false;
     }
     // 結果を確認
     bool is_clear = (ReadHardwareError(id) == 0b00000000);
@@ -203,7 +203,7 @@ bool DynamixelHandler::ChangeOperatingMode(id_t id, DynamixelOperatingMode mode)
 // モータを停止させてからトルクを入れる．
 bool DynamixelHandler::TorqueOn(id_t id){
     if ( !is_in(id, id_set_) ) return false;
-    if ( tq_mode_[id] == TORQUE_ENABLE ) return true; // 既にトルクが入っている場合は何もしない
+    if ( tq_mode_[id]        ) return true; // 既にトルクが入っている場合は何もしない
     if ( series_[id] == SERIES_UNKNOWN ) { tq_mode_[id] = TORQUE_ENABLE; return true;} // ダミーの場合は即時反映
     // dynamixel内のgoal値とこのプログラム内のgoal_w_を一致させる．
     const auto now_pos = ReadPresentPosition(id); // 失敗すると0が返って危ないので確認する
@@ -224,24 +224,24 @@ bool DynamixelHandler::TorqueOn(id_t id){
         /*トルクを入れる*/WriteTorqueEnable(id, true);
     }
     // 結果を確認
-    tq_mode_[id] = ReadTorqueEnable(id) ? TORQUE_ENABLE : TORQUE_DISABLE;
-    if ( tq_mode_[id] != TORQUE_ENABLE ) ROS_ERROR("   ID [%d] failed to enable torque", id);
-                                    else ROS_INFO( "   ID [%d] is enabled torque"      , id);
+    tq_mode_[id] = ReadTorqueEnable(id);
+    if ( !tq_mode_[id] ) ROS_ERROR("   ID [%d] failed to enable torque", id);
+    else                 ROS_INFO( "   ID [%d] is enabled torque"      , id);
     return tq_mode_[id];
 }
 
 // トルクを切る
 bool DynamixelHandler::TorqueOff(id_t id){
     if ( !is_in(id, id_set_) ) return false;
-    if ( tq_mode_[id] == TORQUE_DISABLE ) return true; // 既にトルクが切られている場合は何もしない
-    if ( series_[id] == SERIES_UNKNOWN ) { tq_mode_[id] = TORQUE_DISABLE; return true;} // ダミーの場合は即時反映
+    if ( !tq_mode_[id]       ) return true; // 既にトルクが切られている場合は何もしない
+    if ( series_[id] == SERIES_UNKNOWN ) { tq_mode_[id] = false; return true;} // ダミーの場合は即時反映
     // トルクを切る
     WriteTorqueEnable(id, false);
     // 結果を確認
-    tq_mode_[id] = ReadTorqueEnable(id) ? TORQUE_ENABLE : TORQUE_DISABLE;
-    if ( tq_mode_[id] != TORQUE_DISABLE ) ROS_ERROR("   ID [%d] failed to disable torque", id);
-                                     else ROS_INFO( "   ID [%d] is disabled torque"      , id); 
-    return tq_mode_[id];
+    tq_mode_[id] = ReadTorqueEnable(id);
+    if ( tq_mode_[id] ) ROS_ERROR("   ID [%d] failed to disable torque", id);
+    else                ROS_INFO( "   ID [%d] is disabled torque"      , id); 
+    return !tq_mode_[id];
 }
 
 bool DynamixelHandler::UnifyBaudrate(uint64_t baudrate) {
