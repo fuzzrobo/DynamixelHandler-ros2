@@ -219,9 +219,8 @@ void DynamixelHandler::MainLoop(){
             if ( ping_err_[id] > auto_remove_count_) RemoveDynamixel(id);
         if ( success_rate[STATUS] ) msg.status = BroadcastState_Status();
     }
-    if ( !present_indice_read_.empty() ){
+    if ( !present_indice_read_.empty() ){ n_present_read++;
         tie(success_rate[PRESENT], ignore) = SyncReadPresent(present_indice_read_, target_id_set);
-        n_present_read++;
         n_present_suc_p += !target_id_set.empty()  && success_rate[PRESENT] > 0.0;
         n_present_suc_f +=  target_id_set==id_set_ && success_rate[PRESENT] > 1.0-1e-6;
         if ( success_rate[PRESENT]>0.0 ) msg.present = BroadcastState_Present();

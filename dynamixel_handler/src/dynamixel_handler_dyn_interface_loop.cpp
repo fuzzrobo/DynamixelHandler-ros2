@@ -28,8 +28,8 @@ void DynamixelHandler::SyncWrite_log(
 ){
     const bool is_success = dyn_comm_.SyncWrite(addr_list, id_data_vec_map); fflush(stdout);
     if ( verbose ) {
-        const auto log_text = "  '" + to_string(id_data_vec_map.size()) + "' servo(s) " + (is_success ? "were written" : "write failed")
-                                    + control_table_layout(width_log_, id_data_vec_map, addr_list);
+        const auto log_text = "  '"+to_string(id_data_vec_map.size())+"' servo(s) "+(is_success?"were written":"write failed")
+                                   +control_table_layout(width_log_, id_data_vec_map, addr_list);
         if ( is_success ) ROS_INFO_STREAM(log_text); else ROS_WARN_STREAM(log_text);
     }
 }
@@ -143,7 +143,7 @@ template <typename Addr> void DynamixelHandler::SyncWriteGain(set<GainIndex> gai
     auto [start,end] = minmax_element(gain_indice_write.begin(), gain_indice_write.end());
     /*フラグによる分割*/   if ( use_split_write_ ) end = start; // 分割書き込みが有効な場合は書き込む範囲を1つ目のみに制限
     /*データ数による分割*/ if ( updated_id_gain.size() * (*end-*start+1) > 12*_num_gain ) end = start; // 一度に書き込むデータ数が多い場合は分割する
-    /*内容による分割*/   if ( *start <= POSITION_P_GAIN && FEEDFORWARD_ACC_GAIN <= *end ) end = start;
+    /*内容による分割*/   if ( *start <= POSITION_P_GAIN && FEEDFORWARD_ACC_GAIN <= *end ) end = start; // Feedforwardゲインとそれ以外のゲインの間に2バイト分の隙間があるため...
     //* 書き込みに必要な変数を用意
     vector<DynamixelAddress> gain_addr_list;  // 書き込むコマンドのアドレスのベクタ
     map<id_t, vector<int64_t>> id_gain_vec_map; // id と 書き込むデータのベクタのマップ
@@ -195,7 +195,7 @@ template <typename Addr> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> l
     auto [start,end] = minmax_element(limit_indice_write.begin(), limit_indice_write.end()); 
     /*フラグによる分割*/   if ( use_split_write_ ) end = start; // 分割書き込みを常に有効にする．
     /*データ数による分割*/ if ( updated_id_limit.size() * (*end-*start+1) > 12*_num_limit ) end = start; // 一度に書き込むデータ数が多い場合は分割する
-    /*内容による分割*/   if ( *start <= CURRENT_LIMIT && VELOCITY_LIMIT <= *end ) end = start;
+    /*内容による分割*/   if ( *start <= CURRENT_LIMIT && VELOCITY_LIMIT <= *end ) end = start; // xシリーズはacceleration_limitが存在しないため．p, proはそのまま書けるが，分割する分には問題ないため．シリーズ分岐なし．
     //* 書き込みに必要な変数を用意
     vector<DynamixelAddress> limit_addr_list;  // 書き込むコマンドのアドレスのベクタ
     map<id_t, vector<int64_t>> id_limit_vec_map; // id と 書き込むデータのベクタのマップ
