@@ -116,8 +116,8 @@ bool DynamixelHandler::AddDynamixel(id_t id){
     while (BulkReadExtra_rapid   (tmp) < complete) {if(!rclcpp::ok())               ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading  extra d values...");}
     while (BulkReadExtra_slow    (tmp) < complete) {if(!rclcpp::ok())               ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading  extra s values...");}
 
-    tq_mode_[id] = ReadTorqueEnable(id);
-    op_mode_[id] = ReadOperatingMode(id);
+    tq_mode_r_[id] = ReadTorqueEnable(id);
+    op_mode_r_[id] = (DynamixelOperatingMode)ReadOperatingMode(id);
     gain_w_[id] = gain_r_[id];
     goal_w_[id] = goal_r_[id];
     limit_w_[id] = limit_r_[id];
@@ -140,6 +140,9 @@ bool DynamixelHandler::AddDynamixel(id_t id){
 bool DynamixelHandler::RemoveDynamixel(id_t id){
     if ( !is_in(id, id_set_) ) return true;
     id_set_.erase(id);
+    hw_err_w_.erase(id); // 以下は次回追加されたときの誤動作防止
+    op_mode_w_.erase(id);
+    tq_mode_w_.erase(id);
     ROS_INFO("   ID [%d] is removed", id);
     return true;
 }
@@ -169,7 +172,7 @@ bool DynamixelHandler::ClearHardwareError(id_t id, bool use_offset){
     when_hw_error_cleared_[id] = get_clock()->now().seconds();
     if ( !std::isnan(offset) ) while ( !WriteHomingOffset(id, offset) && rclcpp::ok() ) rsleep(10);  // homing offsetが書き込めるまで待機する．
     else                       while ( !dyn_comm_.Ping(id)            && rclcpp::ok() ) rsleep(10);
-    tq_mode_[id] = false;
+    tq_mode_r_[id] = false;
     // 結果を確認
     hw_err_r_[id] = ReadHardwareError(id); // todo, ReadHardwareError(id)の内，extra_u8_[id][EXTRA_SHUTDOWN]で1な場所が0になっているかを確認するべきかもしれない．
     if ( hw_err_r_[id].none() ) {ROS_INFO ("   ID [%d] is cleared error"     , id); return  true;}
@@ -179,8 +182,8 @@ bool DynamixelHandler::ClearHardwareError(id_t id, bool use_offset){
 // モータの動作モードを変更する．連続で変更するときは指定インターバルを入れる
 bool DynamixelHandler::ChangeOperatingMode(id_t id, DynamixelOperatingMode mode){
     if ( !is_in(id, id_set_) ) return false;
-    if ( op_mode_[id] == mode ) return true; // 既に同じモードの場合は何もしない
-    if ( series_[id] == SERIES_UNKNOWN ) { op_mode_[id] = mode; return true; } // ダミーの場合は即時反映
+    if ( op_mode_r_[id] == mode ) return true; // 既に同じモードの場合は何もしない
+    if ( series_[id] == SERIES_UNKNOWN ) { op_mode_r_[id] = mode; return true; } // ダミーの場合は即時反映
     if ( get_clock()->now().seconds() - when_op_mode_updated_[id] < opmode_change_interval_ ) {
         ROS_WARN("   ID [%d] skip operating mode change (<%.3g s)", id, opmode_change_interval_);
         return false; // 指定間隔以内に変更した場合は次回以降に回す
@@ -191,33 +194,33 @@ bool DynamixelHandler::ChangeOperatingMode(id_t id, DynamixelOperatingMode mode)
     /*モード変更*/WriteOperatingMode(id, mode);  //**RAMのデータが消えるので注意, これは電源喪失とは異なるのでRAMデータの回復を入れる
     when_op_mode_updated_[id] = get_clock()->now().seconds();
     // goal_w_を全部書き込んで，本体とこのプログラムの同期行う．
-    if ( op_mode_[id] != OPERATING_MODE_PWM      )  WriteGoalPWM     (id, goal_w_[id][GOAL_PWM     ]);
-    if ( op_mode_[id] != OPERATING_MODE_CURRENT  )  WriteGoalCurrent (id, goal_w_[id][GOAL_CURRENT ]);
-    if ( op_mode_[id] != OPERATING_MODE_VELOCITY )  WriteGoalVelocity(id, goal_w_[id][GOAL_VELOCITY]);
+    if ( op_mode_r_[id] != OPERATING_MODE_PWM      )  WriteGoalPWM     (id, goal_w_[id][GOAL_PWM     ]);
+    if ( op_mode_r_[id] != OPERATING_MODE_CURRENT  )  WriteGoalCurrent (id, goal_w_[id][GOAL_CURRENT ]);
+    if ( op_mode_r_[id] != OPERATING_MODE_VELOCITY )  WriteGoalVelocity(id, goal_w_[id][GOAL_VELOCITY]);
     WriteProfileAcc  (id, goal_w_[id][PROFILE_ACC  ]);
     WriteProfileVel  (id, goal_w_[id][PROFILE_VEL  ]);
     WriteGoalPosition(id, goal_w_[id][GOAL_POSITION]);
     // WriteGains(id, gain_r_[id]);　// ** Gain値のデフォルトも変わる．面倒な．．．
     WriteTorqueEnable(id, prev_torque );
     // 結果を確認
-    op_mode_[id] = ReadOperatingMode(id);
-    if ( op_mode_[id]==mode ) {ROS_INFO ("   ID [%d] is changed operating mode [%d]", id, mode); return  true;}
-    else                      {ROS_ERROR("   ID [%d] failed to change operating mode", id     ); return false;}
+    op_mode_r_[id] = (DynamixelOperatingMode)ReadOperatingMode(id);
+    if ( op_mode_r_[id]==mode ) {ROS_INFO ("   ID [%d] is changed operating mode [%d]", id, mode); return  true;}
+    else                        {ROS_ERROR("   ID [%d] failed to change operating mode", id     ); return false;}
 }
 
 // モータを停止させてからトルクを入れる．
 bool DynamixelHandler::TorqueOn(id_t id){
     if ( !is_in(id, id_set_) ) return false;
-    if ( tq_mode_[id]        ) return true; // 既にトルクが入っている場合は何もしない
-    if ( series_[id] == SERIES_UNKNOWN ) { tq_mode_[id] = TORQUE_ENABLE; return true;} // ダミーの場合は即時反映
+    if ( tq_mode_r_[id]        ) return true; // 既にトルクが入っている場合は何もしない
+    if ( series_[id] == SERIES_UNKNOWN ) { tq_mode_r_[id] = TORQUE_ENABLE; return true;} // ダミーの場合は即時反映
     // dynamixel内のgoal値とこのプログラム内のgoal_w_を一致させる．
     const auto now_pos = ReadPresentPosition(id); // 失敗すると0が返って危ないので確認する
     if ( !( dyn_comm_.timeout_last_read() || dyn_comm_.comm_error_last_read() )){
         // 急に動き出さないように，以下のgoal_w_を設定する
         goal_w_[id][GOAL_POSITION] = now_pos; // トルクがオフならDynamixel本体のgoal_positionはpresent_positionと一致している．
-        if (op_mode_[id]==OPERATING_MODE_VELOCITY) goal_w_[id][GOAL_VELOCITY] = 0.0;
-        if (op_mode_[id]==OPERATING_MODE_CURRENT ) goal_w_[id][GOAL_CURRENT ] = 0.0;
-        if (op_mode_[id]==OPERATING_MODE_PWM     ) goal_w_[id][GOAL_PWM     ] = 0.0;
+        if (op_mode_r_[id]==OPERATING_MODE_VELOCITY) goal_w_[id][GOAL_VELOCITY] = 0.0;
+        if (op_mode_r_[id]==OPERATING_MODE_CURRENT ) goal_w_[id][GOAL_CURRENT ] = 0.0;
+        if (op_mode_r_[id]==OPERATING_MODE_PWM     ) goal_w_[id][GOAL_PWM     ] = 0.0;
         // goal_w_を全部書き込んで，本体とこのプログラムの同期行う．
         WriteGoalPWM     (id, goal_w_[id][GOAL_PWM     ]);
         WriteGoalCurrent (id, goal_w_[id][GOAL_CURRENT ]);
@@ -229,22 +232,22 @@ bool DynamixelHandler::TorqueOn(id_t id){
         /*トルクを入れる*/WriteTorqueEnable(id, true);
     }
     // 結果を確認
-    tq_mode_[id] = ReadTorqueEnable(id);
-    if ( tq_mode_[id] ) {ROS_INFO( "   ID [%d] is enabled torque"      , id); return  true;}
-    else                {ROS_ERROR("   ID [%d] failed to enable torque", id); return false;}
+    tq_mode_r_[id] = ReadTorqueEnable(id);
+    if ( tq_mode_r_[id] ) {ROS_INFO( "   ID [%d] is enabled torque"      , id); return  true;}
+    else                  {ROS_ERROR("   ID [%d] failed to enable torque", id); return false;}
 }
 
 // トルクを切る
 bool DynamixelHandler::TorqueOff(id_t id){
     if ( !is_in(id, id_set_) ) return false;
-    if ( !tq_mode_[id]       ) return true; // 既にトルクが切られている場合は何もしない
-    if ( series_[id] == SERIES_UNKNOWN ) { tq_mode_[id] = false; return true;} // ダミーの場合は即時反映
+    if ( !tq_mode_r_[id]       ) return true; // 既にトルクが切られている場合は何もしない
+    if ( series_[id] == SERIES_UNKNOWN ) { tq_mode_r_[id] = false; return true;} // ダミーの場合は即時反映
     // トルクを切る
     WriteTorqueEnable(id, false);
     // 結果を確認
-    tq_mode_[id] = ReadTorqueEnable(id);
-    if ( !tq_mode_[id] ) {ROS_INFO( "   ID [%d] is disabled torque"      , id); return  true;}
-    else                 {ROS_ERROR("   ID [%d] failed to disable torque", id); return false;}
+    tq_mode_r_[id] = ReadTorqueEnable(id);
+    if ( !tq_mode_r_[id] ) {ROS_INFO( "   ID [%d] is disabled torque"      , id); return  true;}
+    else                   {ROS_ERROR("   ID [%d] failed to disable torque", id); return false;}
 }
 
 bool DynamixelHandler::UnifyBaudrate(uint64_t baudrate) {

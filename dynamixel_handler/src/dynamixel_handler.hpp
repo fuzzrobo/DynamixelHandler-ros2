@@ -254,14 +254,17 @@ class DynamixelHandler : public rclcpp::Node {
         using id_t     = uint8_t;
         using model_t  = uint16_t; // DynamixelModelNumber 型を使うと, read(model_number) の結果をそのまま使えないので，uint16_t にしている
         using series_t = DynamixelSeries;
+        using opmode_t = DynamixelOperatingMode;
         static inline set<id_t> id_set_; // chained dynamixel id list // 順序を保持する必要があうのでset
         // 連結しているサーボの個々の状態を保持するunordered_map
         static inline unordered_map<id_t, model_t > model_;  // 各dynamixelの id と model のマップ
         static inline unordered_map<id_t, series_t> series_; // 各dynamixelの id と series のマップ
         static inline unordered_map<id_t, uint64_t> ping_err_; // 各dynamixelの id と 連続でpingに応答しなかった回数のマップ
-        static inline unordered_map<id_t, bool    > tq_mode_;  // 各dynamixelの id と トルクON/OFF のマップ
-        static inline unordered_map<id_t, uint8_t > op_mode_;  // 各dynamixelの id と 制御モード のマップ
-        // static inline unordered_map<id_t, bool    >  hw_err_w_;    // ハードウェアエラーを起こしているかどうか
+        static inline unordered_map<id_t, bool    > tq_mode_w_;  // 各dynamixelの id と トルクON/OFF の書き込み値のマップ (~_r_と差をなくすように書き込む)
+        static inline unordered_map<id_t, bool    > tq_mode_r_;  // 各dynamixelの id と トルクON/OFF の読み込み値のマップ
+        static inline unordered_map<id_t, opmode_t> op_mode_w_;  // 各dynamixelの id と 制御モード の書き込み値のマップ (~_r_と差をなくすように書き込む)
+        static inline unordered_map<id_t, opmode_t> op_mode_r_;  // 各dynamixelの id と 制御モード の読み込み値のマップ
+        static inline unordered_map<id_t, bool    >  hw_err_w_;    // 各dynamixelの id と hardware error status をクリアするかどうかのマップ (~_r_と差をなくすように書き込む)
         static inline unordered_map<id_t, bitset<8>> hw_err_r_;    // 各dynamixelの id と 読み込んだhardware error statusのマップ
         static inline unordered_map<id_t, array<double, _num_present>> present_r_; // 各dynamixelの id と サーボから読み込んだ状態のマップ
         static inline unordered_map<id_t, array<double, _num_goal   >> goal_w_;    // 各dynamixelの id と サーボへ書き込む目標状態のマップ
@@ -304,7 +307,7 @@ class DynamixelHandler : public rclcpp::Node {
         bool RemoveDynamixel(id_t servo_id);
         bool DummyUpDynamixel(id_t servo_id);
         bool ClearHardwareError(id_t servo_id, bool use_offset = true);
-        bool ChangeOperatingMode(id_t servo_id, DynamixelOperatingMode mode);
+        bool ChangeOperatingMode(id_t servo_id, opmode_t mode);
         bool TorqueOn(id_t servo_id);
         bool TorqueOff(id_t servo_id);
         bool UnifyBaudrate(uint64_t baudrate);

@@ -21,10 +21,10 @@ DynamixelStatus DynamixelHandler::BroadcastState_Status(){
     DynamixelStatus msg;
     for (const auto id : id_set_ ) {
         msg.id_list.push_back(id);
-        msg.torque.push_back(tq_mode_[id]);
+        msg.torque.push_back(tq_mode_r_[id]);
         msg.error.push_back(hw_err_r_[id].any());
         msg.ping.push_back(ping_err_[id]==0);
-        switch(op_mode_[id]) {
+        switch(op_mode_r_[id]) {
             case OPERATING_MODE_PWM:                  msg.mode.push_back(msg.CONTROL_PWM                  ); break;
             case OPERATING_MODE_CURRENT:              msg.mode.push_back(msg.CONTROL_CURRENT              ); break;
             case OPERATING_MODE_VELOCITY:             msg.mode.push_back(msg.CONTROL_VELOCITY             ); break;
@@ -200,10 +200,10 @@ DynamixelDebug DynamixelHandler::BroadcastDebug(){
     DynamixelDebug msg;
     for (const auto id : id_set_ ) {
         msg.status.id_list.push_back(id);
-        msg.status.torque.push_back(tq_mode_[id]);
+        msg.status.torque.push_back(tq_mode_r_[id]);
         msg.status.error.push_back(hw_err_r_[id].any());
         msg.status.ping.push_back(ping_err_[id]==0);
-        switch(op_mode_[id]) {
+        switch(op_mode_r_[id]) {
             case OPERATING_MODE_PWM:                  msg.status.mode.push_back(msg.status.CONTROL_PWM                  ); break;
             case OPERATING_MODE_CURRENT:              msg.status.mode.push_back(msg.status.CONTROL_CURRENT              ); break;
             case OPERATING_MODE_VELOCITY:             msg.status.mode.push_back(msg.status.CONTROL_VELOCITY             ); break;

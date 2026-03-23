@@ -133,18 +133,18 @@ void DynamixelHandler::CallbackCmd_Status(const DynamixelStatus& msg) {
     }
     // 各IDに対して，msg内の指令をもとに処理を行う
     for (size_t i=0; i<msg.id_list.size(); i++) if ( auto ID = msg.id_list[i]; is_in(ID, valid_id_list) ) { // 順番がずれるのでわざとこの書き方をしている．
-        if ( has_error  ) if ( ClearHardwareError(ID, msg.error[i]) ) TorqueOn(ID); // エラー解除できたらトルクON
         if ( has_ping   ) msg.ping[i]   ? AddDynamixel(ID) : RemoveDynamixel(ID); // 先にAddDynamixelを行わないと，他の処理ができない.
-        if ( has_torque ) msg.torque[i] ? TorqueOn(ID)     : TorqueOff(ID)      ;
+        if ( has_error  ) { hw_err_w_[ID]  = msg.error[i]; tq_mode_w_[ID] = true;} // エラー解除できたらトルクON
+        if ( has_torque ) { tq_mode_w_[ID] = msg.torque[i];}
         if ( has_mode   ) {
-                 if (msg.mode[i] == msg.CONTROL_PWM                  ) ChangeOperatingMode(ID, OPERATING_MODE_PWM                  );
-            else if (msg.mode[i] == msg.CONTROL_CURRENT              ) ChangeOperatingMode(ID, OPERATING_MODE_CURRENT              );
-            else if (msg.mode[i] == msg.CONTROL_VELOCITY             ) ChangeOperatingMode(ID, OPERATING_MODE_VELOCITY             );
-            else if (msg.mode[i] == msg.CONTROL_POSITION             ) ChangeOperatingMode(ID, OPERATING_MODE_POSITION             );
-            else if (msg.mode[i] == msg.CONTROL_EXTENDED_POSITION    ) ChangeOperatingMode(ID, OPERATING_MODE_EXTENDED_POSITION    );
+                 if (msg.mode[i] == msg.CONTROL_PWM                  ) op_mode_w_[ID] = OPERATING_MODE_PWM              ;
+            else if (msg.mode[i] == msg.CONTROL_CURRENT              ) op_mode_w_[ID] = OPERATING_MODE_CURRENT          ;
+            else if (msg.mode[i] == msg.CONTROL_VELOCITY             ) op_mode_w_[ID] = OPERATING_MODE_VELOCITY         ;
+            else if (msg.mode[i] == msg.CONTROL_POSITION             ) op_mode_w_[ID] = OPERATING_MODE_POSITION         ;
+            else if (msg.mode[i] == msg.CONTROL_EXTENDED_POSITION    ) op_mode_w_[ID] = OPERATING_MODE_EXTENDED_POSITION;
             else if (msg.mode[i] == msg.CONTROL_CURRENT_BASE_POSITION) 
-                                 switch (series_[ID]) { default:       ChangeOperatingMode(ID, OPERATING_MODE_CURRENT_BASE_POSITION); break;
-                                                        case SERIES_P: ChangeOperatingMode(ID, OPERATING_MODE_EXTENDED_POSITION    );
+                                 switch (series_[ID]) { default:       op_mode_w_[ID] = OPERATING_MODE_CURRENT_BASE_POSITION; break;
+                                                        case SERIES_P: op_mode_w_[ID] = OPERATING_MODE_EXTENDED_POSITION    ;
                                                                        ROS_WARN("  ID [%d] is P-series, so alternative mode is selected", ID);}
             else ROS_WARN("  Invalid operating mode [%s], please see DynamixelStatus.msg definition.", msg.mode[i].c_str());
         }
@@ -160,7 +160,7 @@ void DynamixelHandler::CallbackCmd_X_Pwm(const DynamixelControlXPwm& msg) {
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
-    for ( auto& ID : id_list ) if ( !ChangeOperatingMode(ID, OPERATING_MODE_PWM) ) ID = 255;
+    for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_PWM;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__pwm_percent(msg.pwm_percent)
     );
@@ -174,7 +174,7 @@ void DynamixelHandler::CallbackCmd_X_Position(const DynamixelControlXPosition& m
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
-    for ( auto& ID : id_list ) if ( !ChangeOperatingMode(ID, OPERATING_MODE_POSITION) ) ID = 255;
+    for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_POSITION;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__position_deg(msg.position_deg)
         .set__profile_vel_deg_s(msg.profile_vel_deg_s)
@@ -190,7 +190,7 @@ void DynamixelHandler::CallbackCmd_X_Velocity(const DynamixelControlXVelocity& m
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
-    for ( auto& ID : id_list ) if ( !ChangeOperatingMode(ID, OPERATING_MODE_VELOCITY) ) ID = 255;
+    for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_VELOCITY;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__velocity_deg_s(msg.velocity_deg_s)
         .set__profile_acc_deg_ss(msg.profile_acc_deg_ss)
@@ -205,7 +205,7 @@ void DynamixelHandler::CallbackCmd_X_Current(const DynamixelControlXCurrent& msg
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
-    for ( auto& ID : id_list ) if ( !ChangeOperatingMode(ID, OPERATING_MODE_CURRENT) ) ID = 255;
+    for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_CURRENT;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__current_ma(msg.current_ma)
     );
@@ -226,7 +226,7 @@ void DynamixelHandler::CallbackCmd_X_CurrentBasePosition(const DynamixelControlX
     } else { // 0 < N_rot < id_list.size() の場合は不適
         if (verbose_callback_) ROS_WARN("   Field [rotation] is size mismatch");
     }
-    for ( auto& ID : id_list ) if ( !ChangeOperatingMode(ID, OPERATING_MODE_CURRENT_BASE_POSITION) ) ID = 255;
+    for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_CURRENT_BASE_POSITION;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__current_ma(msg.current_ma)
         .set__position_deg(position_deg)
@@ -250,7 +250,7 @@ void DynamixelHandler::CallbackCmd_X_ExtendedPosition(const DynamixelControlXExt
     } else { // 0 < N_rot < id_list.size() の場合は不適
         if (verbose_callback_) ROS_WARN("   Field [rotation] is size mismatch");
     }
-    for ( auto& ID : id_list ) if ( !ChangeOperatingMode(ID, OPERATING_MODE_EXTENDED_POSITION) ) ID = 255;
+    for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_EXTENDED_POSITION;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__position_deg(position_deg)
         .set__profile_vel_deg_s(msg.profile_vel_deg_s)
@@ -266,7 +266,7 @@ void DynamixelHandler::CallbackCmd_P_Pwm(const DynamixelControlPPwm& msg) {
         if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
-    for ( auto& ID : id_list ) if ( !ChangeOperatingMode(ID, OPERATING_MODE_PWM) ) ID = 255;
+    for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_PWM;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__pwm_percent(msg.pwm_percent)
     );
@@ -280,7 +280,7 @@ void DynamixelHandler::CallbackCmd_P_Current(const DynamixelControlPCurrent& msg
         if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
-    for ( auto& ID : id_list ) if ( !ChangeOperatingMode(ID, OPERATING_MODE_CURRENT) ) ID = 255;
+    for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_CURRENT;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__current_ma(msg.current_ma)
     );
@@ -294,7 +294,7 @@ void DynamixelHandler::CallbackCmd_P_Velocity(const DynamixelControlPVelocity& m
         if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
-    for ( auto& ID : id_list ) if ( !ChangeOperatingMode(ID, OPERATING_MODE_VELOCITY) ) ID = 255;
+    for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_VELOCITY;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__current_ma(msg.current_ma)
         .set__velocity_deg_s(msg.velocity_deg_s)
@@ -310,7 +310,7 @@ void DynamixelHandler::CallbackCmd_P_Position(const DynamixelControlPPosition& m
         if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
-    for ( auto& ID : id_list ) if ( !ChangeOperatingMode(ID, OPERATING_MODE_POSITION) ) ID = 255;
+    for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_POSITION;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__current_ma(msg.current_ma)
         .set__position_deg(msg.position_deg)
@@ -334,7 +334,7 @@ void DynamixelHandler::CallbackCmd_P_ExtendedPosition(const DynamixelControlPExt
     } else { // 0 < N_rot < id_list.size() の場合は不適
         if (verbose_callback_) ROS_WARN("   Field [rotation] is size mismatch");
     }
-    for ( auto& ID : id_list ) if ( !ChangeOperatingMode(ID, OPERATING_MODE_EXTENDED_POSITION) ) ID = 255;
+    for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_EXTENDED_POSITION;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__current_ma(msg.current_ma)
         .set__position_deg(position_deg)
@@ -354,7 +354,7 @@ void DynamixelHandler::CallbackCmd_Pro_Current(const DynamixelControlProCurrent&
         if(verbose_callback_) ROS_WARN("  ID [%d] is not Pro series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
-    for ( auto& ID : id_list ) if ( !ChangeOperatingMode(ID, OPERATING_MODE_CURRENT) ) ID = 255;
+    for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_CURRENT;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__current_ma(msg.current_ma)
     );
@@ -368,7 +368,7 @@ void DynamixelHandler::CallbackCmd_Pro_Velocity(const DynamixelControlProVelocit
         if(verbose_callback_) ROS_WARN("  ID [%d] is not Pro series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
-    for ( auto& ID : id_list ) if ( !ChangeOperatingMode(ID, OPERATING_MODE_VELOCITY) ) ID = 255;
+    for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_VELOCITY;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__current_ma(msg.current_ma)
         .set__velocity_deg_s(msg.velocity_deg_s)
@@ -384,7 +384,7 @@ void DynamixelHandler::CallbackCmd_Pro_Position(const DynamixelControlProPositio
         if(verbose_callback_) ROS_WARN("  ID [%d] is not Pro series", ID);
         ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
     }
-    for ( auto& ID : id_list ) if ( !ChangeOperatingMode(ID, OPERATING_MODE_POSITION) ) ID = 255;
+    for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_POSITION;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__current_ma(msg.current_ma)
         .set__position_deg(msg.position_deg)
@@ -408,7 +408,7 @@ void DynamixelHandler::CallbackCmd_Pro_ExtendedPosition(const DynamixelControlPr
     } else { // 0 < N_rot < id_list.size() の場合は不適
         if (verbose_callback_) ROS_WARN("   Field [rotation] is size mismatch");
     }
-    for ( auto& ID : id_list ) if ( !ChangeOperatingMode(ID, OPERATING_MODE_EXTENDED_POSITION) ) ID = 255;
+    for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_EXTENDED_POSITION;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
         .set__current_ma(msg.current_ma)
         .set__position_deg(position_deg)
@@ -459,7 +459,7 @@ void DynamixelHandler::CallbackCmd_Goal(const DynamixelGoal& msg) { // mutex_goa
         auto& g = goal_w_[ID];
         auto& l = limit_r_[ID];
         const bool is_x_series = series_[ID] == SERIES_X;
-        const bool is_mode_pos = op_mode_[ID] == OPERATING_MODE_POSITION;
+        const bool is_mode_pos = (op_mode_w_.count(ID)?op_mode_w_[ID]:op_mode_r_[ID]) == OPERATING_MODE_POSITION;
         //                                           シンプルに絶対値を制限内に収める
         if ( valid_pwm ) g[GOAL_PWM     ] = clamp( msg.pwm_percent[i]       , -l[PWM_LIMIT     ], l[PWM_LIMIT     ]);
         if ( valid_cur ) g[GOAL_CURRENT ] = clamp( msg.current_ma[i]        , -l[CURRENT_LIMIT ], l[CURRENT_LIMIT ]);
@@ -765,7 +765,7 @@ void DynamixelHandler::CallbackCmd_Extra_Config(const DynamixelExtra& msg, const
             else            WritePwmSlope(ID, msg.pwm_slope_percent[i]);
         }
 
-        WriteTorqueEnable(ID, tq_mode_[ID]);
+        WriteTorqueEnable(ID, tq_mode_r_[ID]);
     }
 }
 

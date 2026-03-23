@@ -185,15 +185,17 @@ void DynamixelHandler::MainLoop(){
     if (imu_opencr_   ) imu_opencr_->MainProcess();
 
     //* topicをSubscribe & Dynamixelへ目標角をWrite
+    for ( auto id : id_set_ ) { // 各要素について，達成されるまで繰り返すようにする．
+        if ( hw_err_w_.count(id)  && ClearHardwareError(id, hw_err_w_[id]) ) hw_err_w_.erase(id); // hw_err_w_[id]=複数回転をoffsetで復元するか
+        if ( op_mode_w_.count(id) && ChangeOperatingMode(id, op_mode_w_[id]) ) op_mode_w_.erase(id);
+        if ( tq_mode_w_.count(id) && (tq_mode_w_[id] ? TorqueOn(id) : TorqueOff(id)) ) tq_mode_w_.erase(id);
+    } 
     SyncWriteGoal(goal_indice_write_, updated_id_goal_);
-    goal_indice_write_.clear();
-    updated_id_goal_.clear();
+    goal_indice_write_.clear() ; updated_id_goal_.clear();
     SyncWriteGain(gain_indice_write_, updated_id_gain_);
-    gain_indice_write_.clear();
-    updated_id_gain_.clear();
+    gain_indice_write_.clear() ; updated_id_gain_.clear();
     SyncWriteLimit(limit_indice_write_, updated_id_limit_);
-    limit_indice_write_.clear();
-    updated_id_limit_.clear();
+    limit_indice_write_.clear(); updated_id_limit_.clear();
 
     //* present value について read する情報を決定
     static const auto& r = pub_ratio_present_; //長いので省略
@@ -205,7 +207,7 @@ void DynamixelHandler::MainLoop(){
     if (r[VELOCITY_TRAJECTORY  ] && cnt % r[VELOCITY_TRAJECTORY  ] == 0) present_indice_read_.insert(VELOCITY_TRAJECTORY  );
     if (r[POSITION_TRAJECTORY  ] && cnt % r[POSITION_TRAJECTORY  ] == 0) present_indice_read_.insert(POSITION_TRAJECTORY  );
     if (r[PRESENT_INPUT_VOLTAGE] && cnt % r[PRESENT_INPUT_VOLTAGE] == 0) present_indice_read_.insert(PRESENT_INPUT_VOLTAGE);
-    if (r[PRESENT_TEMPERATURE  ] && cnt % r[PRESENT_TEMPERATURE  ] == 0) present_indice_read_.insert(PRESENT_TEMPERATURE   );
+    if (r[PRESENT_TEMPERATURE  ] && cnt % r[PRESENT_TEMPERATURE  ] == 0) present_indice_read_.insert(PRESENT_TEMPERATURE  );
 
 /* 処理時間時間の計測 */ auto s_read = system_clock::now();
     //* Dynamixelから状態Read & topicをPublish
@@ -213,11 +215,9 @@ void DynamixelHandler::MainLoop(){
     array<double, _num_state> success_rate{}; // 0初期化する．
     set<uint8_t> target_id_set; for (auto id : id_set_) if ( ping_err_[id]==0 ) target_id_set.insert(id);
     if ( pub_ratio_["status"] && cnt % pub_ratio_["status"] == 0 ) {
-        CheckDynamixels(); // Statusに該当するもろもろをチェック
-        success_rate[STATUS] = 1.0;
-        for (auto id: id_set_) if ( auto_remove_count_ ) 
-            if ( ping_err_[id] > auto_remove_count_) RemoveDynamixel(id);
-        if ( success_rate[STATUS] ) msg.status = BroadcastState_Status();
+        /*statusは関連は複数個所で順次更新されるので特別扱い*/ CheckDynamixels();
+        if ( auto_remove_count_ ) for (auto id: id_set_) if ( ping_err_[id] > auto_remove_count_ ) RemoveDynamixel(id);
+        /* if ( true ) */ msg.status = BroadcastState_Status();
     }
     if ( !present_indice_read_.empty() ){ n_present_read++;
         tie(success_rate[PRESENT], ignore) = SyncReadPresent(present_indice_read_, target_id_set);

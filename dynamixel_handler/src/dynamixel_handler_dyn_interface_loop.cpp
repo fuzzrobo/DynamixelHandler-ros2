@@ -668,7 +668,7 @@ template <typename Addr> void DynamixelHandler::StopDynamixels(const set<id_t>& 
         ROS_INFO("  Reset goal position for stopping");
         // 3. さらに念のため， トルクを瞬間的にオンオフすることでも停止させる．
         vector<id_t> tq_on_list;
-        for (auto id : target_id_list) if ( tq_mode_[id] ) tq_on_list.push_back(id);
+        for (auto id : target_id_list) if ( tq_mode_r_[id] ) tq_on_list.push_back(id);
         dyn_comm_.SyncWrite(Addr::torque_enable, tq_on_list, vector<int64_t>(tq_on_list.size(), TORQUE_DISABLE));
         dyn_comm_.SyncWrite(Addr::torque_enable, tq_on_list, vector<int64_t>(tq_on_list.size(), TORQUE_ENABLE ));
         ROS_INFO("  Reset torque enable for stopping");
@@ -692,7 +692,8 @@ template <typename Addr> void DynamixelHandler::CheckDynamixels(const set<id_t>&
 
     // bus_watchdogの書き込み． command指定値があればそれを優先し，未指定( <0 )なら do_stop_end_ の設定に従う．
     map<id_t, vector<int64_t>> bus_watchdog_map;
-    for (auto id : target_id_list) switch (op_mode_[id]) { // position系は homing_offset の既知問題があるため除外
+    for (auto id : target_id_list) switch (op_mode_r_[id]) {
+        default: break; // position系は homing_offset の既知問題があるため除外
         case OPERATING_MODE_VELOCITY: [[fallthrough]];
         case OPERATING_MODE_CURRENT : [[fallthrough]];
         case OPERATING_MODE_PWM     : {
@@ -707,7 +708,7 @@ template <typename Addr> void DynamixelHandler::CheckDynamixels(const set<id_t>&
     auto id_torque_map = SyncRead_log(Addr::torque_enable, target_id_list, verbose_["r_status"], verbose_["r_status_err"]);
     // 全ての状態が取得できていれば, 終了
     if ( id_torque_map.size() == target_id_list.size() ) { 
-        for ( const auto& [id, torque] : id_torque_map ) tq_mode_[id] = (torque == TORQUE_ENABLE); 
+        for ( const auto& [id, torque] : id_torque_map ) tq_mode_r_[id] = (torque == TORQUE_ENABLE); 
         ping_err_.clear(); // 通信エラーがなければ，ping_err_をクリア
         return; // ガード節
     }
@@ -716,7 +717,7 @@ template <typename Addr> void DynamixelHandler::CheckDynamixels(const set<id_t>&
     for ( auto id : target_id_list ) { // ping による確認だと， 直前の fast sync read で読み込み失敗した影響によってうまくいかない． 詳細はReadme参照
         auto id_torque_map = SyncRead_log(Addr::torque_enable, {id}, verbose_["r_status"], verbose_["r_status_err"]);
         if ( id_torque_map.empty() ) continue; // トルクの読み込みに失敗した場合は，そのモータは死んでいるとみなす．
-        tq_mode_[id] = (id_torque_map[id] == TORQUE_ENABLE);
+        tq_mode_r_[id] = (id_torque_map[id] == TORQUE_ENABLE);
         alive_id_list.push_back(id);
     }
     // すべてのモータが死んでいる場合は，ping_err_=1で固定とする, おそらく根本で電源が切断されているため．
