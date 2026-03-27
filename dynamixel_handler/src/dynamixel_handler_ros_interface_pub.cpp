@@ -1,4 +1,5 @@
 #include "dynamixel_handler.hpp"
+#include "dynamixel_handler_msgs/msg/dxl_states.hpp"
 #include "dynamixel_handler_msgs/msg/dynamixel_debug.hpp"
 #include "dynamixel_handler_msgs/msg/dynamixel_error.hpp"
 #include "dynamixel_handler_msgs/msg/dynamixel_extra.hpp"
@@ -196,22 +197,13 @@ DynamixelGoal DynamixelHandler::BroadcastState_Goal(){
     return msg;
 }
 
-DynamixelDebug DynamixelHandler::BroadcastDebug(){
-    DynamixelDebug msg;
-    for (const auto id : id_set_ ) {
-        msg.status.id_list.push_back(id);
-        msg.status.torque.push_back(tq_mode_r_[id]);
-        msg.status.error.push_back(hw_err_r_[id].any());
-        msg.status.ping.push_back(ping_err_[id]==0);
-        switch(op_mode_r_[id]) {
-            case OPERATING_MODE_PWM:                  msg.status.mode.push_back(msg.status.CONTROL_PWM                  ); break;
-            case OPERATING_MODE_CURRENT:              msg.status.mode.push_back(msg.status.CONTROL_CURRENT              ); break;
-            case OPERATING_MODE_VELOCITY:             msg.status.mode.push_back(msg.status.CONTROL_VELOCITY             ); break;
-            case OPERATING_MODE_POSITION:             msg.status.mode.push_back(msg.status.CONTROL_POSITION             ); break;
-            case OPERATING_MODE_EXTENDED_POSITION:    msg.status.mode.push_back(msg.status.CONTROL_EXTENDED_POSITION    ); break;
-            case OPERATING_MODE_CURRENT_BASE_POSITION:msg.status.mode.push_back(msg.status.CONTROL_CURRENT_BASE_POSITION); break;
-            default:                                  msg.status.mode.push_back(""); break;
-        }
+void DynamixelHandler::BroadcastDebug(std::shared_ptr<DxlStates> st_msg){
+    static DynamixelDebug msg;
+    if ( !st_msg->status.id_list.empty() ) msg.status = st_msg->status;
+    msg.current_ma.present.clear()    ; msg.current_ma.goal.clear();
+    msg.velocity_deg_s.present.clear(); msg.velocity_deg_s.goal.clear();
+    msg.position_deg.present.clear()  ; msg.position_deg.goal.clear();
+    for (const auto id : msg.status.id_list ) {
         msg.current_ma.present.push_back    (round4(present_r_[id][PRESENT_CURRENT ]));
         msg.current_ma.goal.push_back       (round4(   goal_r_[id][GOAL_CURRENT    ]));
         msg.velocity_deg_s.present.push_back(round4(present_r_[id][PRESENT_VELOCITY]/DEG));
@@ -220,5 +212,8 @@ DynamixelDebug DynamixelHandler::BroadcastDebug(){
         msg.position_deg.goal.push_back     (round4(   goal_r_[id][GOAL_POSITION   ]/DEG));
     }
     publish_if(pub_debug_, msg);
-    return msg;
+}
+
+void DynamixelHandler::BroadcastStates(std::shared_ptr<DxlStates> msg){
+    publish_if(pub_dxl_states_, *msg);
 }

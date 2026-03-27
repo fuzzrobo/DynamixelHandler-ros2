@@ -1,25 +1,12 @@
-#include "dynamixel_handler.hpp"
-#include "optional_function/external_port.hpp"
-#include "optional_function/imu_opencr.hpp"
-#include "dynamixel_handler_msgs/msg/dxl_states.hpp"
-#include "dynamixel_handler_msgs/msg/dynamixel_debug.hpp"
-#include "dynamixel_handler_msgs/msg/dynamixel_error.hpp"
-#include "dynamixel_handler_msgs/msg/dynamixel_extra.hpp"
-#include "dynamixel_handler_msgs/msg/dynamixel_gain.hpp"
-#include "dynamixel_handler_msgs/msg/dynamixel_goal.hpp"
-#include "dynamixel_handler_msgs/msg/dynamixel_limit.hpp"
-#include "dynamixel_handler_msgs/msg/dynamixel_present.hpp"
-#include "dynamixel_handler_msgs/msg/dynamixel_status.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "myUtils/logging_like_ros1.hpp"
 #include "myUtils/make_iterator_convenient.hpp"
+#include "dynamixel_handler.hpp"
+#include "dynamixel_handler_msgs/msg/dxl_states.hpp"
+#include "optional_function/imu_opencr.hpp"
+#include "optional_function/external_port.hpp"
 
 using namespace std::string_literals;
-
-template <typename MsgT>
-static void publish_if(const rclcpp::PublisherBase::SharedPtr& pub, const MsgT& msg) {
-    if (pub) std::static_pointer_cast<rclcpp::Publisher<MsgT>>(pub)->publish(msg);
-}
 
 DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOptions()
                                                                   .allow_undeclared_parameters(true)
@@ -113,7 +100,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
         ROS_ERROR(" Dynamixel is not found in USB device [%s]", dyn_comm_.port_name().c_str());
         if ( !is_debug ) ROS_STOP("Initialization failed (no dynamixel found)");
     }
-    if( num_expected>0 && num_expected!=static_cast<int>(id_set_.size()) ) { // 期待数が設定されているときに、見つかった数が期待数と異なる場合は初期化失敗で終了
+    if( num_expected>0 && num_expected!=(int)id_set_.size() ) { // 期待数が設定されているときに、見つかった数が期待数と異なる場合は初期化失敗で終了
         ROS_ERROR(" Number of Dynamixel is not matched."); 
         ROS_ERROR(" Expected '%d', but found '%ld'. please check & retry", num_expected, id_set_.size());
         if ( !is_debug ) ROS_STOP("Initialization failed (number of dynamixel is not matched)");
@@ -186,9 +173,9 @@ void DynamixelHandler::MainLoop(){
 
     //* topicをSubscribe & Dynamixelへ目標角をWrite
     for ( auto id : id_set_ ) { // 各要素について，達成されるまで繰り返すようにする．
-        if ( hw_err_w_.count(id)  && ClearHardwareError(id, hw_err_w_[id]) ) hw_err_w_.erase(id); // hw_err_w_[id]=複数回転をoffsetで復元するか
-        if ( op_mode_w_.count(id) && ChangeOperatingMode(id, op_mode_w_[id]) ) op_mode_w_.erase(id);
-        if ( tq_mode_w_.count(id) && (tq_mode_w_[id] ? TorqueOn(id) : TorqueOff(id)) ) tq_mode_w_.erase(id);
+        if (op_mode_w_.count(id)){ ChangeOperatingMode(id, op_mode_w_[id]) && op_mode_w_.erase(id);}
+        if ( hw_err_w_.count(id)){ ClearHardwareError (id,  hw_err_w_[id]);    hw_err_w_.erase(id);} // hw_err_w_[id]=複数回転をoffsetで復元するか
+        if (tq_mode_w_.count(id)){ tq_mode_w_[id]?TorqueOn(id):TorqueOff(id); tq_mode_w_.erase(id);}
     } 
     SyncWriteGoal(goal_indice_write_, updated_id_goal_);
     goal_indice_write_.clear() ; updated_id_goal_.clear();
@@ -213,48 +200,41 @@ void DynamixelHandler::MainLoop(){
     //* Dynamixelから状態Read & topicをPublish
     auto msg = DxlStates().set__stamp(this->get_clock()->now());
     array<double, _num_state> success_rate{}; // 0初期化する．
-    set<uint8_t> target_id_set; for (auto id : id_set_) if ( ping_err_[id]==0 ) target_id_set.insert(id);
-    if ( pub_ratio_["status"] && cnt % pub_ratio_["status"] == 0 ) {
-        /*statusは関連は複数個所で順次更新されるので特別扱い*/ CheckDynamixels();
+    if ( pub_ratio_["status"] && cnt % pub_ratio_["status"] == 0 ) { /*statusは関連は複数個所で順次更新されるので特別扱い*/ 
+        success_rate[STATUS] = CheckDynamixels() ? 1.0 : 0.1;
         if ( auto_remove_count_ ) for (auto id: id_set_) if ( ping_err_[id] > auto_remove_count_ ) RemoveDynamixel(id);
-        /* if ( true ) */ msg.status = BroadcastState_Status();
     }
+    set<uint8_t> target_id_set; for (auto id : id_set_) if ( ping_err_[id]==0 ) target_id_set.insert(id);
     if ( !present_indice_read_.empty() ){ n_present_read++;
         tie(success_rate[PRESENT], ignore) = SyncReadPresent(present_indice_read_, target_id_set);
         n_present_suc_p += !target_id_set.empty()  && success_rate[PRESENT] > 0.0;
         n_present_suc_f +=  target_id_set==id_set_ && success_rate[PRESENT] > 1.0-1e-6;
-        if ( success_rate[PRESENT]>0.0 ) msg.present = BroadcastState_Present();
     }
-    if ( pub_ratio_["goal"] && cnt % pub_ratio_["goal"] == 0 ) {
+    if ( pub_ratio_["goal" ] && cnt % pub_ratio_["goal" ] == 0 ) 
         tie(success_rate[GOAL], ignore) = SyncReadGoal(goal_indice_read_, target_id_set);
-        if ( success_rate[GOAL   ]>0.0 ) msg.goal = BroadcastState_Goal();
-    }
-    if ( pub_ratio_["gain"] && cnt % pub_ratio_["gain"] == 0 ) {
+    if ( pub_ratio_["gain" ] && cnt % pub_ratio_["gain" ] == 0 ) 
         tie(success_rate[GAIN], ignore) = SyncReadGain(gain_indice_read_, target_id_set);
-        if ( success_rate[GAIN   ]>0.0 ) msg.gain = BroadcastState_Gain();
-    }
-    if ( pub_ratio_["limit"] && cnt % pub_ratio_["limit"] == 0 ) {
+    if ( pub_ratio_["limit"] && cnt % pub_ratio_["limit"] == 0 ) 
         tie(success_rate[LIMIT], ignore) = SyncReadLimit(limit_indice_read_, target_id_set);
-        if ( success_rate[LIMIT  ]>0.0 ) msg.limit = BroadcastState_Limit();
-    }
-    if ( pub_ratio_["error"] && cnt % pub_ratio_["error"] == 0 ) {
+    if ( pub_ratio_["error"] && cnt % pub_ratio_["error"] == 0 ) 
         tie(success_rate[ERROR], ignore) = SyncReadHardwareErrors(target_id_set);
-        if ( success_rate[ERROR  ]>0.0 ) msg.error = BroadcastState_Error();
-    }
-    if ( pub_ratio_["extra_dynamic"] && cnt % pub_ratio_["extra_dynamic"] == 0 ) {
+    if ( pub_ratio_["extra_dynamic"] && cnt % pub_ratio_["extra_dynamic"] == 0 ) 
         tie(success_rate[EXTRA_D], ignore) = BulkReadExtra_rapid(target_id_set);
-    }
-    if ( pub_ratio_["extra_static"] && cnt % pub_ratio_["extra_static"] == 0 ) {
+    if ( pub_ratio_["extra_static" ] && cnt % pub_ratio_["extra_static" ] == 0 ) 
         tie(success_rate[EXTRA_S], ignore) = BulkReadExtra_slow(target_id_set);
-    }
-    if ( success_rate[EXTRA_D]+success_rate[EXTRA_S] > 0.0 ) msg.extra = BroadcastState_Extra();
     bool is_any_read = std::any_of( success_rate.begin(), success_rate.end(), [](auto& x){ return x > 0.0; });
-    if ( is_any_read ) { 
-        n_any_read++;
-        BroadcastDebug();
-        publish_if(pub_dxl_states_, msg); // todo BroadcastStates()を作りたいな．
+    if ( success_rate[STATUS ]>0.0 ) msg.status  = BroadcastState_Status();
+    if ( success_rate[PRESENT]>0.0 ) msg.present = BroadcastState_Present();
+    if ( success_rate[GOAL   ]>0.0 ) msg.goal    = BroadcastState_Goal();
+    if ( success_rate[GAIN   ]>0.0 ) msg.gain    = BroadcastState_Gain();
+    if ( success_rate[LIMIT  ]>0.0 ) msg.limit   = BroadcastState_Limit();
+    if ( success_rate[ERROR  ]>0.0 ) msg.error   = BroadcastState_Error();
+    if ( success_rate[EXTRA_D]+success_rate[EXTRA_S] > 0.0 ) msg.extra = BroadcastState_Extra();
+    if ( is_any_read ) { n_any_read++;
+        BroadcastDebug( std::make_shared<DxlStates>(msg) );
+        BroadcastStates( std::make_shared<DxlStates>(msg) );
     }
-/* 処理時間時間の計測 */ t_read += duration_cast<microseconds>(system_clock::now()-s_read).count() / 1000.0;
+/* 処理時間時間の計測 */ t_read  += duration_cast<microseconds>(system_clock::now()-s_read ).count() / 1000.0;
 /* 処理時間時間の計測 */ t_total += duration_cast<microseconds>(system_clock::now()-s_total).count() / 1000.0;
 
     //* デバック

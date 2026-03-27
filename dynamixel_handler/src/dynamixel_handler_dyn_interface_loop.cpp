@@ -675,14 +675,15 @@ template <typename Addr> void DynamixelHandler::StopDynamixels(const set<id_t>& 
     }
 }
 
-template <> void DynamixelHandler::CheckDynamixels(const set<id_t>& id_set){
-    CheckDynamixels<AddrX>(id_set);
-    CheckDynamixels<AddrP>(id_set);
-    CheckDynamixels<AddrPro>(id_set);
+template <> bool DynamixelHandler::CheckDynamixels(const set<id_t>& id_set){
+    bool result_x = CheckDynamixels<AddrX>(id_set);
+    bool result_p = CheckDynamixels<AddrP>(id_set);
+    bool result_pro = CheckDynamixels<AddrPro>(id_set);
+    return result_x || result_p || result_pro;
 }
-template <typename Addr> void DynamixelHandler::CheckDynamixels(const set<id_t>& id_set){
+template <typename Addr> bool DynamixelHandler::CheckDynamixels(const set<id_t>& id_set){
     vector<id_t> target_id_list = id_filter(id_set, Addr::series());
-    if ( target_id_list.empty() ) return; // 読み込むデータがない場合は即時return
+    if ( target_id_list.empty() ) return false; // 読み込むデータがない場合は即時return
 
     // bus_watchdogのエラーの確認．エラーでてたら0書き込みで解除する．
     vector<id_t> bw_err_id_list;
@@ -710,7 +711,7 @@ template <typename Addr> void DynamixelHandler::CheckDynamixels(const set<id_t>&
     if ( id_torque_map.size() == target_id_list.size() ) { 
         for ( const auto& [id, torque] : id_torque_map ) tq_mode_r_[id] = (torque == TORQUE_ENABLE); 
         ping_err_.clear(); // 通信エラーがなければ，ping_err_をクリア
-        return; // ガード節
+        return true; // ガード節
     }
     // 取れていないデータがあれば，個別に応答を確認
     vector<id_t> alive_id_list;
@@ -730,4 +731,5 @@ template <typename Addr> void DynamixelHandler::CheckDynamixels(const set<id_t>&
         ROS_WARN("Servo ID [%d] is dead (%d count / %s)", id, (int)ping_err_[id],
             auto_remove_count_ ? (std::to_string(auto_remove_count_)+"count").c_str() : "inf");
     }
+    return true;
 }

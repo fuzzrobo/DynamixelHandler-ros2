@@ -1,6 +1,8 @@
 #ifndef LAYOUT_OUTPUT_HPP
 #define LAYOUT_OUTPUT_HPP
 
+using std::vector;
+
 // ちょっとした文字列の整形を行う補助関数
 using std::setw;
 using std::prev;

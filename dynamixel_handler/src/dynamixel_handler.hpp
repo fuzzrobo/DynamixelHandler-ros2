@@ -85,7 +85,8 @@ class DynamixelHandler : public rclcpp::Node {
         void MainLoop();     // メインループ
 
         //* ROS publishを担う関数と subscliber callback関数
-        DynamixelDebug BroadcastDebug();
+        void BroadcastStates(std::shared_ptr<DxlStates> msg);
+        void BroadcastDebug(std::shared_ptr<DxlStates> msg);
         DynamixelStatus BroadcastState_Status();
         DynamixelPresent BroadcastState_Present();
         DynamixelGoal BroadcastState_Goal(); 
@@ -382,7 +383,7 @@ class DynamixelHandler : public rclcpp::Node {
                                             tuple<double, uint8_t> BulkReadExtra_rapid       (const set<id_t>& id_set=id_set_);
                                             tuple<double, uint8_t> BulkReadExtra_slow        (const set<id_t>& id_set=id_set_);
         template <typename Addr=AddrCommon> void StopDynamixels (const set<id_t>& id_set=id_set_);
-        template <typename Addr=AddrCommon> void CheckDynamixels(const set<id_t>& id_set=id_set_);
+        template <typename Addr=AddrCommon> bool CheckDynamixels(const set<id_t>& id_set=id_set_);
 
         class ExternalPort; // XH540とPシリーズに搭載されている外部ポートを使用するためのクラス，実際の宣言と定義は別ファイル
         std::unique_ptr<ExternalPort> external_port_; //

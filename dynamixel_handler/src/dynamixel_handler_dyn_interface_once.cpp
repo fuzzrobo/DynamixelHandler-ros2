@@ -7,6 +7,7 @@
 static void rsleep(int millisec) { std::this_thread::sleep_for(std::chrono::milliseconds(millisec));}
 static constexpr double DEG = M_PI/180.0; // degを単位に持つ数字に掛けるとradになる
 const static double NaN = std::numeric_limits<double>::quiet_NaN();
+using std::to_string;
 	
 //* 基本機能をまとめた関数たち
 // 各シリーズのDynamixelを検出する．
@@ -29,7 +30,7 @@ bool DynamixelHandler::tryAddDynamixels(const set<id_t>& scan_id_set, uint32_t n
     // 再帰処理
     if ( num_found < num_expected ) ROS_WARN("  '%ld' dynamixels are not found yet", num_expected-num_found );
     if ( num_expected == 0 )        ROS_WARN("  No dynamixels are found yet" );
-    ROS_WARN("   > %d times retry left ( %ld/%s servos )", times_retry, num_found, num_expected==0?"?":std::to_string(num_expected).c_str());
+    ROS_WARN("   > %d times retry left ( %ld/%s servos )", times_retry, num_found, num_expected==0?"?":to_string(num_expected).c_str());
     rsleep(100);
     return tryAddDynamixels(scan_id_set, num_expected, times_retry-1);
 }
@@ -88,18 +89,8 @@ bool DynamixelHandler::AddDynamixel(id_t id){
 
     extra_db_[id].fill(NaN);
     extra_u8_[id].fill(0);
-
     extra_u8_[id][EXTRA_FIRMWARE_VERSION] = ReadFirmwareVersion(id);
     extra_u8_[id][EXTRA_PROTOCOL_TYPE   ] = ReadProtocolVersion(id);
-
-    if ( extra_u8_[id][EXTRA_PROTOCOL_TYPE] != 2 ) {
-        ROS_WARN("   protocol version is not 2.0");
-        return false;
-    }
-    if ( ReadStatusReturnLevel(id) != STATUS_RETURN_LEVEL_ALL ){
-        ROS_WARN("   status return level is not 'all'");
-        return false;
-    }
 
     WriteBusWatchdog(id, 0.0/*ms*/); // 最初にBusWatchdogを無効化することで，全てのGoal値の書き込みを許可する
     WriteProfileAcc(id, default_["profile_acc_deg_ss"]*DEG ); 
@@ -108,29 +99,30 @@ bool DynamixelHandler::AddDynamixel(id_t id){
 
     set<uint8_t> tmp = {id};
     static constexpr tuple<double, uint8_t> complete = {1.0-1e-6, 1};
-    while (SyncReadPresent( present_indice_read_, tmp)<complete) {if(!rclcpp::ok()) ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading  present values...");}
-    while (SyncReadGoal   ( goal_indice_read_   , tmp)<complete) {if(!rclcpp::ok()) ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading   goal   values...");} 
-    while (SyncReadGain   ( gain_indice_read_   , tmp)<complete) {if(!rclcpp::ok()) ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading   gain   values...");} 
-    while (SyncReadLimit  ( limit_indice_read_  , tmp)<complete) {if(!rclcpp::ok()) ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading  limit   values...");} 
-    while (SyncReadHardwareErrors(tmp)  <complete) {if(!rclcpp::ok())               ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading hardware errors...");}
-    while (BulkReadExtra_rapid   (tmp) < complete) {if(!rclcpp::ok())               ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading  extra d values...");}
-    while (BulkReadExtra_slow    (tmp) < complete) {if(!rclcpp::ok())               ROS_STOP("Failed to initial read"); rsleep(50); ROS_INFO_T(5000, "    Reading  extra s values...");}
+    static const auto is_ok = [this]() { if(!rclcpp::ok()) ROS_STOP("Failed to initial read"); rsleep(50); };
+    while (SyncReadPresent( present_indice_read_, tmp)<complete) { is_ok(); ROS_INFO_T(5000, "    Reading  present values...");}
+    while (SyncReadGoal   ( goal_indice_read_   , tmp)<complete) { is_ok(); ROS_INFO_T(5000, "    Reading   goal   values...");} 
+    while (SyncReadGain   ( gain_indice_read_   , tmp)<complete) { is_ok(); ROS_INFO_T(5000, "    Reading   gain   values...");} 
+    while (SyncReadLimit  ( limit_indice_read_  , tmp)<complete) { is_ok(); ROS_INFO_T(5000, "    Reading  limit   values...");} 
+    while (SyncReadHardwareErrors(tmp)                <complete) { is_ok(); ROS_INFO_T(5000, "    Reading hardware errors...");}
+    while (BulkReadExtra_rapid   (tmp)                <complete) { is_ok(); ROS_INFO_T(5000, "    Reading  extra d values...");}
+    while (BulkReadExtra_slow    (tmp)                <complete) { is_ok(); ROS_INFO_T(5000, "    Reading  extra s values...");}
 
     tq_mode_r_[id] = ReadTorqueEnable(id);
-    op_mode_r_[id] = (DynamixelOperatingMode)ReadOperatingMode(id);
+    op_mode_r_[id] = (opmode_t)ReadOperatingMode(id);
+    limit_w_[id] = limit_r_[id];
     gain_w_[id] = gain_r_[id];
     goal_w_[id] = goal_r_[id];
-    limit_w_[id] = limit_r_[id];
     watchdog_w_[id] = -1.0; // command未指定
 
-    if ( abs(default_["profile_acc_deg_ss"] - goal_r_[id][PROFILE_ACC]/DEG) > 3 ) 
-        ROS_WARN("    profile acc. '%2.1f' could not be set exactly (now '%2.1f')", default_["profile_acc_deg_ss"], goal_r_[id][PROFILE_ACC]/DEG);
-    if ( abs(default_["profile_vel_deg_s"] - goal_r_[id][PROFILE_VEL]/DEG) > 1 ) 
-        ROS_WARN("    profile vel. '%2.1f' could not be set exactly (now '%2.1f')", default_["profile_vel_deg_s"], goal_r_[id][PROFILE_VEL]/DEG);
+    if ( auto val=default_["profile_acc_deg_ss"]; abs( val - goal_r_[id][PROFILE_ACC]/DEG) > 3 ) 
+        ROS_WARN("    profile acc. '%2.1f' could not be set exactly (now '%2.1f')", val , goal_r_[id][PROFILE_ACC]/DEG);
+    if ( auto val=default_["profile_vel_deg_s" ]; abs( val - goal_r_[id][PROFILE_VEL]/DEG) > 1 ) 
+        ROS_WARN("    profile vel. '%2.1f' could not be set exactly (now '%2.1f')", val, goal_r_[id][PROFILE_VEL]/DEG);
+    if ( auto val=default_["return_delay_time_us"]; abs( val - extra_db_[id][EXTRA_RETURN_DELAY_TIME]) > 0.1 ) 
+        ROS_WARN("    return delay time '%2.1f' could not be set exactly (now '%2.1f')", val, extra_db_[id][EXTRA_RETURN_DELAY_TIME]);
     if ( default_["bus_watchdog_ms"] < 0.0 || default_["bus_watchdog_ms"] > 508.0 ) 
         ROS_WARN("    bus watchdog '%2.1f' is out of range (0.0-508.0)", default_["bus_watchdog_ms"]);
-    if ( abs(default_["return_delay_time_us"] - extra_db_[id][EXTRA_RETURN_DELAY_TIME]) > 0.1 ) 
-        ROS_WARN("     return delay time '%2.1f' could not be set exactly (now '%2.1f')", default_["return_delay_time_us"], extra_db_[id][EXTRA_RETURN_DELAY_TIME]);
 
     if ( do_clean_hwerr_ ) ClearHardwareError(id); // 現在の状態を変えない
     if ( do_torque_on_ )   TorqueOn(id);           // 現在の状態を変えない

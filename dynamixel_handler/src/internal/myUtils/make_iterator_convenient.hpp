@@ -1,6 +1,10 @@
 #ifndef MAKE_ITERATOR_CONVENIENT_HPP
 #define MAKE_ITERATOR_CONVENIENT_HPP
 
+using std::vector;
+using std::set;
+using std::unordered_set;
+
 // enum でインクリメントをするため
 template<typename T> T& operator ++ (T& v     ) { v = static_cast<T>(v + 1); return v;}
 template<typename T> T  operator ++ (T& v, int) { T p=v; ++v; return p;}
