@@ -96,17 +96,17 @@ DynamixelExtra DynamixelHandler::BroadcastState_Extra() {
             default:         msg.model.push_back("");    break;
         }
         msg.model_number.push_back    (model_[id]);
-        msg.firmware_version.push_back(extra_u8_[id][EXTRA_FIRMWARE_VERSION]);
-        msg.protocol_type.push_back   (extra_u8_[id][EXTRA_PROTOCOL_TYPE   ]);
-        msg.shadow_id.push_back       (extra_u8_[id][EXTRA_SHADOW_ID       ]);
+        msg.firmware_version.push_back(extra_u8_r_[id][EXTRA_FIRMWARE_VERSION]);
+        msg.protocol_type.push_back   (extra_u8_r_[id][EXTRA_PROTOCOL_TYPE   ]);
+        msg.shadow_id.push_back       (extra_u8_r_[id][EXTRA_SHADOW_ID       ]);
 
-        const auto extra_dv = bitset<8>(extra_u8_[id][EXTRA_DRIVE_MODE]);
+        const auto extra_dv = bitset<8>(extra_u8_r_[id][EXTRA_DRIVE_MODE]);
         msg.drive_mode.torque_on_by_goal_update.push_back(extra_dv[DRV_MODE_AUTO_ACTIVATE]);
         msg.drive_mode.profile_configuration.push_back(
             extra_dv[DRV_MODE_PROFILE_TIME_BASED] ? msg.drive_mode.TIME_BASED : msg.drive_mode.VELOCITY_BASED);
         msg.drive_mode.reverse_mode.push_back(extra_dv[DRV_MODE_REVERSE_MODE]);
 
-        const auto extra_s = bitset<8>(extra_u8_[id][EXTRA_SHUTDOWN]);
+        const auto extra_s = bitset<8>(extra_u8_r_[id][EXTRA_SHUTDOWN]);
         msg.shutdown.overload_error.push_back         (extra_s[SHUTDOWN_OVERLOAD         ]);
         msg.shutdown.electrical_shock_error.push_back (extra_s[SHUTDOWN_ELECTRICAL_SHOCK ]);
         msg.shutdown.motor_encoder_error.push_back    (extra_s[SHUTDOWN_MOTOR_ENCODER    ]);
@@ -114,11 +114,11 @@ DynamixelExtra DynamixelHandler::BroadcastState_Extra() {
         msg.shutdown.overheating_error.push_back     (extra_s[SHUTDOWN_OVERHEATING     ]);
         msg.shutdown.input_voltage_error.push_back   (extra_s[SHUTDOWN_INPUT_VOLTAGE   ]);
 
-        const auto extra_rc = bitset<8>(extra_u8_[id][EXTRA_RESTORE_CONFIGURATION]);
+        const auto extra_rc = bitset<8>(extra_u8_r_[id][EXTRA_RESTORE_CONFIG]);
         msg.restore_configuration.ram_restore.push_back      (extra_rc[STARTUP_CONFIG_RAM_RESTORE]);
         msg.restore_configuration.startup_torque_on.push_back(extra_rc[STARTUP_CONFIG_TORQUE_ON]);
 
-        const auto extra_ms = bitset<8>(extra_u8_[id][EXTRA_MOVING_STATUS]);
+        const auto extra_ms = bitset<8>(extra_u8_r_[id][EXTRA_MOVING_STATUS]);
         switch ( extra_ms[MOVING_STATUS_PROFILE_LOW] + extra_ms[MOVING_STATUS_PROFILE_HIGH] * 2 ) {
             case MOVING_PROFILE_RECTANGULAR: msg.moving_status.velocity_profile.push_back(msg.moving_status.PROFILE_RECTANGULAR); break;
             case MOVING_PROFILE_TRIANGULAR : msg.moving_status.velocity_profile.push_back(msg.moving_status.PROFILE_TRIANGULAR ); break;
@@ -130,16 +130,16 @@ DynamixelExtra DynamixelHandler::BroadcastState_Extra() {
         msg.moving_status.in_position.push_back    (extra_ms[MOVING_STATUS_IN_POSITION    ]);
         msg.moving.push_back         (extra_ms[EXTRA_U8_MOVING_STATUS_MOVING_BIT]);
 
-        msg.led.red_percent.push_back  (extra_db_[id][EXTRA_LED_RED  ]);
-        msg.led.green_percent.push_back(extra_db_[id][EXTRA_LED_GREEN]);
-        msg.led.blue_percent.push_back (extra_db_[id][EXTRA_LED_BLUE ]);
+        msg.led.red_percent.push_back  (extra_db_r_[id][EXTRA_LED_RED  ]);
+        msg.led.green_percent.push_back(extra_db_r_[id][EXTRA_LED_GREEN]);
+        msg.led.blue_percent.push_back (extra_db_r_[id][EXTRA_LED_BLUE ]);
 
-        msg.homing_offset_deg.push_back     (extra_db_[id][EXTRA_HOMING_OFFSET    ] / DEG);
-        msg.return_delay_time_us.push_back  (extra_db_[id][EXTRA_RETURN_DELAY_TIME]);
-        msg.moving_threshold_deg_s.push_back(extra_db_[id][EXTRA_MOVING_THRESHOLD ] / DEG);
-        msg.pwm_slope_percent.push_back     (extra_db_[id][EXTRA_PWM_SLOPE        ]);
-        msg.realtime_tick_s.push_back       (extra_db_[id][EXTRA_REALTIME_TICK    ] / 1000.0);
-        msg.bus_watchdog_ms.push_back       (watchdog_r_[id] < 0.0 ? -1.0 : watchdog_r_[id]);
+        msg.homing_offset_deg.push_back     (extra_db_r_[id][EXTRA_HOMING_OFFSET    ] / DEG);
+        msg.return_delay_time_us.push_back  (extra_db_r_[id][EXTRA_RETURN_DELAY_TIME]);
+        msg.moving_threshold_deg_s.push_back(extra_db_r_[id][EXTRA_MOVING_THRESHOLD ] / DEG);
+        msg.pwm_slope_percent.push_back     (extra_db_r_[id][EXTRA_PWM_SLOPE        ]);
+        msg.realtime_tick_s.push_back       (extra_db_r_[id][EXTRA_REALTIME_TICK    ] / 1000.0);
+        msg.bus_watchdog_ms.push_back       (extra_db_r_[id][EXTRA_BUS_WATCHDOG     ] < 0.0 ? -1.0 : extra_db_r_[id][EXTRA_BUS_WATCHDOG]);
 
         msg.reboot.push_back(false);
     }

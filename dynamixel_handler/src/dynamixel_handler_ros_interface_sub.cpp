@@ -24,7 +24,6 @@
 #include "dynamixel_handler_msgs/msg/dynamixel_limit.hpp"
 #include "dynamixel_handler_msgs/msg/dynamixel_shortcut.hpp"
 #include "dynamixel_handler_msgs/msg/dynamixel_status.hpp"
-#include "dynamixel_handler_extra_traits.hpp"
 #include "myUtils/formatting_output.hpp"
 #include "myUtils/logging_like_ros1.hpp"
 #include "myUtils/make_iterator_convenient.hpp"  // enum のインクリメントと， is_in 関数の実装
@@ -419,7 +418,7 @@ void DynamixelHandler::CallbackCmd_Pro_ExtendedPosition(const DynamixelControlPr
 }
 constexpr auto warn_s = "(size mismatch)";
 constexpr auto warn_n = "(nan/inf value input)";
-bool is_valid(const vector<double>& vec) { return std::any_of(vec.begin(), vec.end(), [](auto x){ return std::isfinite(x); }); }
+bool is_valid(const vector<double>& vec) { return std::all_of(vec.begin(), vec.end(), [](auto x){ return std::isfinite(x); }); }
 
 void DynamixelHandler::CallbackCmd_Goal(const DynamixelGoal& msg) { // mutex_goal_を追加し， 排他制御を行う． log出力を排他制御に入れないように注意する．
     // msg.id_list内のIDの妥当性を確認
@@ -645,14 +644,14 @@ void DynamixelHandler::CallbackCmd_Extra_Config(const DynamixelExtra& msg, const
     const size_t n_pwm_slope = msg.pwm_slope_percent.size();
     const size_t n_ret_delay = msg.return_delay_time_us.size();
 
-    const bool has_shadow_id   = n_shadow_id  == N;
+    const bool has_shadow      = n_shadow_id  == N;
     const bool valid_homing    = n_homing     == N && is_valid(msg.homing_offset_deg     );
     const bool valid_threshold = n_threshold  == N && is_valid(msg.moving_threshold_deg_s);
     const bool valid_pwm_slope = n_pwm_slope  == N && is_valid(msg.pwm_slope_percent     );
     const bool valid_ret_delay = n_ret_delay  == N && is_valid(msg.return_delay_time_us  );
 
     if ( verbose_callback_ ) {
-        if ( n_shadow_id >0 ){ if(has_shadow_id  ) ROS_INFO("  - updated: shadow_id             "); else ROS_WARN("  - skipped: shadow_id              %s", warn_s);}
+        if ( n_shadow_id >0 ){ if(has_shadow     ) ROS_INFO("  - updated: shadow_id             "); else ROS_WARN("  - skipped: shadow_id              %s", warn_s);}
         if ( n_homing    >0 ){ if(valid_homing   ) ROS_INFO("  - updated: homing_offset_deg     "); else ROS_WARN("  - skipped: homing_offset_deg      %s", n_homing   !=N?warn_s:warn_n);}
         if ( n_threshold >0 ){ if(valid_threshold) ROS_INFO("  - updated: moving_threshold_deg_s"); else ROS_WARN("  - skipped: moving_threshold_deg_s %s", n_threshold!=N?warn_s:warn_n);}
         if ( n_pwm_slope >0 ){ if(valid_pwm_slope) ROS_INFO("  - updated: pwm_slope_percent     "); else ROS_WARN("  - skipped: pwm_slope_percent      %s", n_pwm_slope!=N?warn_s:warn_n);}
@@ -707,65 +706,52 @@ void DynamixelHandler::CallbackCmd_Extra_Config(const DynamixelExtra& msg, const
         if ( n_restore_tq  >0 ){ if(has_restore_tq ) ROS_INFO("   -- updated: .startup_torque_on"); else ROS_WARN("   -- skipped: .startup_torque_on   %s", warn_s);}
     }
 
-    if ( !has_shadow_id && !valid_homing && !valid_threshold && !valid_pwm_slope 
+    if ( !has_shadow && !valid_homing && !valid_threshold && !valid_pwm_slope 
          && !valid_ret_delay && !has_drive && !has_shutdown && !has_restore ) return; // 有効なIDがあるが，有効な要素がない場合は何もしない
 
     for (size_t i=0; i<msg.id_list.size(); i++) if ( id_t ID = msg.id_list[i]; is_in(ID, valid_id_list) ) {
-        const bool is_dummy = (series_[ID] == SERIES_UNKNOWN);
-        WriteTorqueEnable(ID, false);
-
-        if ( valid_ret_delay && IsSupported(Trait(ExtraField::RETURN_DELAY_TIME), series_[ID]) ) {
-            if ( is_dummy ) extra_db_[ID][EXTRA_RETURN_DELAY_TIME] = msg.return_delay_time_us[i];
-            else            WriteReturnDelayTime(ID, msg.return_delay_time_us[i]);
-        }
-        if ( has_shadow_id && IsSupported(Trait(ExtraField::SHADOW_ID), series_[ID]) ) {
-            if ( is_dummy ) extra_u8_[ID][EXTRA_SHADOW_ID] = msg.shadow_id[i];
-            else            WriteShadowID(ID, msg.shadow_id[i]);
-        }
-        if ( has_drive  && IsSupported(Trait(ExtraField::DRIVE_MODE), series_[ID]) ) {
-            auto mode = bitset<8>(extra_u8_[ID][EXTRA_DRIVE_MODE]);
+        const bool is_dummy = series_[ID] == SERIES_UNKNOWN;
+        auto set_db = [&](ExtraDoubleIndex idx, double val){
+            extra_db_w_[ID][idx] = val;
+            updated_id_extra_.insert(ID); extra_indice_write_.insert(idx);
+        };
+        auto set_u8 = [&](ExtraIntIndex idx, uint8_t val){
+            extra_u8_w_[ID][idx] = val;
+            updated_id_extra_.insert(ID); extra_indice_write_.insert(idx);
+        };
+        
+        if ( has_shadow && (is_dummy || has_shadow_id (model_[ID])) ) set_u8(EXTRA_SHADOW_ID, msg.shadow_id[i]);
+        if ( has_drive  && (is_dummy || has_drive_mode(model_[ID])) ) {
+            auto mode = bitset<8>(extra_u8_w_[ID][EXTRA_DRIVE_MODE]);
             if ( has_drive_tq  ) mode[DRV_MODE_AUTO_ACTIVATE] = msg.drive_mode.torque_on_by_goal_update[i];
             if ( has_drive_rev ) mode[DRV_MODE_REVERSE_MODE ] = msg.drive_mode.reverse_mode[i];
             if ( has_drive_prof ) { const auto& cfg = msg.drive_mode.profile_configuration[i];
                 if      ( cfg == msg.drive_mode.TIME_BASED     ) mode[DRV_MODE_PROFILE_TIME_BASED] = true;
                 else if ( cfg == msg.drive_mode.VELOCITY_BASED ) mode[DRV_MODE_PROFILE_TIME_BASED] = false;
-                else if ( verbose_callback_ ) ROS_WARN("   Invalid profile_config [%s], please see DynamixelExtraDrivemode.msg definition", cfg.c_str());
+                else if ( verbose_callback_ ) ROS_WARN("   Invalid drive_mode.profile_config [%s], ignored", cfg.c_str());
             }
-            if ( is_dummy ) extra_u8_[ID][EXTRA_DRIVE_MODE] = mode.to_ulong();
-            else            WriteDriveMode(ID, mode);
+            set_u8(EXTRA_DRIVE_MODE, mode.to_ulong());
         }
-        if ( has_shutdown && IsSupported(Trait(ExtraField::SHUTDOWN), series_[ID]) ) {
-            auto shutdown = bitset<8>(extra_u8_[ID][EXTRA_SHUTDOWN]);
+        if ( has_shutdown ) {
+            auto shutdown = bitset<8>(extra_u8_w_[ID][EXTRA_SHUTDOWN]);
             if ( has_sd_ovl ) shutdown[SHUTDOWN_OVERLOAD         ] = msg.shutdown.overload_error[i];
             if ( has_sd_esh ) shutdown[SHUTDOWN_ELECTRICAL_SHOCK ] = msg.shutdown.electrical_shock_error[i];
             if ( has_sd_enc ) shutdown[SHUTDOWN_MOTOR_ENCODER    ] = msg.shutdown.motor_encoder_error[i];
             if ( has_sd_hal ) shutdown[SHUTDOWN_MOTOR_HALL_SENSOR] = msg.shutdown.motor_hall_sensor_error[i]; // P, Proのみ
             if ( has_sd_ovh ) shutdown[SHUTDOWN_OVERHEATING      ] = msg.shutdown.overheating_error[i];
             if ( has_sd_vin ) shutdown[SHUTDOWN_INPUT_VOLTAGE    ] = msg.shutdown.input_voltage_error[i];
-            if ( is_dummy ) extra_u8_[ID][EXTRA_SHUTDOWN] = shutdown.to_ulong();
-            else            WriteShutdown(ID, shutdown);
+            set_u8(EXTRA_SHUTDOWN, shutdown.to_ulong());
         }
-        if ( has_restore && IsSupported(Trait(ExtraField::RESTORE_CONFIGURATION), series_[ID]) ) {
-            auto startup = bitset<8>(extra_u8_[ID][EXTRA_RESTORE_CONFIGURATION]);
+        if ( has_restore && (is_dummy || has_restore_configuration(model_[ID])) ) {
+            auto startup = bitset<8>(extra_u8_w_[ID][EXTRA_RESTORE_CONFIG]);
             if ( has_restore_ram ) startup[STARTUP_CONFIG_RAM_RESTORE] = msg.restore_configuration.ram_restore[i];
             if ( has_restore_tq  ) startup[STARTUP_CONFIG_TORQUE_ON  ] = msg.restore_configuration.startup_torque_on[i];
-            if ( is_dummy ) extra_u8_[ID][EXTRA_RESTORE_CONFIGURATION] = startup.to_ulong();
-            else            WriteStartupConfiguration(ID, startup);
+            set_u8(EXTRA_RESTORE_CONFIG, startup.to_ulong());
         }
-        if ( valid_homing && IsSupported(Trait(ExtraField::HOMING_OFFSET), series_[ID]) ) {
-            if ( is_dummy ) extra_db_[ID][EXTRA_HOMING_OFFSET] = deg2rad(msg.homing_offset_deg[i]);
-            else            WriteHomingOffset(ID, deg2rad(msg.homing_offset_deg[i]));
-        }
-        if ( valid_threshold && IsSupported(Trait(ExtraField::MOVING_THRESHOLD), series_[ID]) ) {
-            if ( is_dummy ) extra_db_[ID][EXTRA_MOVING_THRESHOLD] = deg2rad(max(0.0, msg.moving_threshold_deg_s[i]));
-            else            WriteMovingThreshold(ID, deg2rad(max(0.0, msg.moving_threshold_deg_s[i])));
-        }
-        if ( valid_pwm_slope && IsSupported(Trait(ExtraField::PWM_SLOPE), series_[ID]) ) { // pwm_slopeはX330系のみ有効
-            if ( is_dummy ) extra_db_[ID][EXTRA_PWM_SLOPE] = msg.pwm_slope_percent[i];
-            else            WritePwmSlope(ID, msg.pwm_slope_percent[i]);
-        }
-
-        WriteTorqueEnable(ID, tq_mode_r_[ID]);
+        if ( valid_homing    ) set_db(EXTRA_HOMING_OFFSET   , deg2rad(         msg.homing_offset_deg[i]      ));
+        if ( valid_threshold ) set_db(EXTRA_MOVING_THRESHOLD, deg2rad(max(0.0, msg.moving_threshold_deg_s[i])));
+        if ( valid_ret_delay ) set_db(EXTRA_RETURN_DELAY_TIME, msg.return_delay_time_us[i]);
+        if ( valid_pwm_slope && (is_dummy || has_pwm_slope(model_[ID])) ) set_db(EXTRA_PWM_SLOPE, msg.pwm_slope_percent[i]);
     }
 }
 
@@ -795,30 +781,21 @@ void DynamixelHandler::CallbackCmd_Extra_Func(const DynamixelExtra& msg, const v
     }
     if ( !valid_led && !valid_watch && !valid_reboot ) return;
 
-    static constexpr double NaN = std::numeric_limits<double>::quiet_NaN();
     for (size_t i=0; i<msg.id_list.size(); i++) if ( id_t ID = msg.id_list[i]; is_in(ID, valid_id_list) ) {
-        const bool is_dummy = (series_[ID] == SERIES_UNKNOWN);
-
-        if ( valid_led && IsSupported(Trait(ExtraField::LED), series_[ID]) ) {
-            if ( is_dummy ) {
-                if ( valid_led_r ) extra_db_[ID][EXTRA_LED_RED  ] = clamp(msg.led.red_percent[i]  , 0.0, 100.0);
-                if ( valid_led_g ) extra_db_[ID][EXTRA_LED_GREEN] = clamp(msg.led.green_percent[i], 0.0, 100.0);
-                if ( valid_led_b ) extra_db_[ID][EXTRA_LED_BLUE ] = clamp(msg.led.blue_percent[i] , 0.0, 100.0);
-            } else {
-                const double R = (valid_led_r) ? clamp(msg.led.red_percent[i]  , 0.0, 100.0) : NaN;
-                const double G = (valid_led_g) ? clamp(msg.led.green_percent[i], 0.0, 100.0) : NaN;
-                const double B = (valid_led_b) ? clamp(msg.led.blue_percent[i] , 0.0, 100.0) : NaN;
-                WriteLedColor(ID, R, G, B);
-            }
+        const bool is_dummy = series_[ID] == SERIES_UNKNOWN;
+        if ( valid_led ) {
+            if ( valid_led_r ) { extra_db_w_[ID][EXTRA_LED_RED  ] = clamp(msg.led.red_percent[i]  , 0.0, 100.0); extra_indice_write_.insert(EXTRA_LED_RED  ); }
+            if ( valid_led_g ) { extra_db_w_[ID][EXTRA_LED_GREEN] = clamp(msg.led.green_percent[i], 0.0, 100.0); extra_indice_write_.insert(EXTRA_LED_GREEN); }
+            if ( valid_led_b ) { extra_db_w_[ID][EXTRA_LED_BLUE ] = clamp(msg.led.blue_percent[i] , 0.0, 100.0); extra_indice_write_.insert(EXTRA_LED_BLUE ); }
+            updated_id_extra_.insert(ID);
         }
 
-        if ( valid_watch && IsSupported(Trait(ExtraField::BUS_WATCHDOG), series_[ID]) ) {
-            watchdog_w_[ID] = clamp(msg.bus_watchdog_ms[i], 0.0, 508.0 /*ms*/);
-            if ( is_dummy ) watchdog_r_[ID] = watchdog_w_[ID];
-            else            WriteBusWatchdog(ID, watchdog_w_[ID]);
+        if ( valid_watch && (is_dummy || has_bus_watchdog(model_[ID])) ) {
+            extra_db_w_[ID][EXTRA_BUS_WATCHDOG] = clamp(msg.bus_watchdog_ms[i], 0.0, 508.0 /*ms*/);
+            bus_watch_[ID] = extra_db_w_[ID][EXTRA_BUS_WATCHDOG];
+            updated_id_extra_.insert(ID); extra_indice_write_.insert(EXTRA_BUS_WATCHDOG);
         }
 
-        if ( valid_reboot && IsSupported(Trait(ExtraField::REBOOT), series_[ID] ) )
-            if ( msg.reboot[i] ) Reboot(ID);
+        if ( valid_reboot ) if ( msg.reboot[i] ) Reboot(ID);
     }
 }

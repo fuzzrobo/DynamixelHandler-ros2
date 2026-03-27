@@ -235,21 +235,23 @@ class DynamixelHandler : public rclcpp::Node {
             EXTRA_MOVING_THRESHOLD,
             EXTRA_PWM_SLOPE,
             EXTRA_REALTIME_TICK,
+            EXTRA_BUS_WATCHDOG,
             EXTRA_LED_RED,
             EXTRA_LED_GREEN,
             EXTRA_LED_BLUE,
-            _num_extra_db
+            _num_ex_db
         };
         enum ExtraIntIndex {
-            EXTRA_FIRMWARE_VERSION,
+            EXTRA_FIRMWARE_VERSION = _num_ex_db,
             EXTRA_PROTOCOL_TYPE,
             EXTRA_DRIVE_MODE,
             EXTRA_SHUTDOWN,
-            EXTRA_RESTORE_CONFIGURATION,
+            EXTRA_RESTORE_CONFIG,
             EXTRA_SHADOW_ID,
             EXTRA_MOVING_STATUS, // moving status と moving を 1つにまとめてる． EXTRA_U8_MOVING_STATUS_MOVING_BIT が　movingのビット位置
-            _num_extra_u8
+            _num_ex_u8
         };
+        using ExtraIndex = uint8_t;
         static constexpr uint8_t EXTRA_U8_MOVING_STATUS_MOVING_BIT = 7;
         // 連結したサーボの基本情報
         using id_t     = uint8_t;
@@ -261,6 +263,7 @@ class DynamixelHandler : public rclcpp::Node {
         static inline unordered_map<id_t, model_t > model_;  // 各dynamixelの id と model のマップ
         static inline unordered_map<id_t, series_t> series_; // 各dynamixelの id と series のマップ
         static inline unordered_map<id_t, uint64_t> ping_err_; // 各dynamixelの id と 連続でpingに応答しなかった回数のマップ
+        static inline unordered_map<id_t, double  > bus_watch_; // 各dynamixelの id と CheckDynamixelsで使う bus_watchdog の目標値(ms)（<0: command未指定）
         static inline unordered_map<id_t, bool    > tq_mode_w_;  // 各dynamixelの id と トルクON/OFF の書き込み値のマップ (~_r_と差をなくすように書き込む)
         static inline unordered_map<id_t, bool    > tq_mode_r_;  // 各dynamixelの id と トルクON/OFF の読み込み値のマップ
         static inline unordered_map<id_t, opmode_t> op_mode_w_;  // 各dynamixelの id と 制御モード の書き込み値のマップ (~_r_と差をなくすように書き込む)
@@ -274,10 +277,10 @@ class DynamixelHandler : public rclcpp::Node {
         static inline unordered_map<id_t, array<uint16_t,_num_gain  >> gain_r_;    // 各dynamixelの id と サーボから読み込んだゲインのマップ
         static inline unordered_map<id_t, array<double, _num_limit  >> limit_w_;   // 各dynamixelの id と サーボへ書き込む制限値のマップ
         static inline unordered_map<id_t, array<double, _num_limit  >> limit_r_;   // 各dynamixelの id と サーボから読み込んだ制限値のマップ
-        static inline unordered_map<id_t, array<double , _num_extra_db>> extra_db_; // 各dynamixelの id と extraのdouble系データ
-        static inline unordered_map<id_t, array<uint8_t, _num_extra_u8>> extra_u8_; // 各dynamixelの id と extraのuint8系データ
-        static inline unordered_map<id_t, double> watchdog_w_; // 各dynamixelの id と bus_watchdogの目標値(ms)のマップ（<0: command未指定）
-        static inline unordered_map<id_t, double> watchdog_r_; // 各dynamixelの id と bus_watchdogの実測値(ms)のマップ
+        static inline unordered_map<id_t, array<double , _num_ex_db >> extra_db_r_; // 各dynamixelの id と extraのdouble系データ
+        static inline unordered_map<id_t, array<double , _num_ex_db >> extra_db_w_; // 各dynamixelの id と extraのdouble系目標値
+        static inline unordered_map<id_t, array<uint8_t, _num_ex_u8 >> extra_u8_r_; // 各dynamixelの id と extraのuint8系データ
+        static inline unordered_map<id_t, array<uint8_t, _num_ex_u8 >> extra_u8_w_; // 各dynamixelの id と extraのuint8系目標値
 
         // 上記の変数を適切に使うための補助的なフラグ
         static inline unordered_map<id_t, double> when_op_mode_updated_; // 各dynamixelの id と op_mode_ が更新された時刻のマップ
@@ -285,10 +288,12 @@ class DynamixelHandler : public rclcpp::Node {
         static inline unordered_set<id_t> updated_id_goal_;    // topicのcallbackによって，goal_w_が更新されたidの集合
         static inline unordered_set<id_t> updated_id_gain_;    // topicのcallbackによって，limit_w_が更新されたidの集合
         static inline unordered_set<id_t> updated_id_limit_;   // topicのcallbackによって，limit_w_が更新されたidの集合
+        static inline unordered_set<id_t> updated_id_extra_;   // topicのcallbackによって，extra_w_が更新されたidの集合
         // 各周期で実行するserial通信の内容を決めるためのset, 順序が必要なのでset
         static inline set<GoalIndex   > goal_indice_write_;
         static inline set<GainIndex   > gain_indice_write_;
         static inline set<LimitIndex  > limit_indice_write_;
+        static inline set<ExtraIndex  > extra_indice_write_;
         static inline set<PresentIndex> present_indice_read_ = {PRESENT_POSITION, PRESENT_VELOCITY, PRESENT_CURRENT, PRESENT_PWM, VELOCITY_TRAJECTORY, POSITION_TRAJECTORY, PRESENT_INPUT_VOLTAGE, PRESENT_TEMPERATURE};
         static inline set<GoalIndex   > goal_indice_read_    = {GOAL_POSITION, GOAL_VELOCITY, GOAL_CURRENT, GOAL_PWM, PROFILE_ACC, PROFILE_VEL};
         static inline set<GainIndex   > gain_indice_read_    = {VELOCITY_I_GAIN, VELOCITY_P_GAIN, POSITION_D_GAIN, POSITION_I_GAIN, POSITION_P_GAIN, FEEDFORWARD_ACC_GAIN, FEEDFORWARD_VEL_GAIN};
@@ -367,6 +372,7 @@ class DynamixelHandler : public rclcpp::Node {
         bool WriteLedColor(id_t servo_id, double red_percent, double green_percent, double blue_percent);
         bool WriteGains(id_t servo_id, array<uint16_t, _num_gain> gains);
         //* 連結しているDynamixelに一括で読み書きするloopで使用する機能
+        void BulkWrite_log(const map<id_t, vector<DynamixelAddress>>& id_addr_list_map, const map<id_t, vector<int64_t>>& id_data_vec_map, bool verbose);
         void SyncWrite_log(const vector<DynamixelAddress>& addr_list, const map<id_t, vector<int64_t>>& id_data_map, bool verbose);
         void SyncWrite_log(const        DynamixelAddress&  addr,      const vector<id_t>& id_list, const vector<int64_t>& data_list, bool verbose);
         map<id_t, vector<int64_t>> SyncRead_log(const vector<DynamixelAddress>& addr_list, const vector<id_t>& id_list, bool verbose, bool verbose_err);
@@ -375,6 +381,7 @@ class DynamixelHandler : public rclcpp::Node {
         template <typename Addr=AddrCommon> void SyncWriteGoal (set<GoalIndex>   goal_indice_write, const unordered_set<id_t>&  updated_id_goal);
         template <typename Addr=AddrCommon> void SyncWriteGain (set<GainIndex>   gain_indice_write, const unordered_set<id_t>&  updated_id_gain);
         template <typename Addr=AddrCommon> void SyncWriteLimit(set<LimitIndex> limit_indice_write, const unordered_set<id_t>& updated_id_limit);
+                                            void BulkWriteExtra(set<ExtraIndex> extra_indice_write, const unordered_set<id_t>& updated_id_extra);
         template <typename Addr=AddrCommon> tuple<double, uint8_t> SyncReadPresent(set<PresentIndex> present_indice_read, const set<id_t>& id_set=id_set_);
         template <typename Addr=AddrCommon> tuple<double, uint8_t> SyncReadGoal   (set<GoalIndex>       goal_indice_read, const set<id_t>& id_set=id_set_);
         template <typename Addr=AddrCommon> tuple<double, uint8_t> SyncReadGain   (set<GainIndex>       gain_indice_read, const set<id_t>& id_set=id_set_); 

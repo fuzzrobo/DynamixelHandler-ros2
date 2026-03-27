@@ -87,10 +87,10 @@ bool DynamixelHandler::AddDynamixel(id_t id){
         }
     }
 
-    extra_db_[id].fill(NaN);
-    extra_u8_[id].fill(0);
-    extra_u8_[id][EXTRA_FIRMWARE_VERSION] = ReadFirmwareVersion(id);
-    extra_u8_[id][EXTRA_PROTOCOL_TYPE   ] = ReadProtocolVersion(id);
+    extra_db_r_[id].fill(NaN);
+    extra_u8_r_[id].fill(0);
+    extra_u8_r_[id][EXTRA_FIRMWARE_VERSION] = ReadFirmwareVersion(id);
+    extra_u8_r_[id][EXTRA_PROTOCOL_TYPE   ] = ReadProtocolVersion(id);
 
     WriteBusWatchdog(id, 0.0/*ms*/); // 最初にBusWatchdogを無効化することで，全てのGoal値の書き込みを許可する
     WriteProfileAcc(id, default_["profile_acc_deg_ss"]*DEG ); 
@@ -113,14 +113,16 @@ bool DynamixelHandler::AddDynamixel(id_t id){
     limit_w_[id] = limit_r_[id];
     gain_w_[id] = gain_r_[id];
     goal_w_[id] = goal_r_[id];
-    watchdog_w_[id] = -1.0; // command未指定
+    extra_db_w_[id] = extra_db_r_[id];
+    extra_u8_w_[id] = extra_u8_r_[id];
+    bus_watch_[id] = -1.0; // command未指定
 
     if ( auto val=default_["profile_acc_deg_ss"]; abs( val - goal_r_[id][PROFILE_ACC]/DEG) > 3 ) 
         ROS_WARN("    profile acc. '%2.1f' could not be set exactly (now '%2.1f')", val , goal_r_[id][PROFILE_ACC]/DEG);
     if ( auto val=default_["profile_vel_deg_s" ]; abs( val - goal_r_[id][PROFILE_VEL]/DEG) > 1 ) 
         ROS_WARN("    profile vel. '%2.1f' could not be set exactly (now '%2.1f')", val, goal_r_[id][PROFILE_VEL]/DEG);
-    if ( auto val=default_["return_delay_time_us"]; abs( val - extra_db_[id][EXTRA_RETURN_DELAY_TIME]) > 0.1 ) 
-        ROS_WARN("    return delay time '%2.1f' could not be set exactly (now '%2.1f')", val, extra_db_[id][EXTRA_RETURN_DELAY_TIME]);
+    if ( auto val=default_["return_delay_time_us"]; abs( val - extra_db_r_[id][EXTRA_RETURN_DELAY_TIME]) > 0.1 ) 
+        ROS_WARN("    return delay time '%2.1f' could not be set exactly (now '%2.1f')", val, extra_db_r_[id][EXTRA_RETURN_DELAY_TIME]);
     if ( default_["bus_watchdog_ms"] < 0.0 || default_["bus_watchdog_ms"] > 508.0 ) 
         ROS_WARN("    bus watchdog '%2.1f' is out of range (0.0-508.0)", default_["bus_watchdog_ms"]);
 
@@ -166,7 +168,7 @@ bool DynamixelHandler::ClearHardwareError(id_t id, bool use_offset){
     else                       while ( !dyn_comm_.Ping(id)            && rclcpp::ok() ) rsleep(10);
     tq_mode_r_[id] = false;
     // 結果を確認
-    hw_err_r_[id] = ReadHardwareError(id); // todo, ReadHardwareError(id)の内，extra_u8_[id][EXTRA_SHUTDOWN]で1な場所が0になっているかを確認するべきかもしれない．
+    hw_err_r_[id] = ReadHardwareError(id); // todo, ReadHardwareError(id)の内，extra_u8_r_[id][EXTRA_SHUTDOWN]で1な場所が0になっているかを確認するべきかもしれない．
     if ( hw_err_r_[id].none() ) {ROS_INFO ("   ID [%d] is cleared error"     , id); return  true;}
     else                        {ROS_ERROR("   ID [%d] failed to clear error", id); return false;}
 }

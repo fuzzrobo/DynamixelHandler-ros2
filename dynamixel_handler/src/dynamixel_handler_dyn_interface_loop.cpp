@@ -2,6 +2,7 @@
 #include "myUtils/formatting_output.hpp"
 #include "myUtils/logging_like_ros1.hpp"
 #include "myUtils/make_iterator_convenient.hpp" // enum のインクリメントと， is_in 関数の実装
+#include <cmath>
 #include <limits>
 
 using std::to_string;
@@ -30,6 +31,17 @@ void DynamixelHandler::SyncWrite_log(
     if ( verbose ) {
         const auto log_text = "  '"+to_string(id_data_vec_map.size())+"' servo(s) "+(is_success?"were written":"write failed")
                                    +control_table_layout(width_log_, id_data_vec_map, addr_list);
+        if ( is_success ) ROS_INFO_STREAM(log_text); else ROS_WARN_STREAM(log_text);
+    }
+}
+void DynamixelHandler::BulkWrite_log(
+    const map<id_t, vector<DynamixelAddress>>& id_addr_list_map, const map<id_t, vector<int64_t>>& id_data_vec_map, bool verbose
+){
+    const bool is_success = dyn_comm_.BulkWrite(id_addr_list_map, id_data_vec_map); fflush(stdout);
+    if ( verbose ) {
+        const auto log_text = "  '"+to_string(id_data_vec_map.size())+"' servo(s) "
+                            + (is_success ? "were bulk-written" : "bulk-write failed")
+                            + control_table_layout_sparse(width_log_, id_data_vec_map, id_addr_list_map);
         if ( is_success ) ROS_INFO_STREAM(log_text); else ROS_WARN_STREAM(log_text);
     }
 }
@@ -223,6 +235,119 @@ template <typename Addr> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> l
     limit_indice_write.erase(start, ++end);  // 今回書き込んだ範囲を消去
     SyncWriteLimit<Addr>(limit_indice_write, updated_id_limit);
 }
+
+void DynamixelHandler::BulkWriteExtra(set<ExtraIndex> extra_indice_write, const unordered_set<id_t>& updated_id_extra){
+    if ( extra_indice_write.empty() ) return; // 空なら即時return
+
+    // dummy の処理
+    for ( auto id : updated_id_extra ) if ( series_[id] == SERIES_UNKNOWN ) for ( auto e : extra_indice_write ) {
+        if ( e < _num_ex_db ) extra_db_r_[id][e] = extra_db_w_[id][e];
+        else                  extra_u8_r_[id][e] = extra_u8_w_[id][e];
+    }
+
+    // RAM　への書き込みを処理． 
+    if ( extra_indice_write.erase(EXTRA_LED_RED)  || // 要素が消せた場合はtrue(1)が返るので存在判定と削除を同時に行う．
+         extra_indice_write.erase(EXTRA_LED_BLUE) || extra_indice_write.erase(EXTRA_LED_GREEN) ) {
+        map<id_t, vector<DynamixelAddress>> id_addrs_map;
+        map<id_t, vector<int64_t>> id_data_vec_map;
+        for ( auto id : updated_id_extra ) if (is_in(id, id_set_)) switch ( series_[id] ) {
+            case SERIES_X:
+                id_addrs_map[id] = {AddrX::led};
+                id_data_vec_map[id] = {extra_db_w_[id][EXTRA_LED_RED] >= 50.0 ? 1 : 0};
+                break;
+            case SERIES_P:
+                id_addrs_map[id] = {AddrP::led_red, AddrP::led_green, AddrP::led_blue};
+                id_data_vec_map[id] = { (uint8_t)(extra_db_w_[id][EXTRA_LED_RED  ] * 255.0 / 100.0 + 0.5),
+                                        (uint8_t)(extra_db_w_[id][EXTRA_LED_GREEN] * 255.0 / 100.0 + 0.5),
+                                        (uint8_t)(extra_db_w_[id][EXTRA_LED_BLUE ] * 255.0 / 100.0 + 0.5)};
+                break;
+            case SERIES_PRO:
+                id_addrs_map[id] = {AddrPro::led_red, AddrPro::led_green, AddrPro::led_blue};
+                id_data_vec_map[id] = { (uint8_t)(extra_db_w_[id][EXTRA_LED_RED  ] * 255.0 / 100.0 + 0.5),
+                                        (uint8_t)(extra_db_w_[id][EXTRA_LED_GREEN] * 255.0 / 100.0 + 0.5),
+                                        (uint8_t)(extra_db_w_[id][EXTRA_LED_BLUE ] * 255.0 / 100.0 + 0.5)};
+                break;
+            default: break; // ここに来るのは series_[id]==SERIES_UNKNOWN だけのはず．
+        }
+        if ( !id_data_vec_map.empty() ) BulkWrite_log(id_addrs_map, id_data_vec_map, verbose_["w_extra"]);
+    }
+    if ( extra_indice_write.erase(EXTRA_BUS_WATCHDOG) ) {
+        map<id_t, vector<DynamixelAddress>> id_addrs_map;
+        map<id_t, vector<int64_t>> id_data_vec_map;
+        for ( auto id : updated_id_extra ) if (is_in(id, id_set_)) switch ( series_[id] ) {
+            case SERIES_X:
+                id_addrs_map[id] = {AddrX::bus_watchdog};
+                id_data_vec_map[id] = {AddrX::bus_watchdog.val2pulse(extra_db_w_[id][EXTRA_BUS_WATCHDOG], model_[id])};
+                break;
+            case SERIES_P:
+                id_addrs_map[id] = {AddrP::bus_watchdog};
+                id_data_vec_map[id] = {AddrP::bus_watchdog.val2pulse(extra_db_w_[id][EXTRA_BUS_WATCHDOG], model_[id])};
+                break;
+            default: break; // PRO と dummy は bus_watchdog 非対応
+        }
+        if ( !id_data_vec_map.empty() ) BulkWrite_log(id_addrs_map, id_data_vec_map, verbose_["w_extra"]);
+    }
+
+    if ( extra_indice_write.empty() ) return; // 以降はROMデータへの書き込み
+
+    map<id_t, vector<DynamixelAddress>> id_addrs_map_tq;
+    map<id_t, vector<int64_t>> id_data_vec_map_tq_off, id_data_vec_map_tq_restore;
+    for ( auto id : updated_id_extra ) if (is_in(id, id_set_)) { 
+        switch ( series_[id] ) {
+            case SERIES_X:  id_addrs_map_tq[id] = {AddrX::torque_enable};   break;
+            case SERIES_P:  id_addrs_map_tq[id] = {AddrP::torque_enable};   break;
+            case SERIES_PRO:id_addrs_map_tq[id] = {AddrPro::torque_enable}; break;
+            default: continue; // ここに来るのは series_[id]==SERIES_UNKNOWN だけのはず．
+        }
+        id_data_vec_map_tq_off[id]     = {TORQUE_DISABLE};
+        id_data_vec_map_tq_restore[id] = {tq_mode_r_[id]};
+    }
+
+    BulkWrite_log(id_addrs_map_tq, id_data_vec_map_tq_off, verbose_["w_extra"]);
+
+    for ( auto e : extra_indice_write ) {
+        map<id_t, vector<DynamixelAddress>> id_addrs_map;
+        map<id_t, vector<int64_t>> id_data_vec_map;
+        auto set_addr_val = [&](id_t id, const auto& addr, double val){
+            id_addrs_map[id] = {addr}; id_data_vec_map[id] = {addr.val2pulse(val, model_[id])};
+        };
+        for ( auto id : updated_id_extra ) if (is_in(id, id_set_)) switch ( series_[id] ) { 
+            case SERIES_X: switch ( e ) {
+                    case EXTRA_RETURN_DELAY_TIME: set_addr_val(id, AddrX::return_delay_time,     extra_db_w_[id][e]); break;
+                    case EXTRA_DRIVE_MODE       : set_addr_val(id, AddrX::drive_mode,            extra_u8_w_[id][e]); break;
+                    case EXTRA_SHADOW_ID        : set_addr_val(id, AddrX::shadow_id,             extra_u8_w_[id][e]); break;
+                    case EXTRA_HOMING_OFFSET    : set_addr_val(id, AddrX::homing_offset,         extra_db_w_[id][e]); break;
+                    case EXTRA_MOVING_THRESHOLD : set_addr_val(id, AddrX::moving_threshold,      extra_db_w_[id][e]); break;
+                    case EXTRA_SHUTDOWN         : set_addr_val(id, AddrX::shutdown,              extra_u8_w_[id][e]); break;
+                    case EXTRA_RESTORE_CONFIG   : set_addr_val(id, AddrX::startup_configuration, extra_u8_w_[id][e]); break;
+                    case EXTRA_PWM_SLOPE        : if ( has_pwm_slope(model_[id]) ) set_addr_val(id, AddrX::pwm_slope, extra_db_w_[id][e]); break;
+                    default: break; 
+                } break;
+            case SERIES_P: switch ( e ) {
+                    case EXTRA_RETURN_DELAY_TIME: set_addr_val(id, AddrP::return_delay_time,     extra_db_w_[id][e]); break;
+                    case EXTRA_DRIVE_MODE       : set_addr_val(id, AddrP::drive_mode,            extra_u8_w_[id][e]); break;
+                    case EXTRA_SHADOW_ID        : set_addr_val(id, AddrP::shadow_id,             extra_u8_w_[id][e]); break;
+                    case EXTRA_HOMING_OFFSET    : set_addr_val(id, AddrP::homing_offset,         extra_db_w_[id][e]); break;
+                    case EXTRA_MOVING_THRESHOLD : set_addr_val(id, AddrP::moving_threshold,      extra_db_w_[id][e]); break;
+                    case EXTRA_SHUTDOWN         : set_addr_val(id, AddrP::shutdown,              extra_u8_w_[id][e]); break;
+                    case EXTRA_RESTORE_CONFIG   : set_addr_val(id, AddrP::startup_configuration, extra_u8_w_[id][e]); break;
+                    default: break;
+                } break;
+            case SERIES_PRO: switch ( e ) {
+                    case EXTRA_RETURN_DELAY_TIME: set_addr_val(id, AddrPro::return_delay_time, extra_db_w_[id][e]); break;
+                    case EXTRA_HOMING_OFFSET    : set_addr_val(id, AddrPro::homing_offset,     extra_db_w_[id][e]); break;
+                    case EXTRA_MOVING_THRESHOLD : set_addr_val(id, AddrPro::moving_threshold,  extra_db_w_[id][e]); break;
+                    case EXTRA_SHUTDOWN         : set_addr_val(id, AddrPro::shutdown,          extra_u8_w_[id][e]); break;
+                    default: break;
+                } break;
+            default: break; // ここに来るのは series_[id]==SERIES_UNKNOWN だけのはず．
+        }
+        if ( !id_data_vec_map.empty() ) BulkWrite_log(id_addrs_map, id_data_vec_map, verbose_["w_extra"]);
+    }
+
+    BulkWrite_log(id_addrs_map_tq, id_data_vec_map_tq_restore, verbose_["w_extra"]);
+}
+
 
 using std::chrono::system_clock;
 using std::chrono::duration_cast;
@@ -490,12 +615,10 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadGoal(s
 }
 
 tuple<double, uint8_t> DynamixelHandler::BulkReadExtra_rapid(const set<id_t>& id_set) {
-    set<id_t> valid_id_set;
-    for ( auto id : id_set ) if ( is_in(id, id_set_) ) valid_id_set.insert(id);
-    if ( valid_id_set.empty() ) return {1.0, 0};
+    if ( id_set.empty() ) return {1.0, 0};
 
     map<id_t, vector<DynamixelAddress>> id_addr_list_map;
-    for ( auto id : valid_id_set ) switch ( series_[id] ) {
+    for ( auto id : id_set ) switch ( series_[id] ) {
         case SERIES_X:   id_addr_list_map[id] = {AddrX::moving, AddrX::moving_status, AddrX::realtime_tick}; break;
         case SERIES_P:   id_addr_list_map[id] = {AddrP::moving, AddrP::moving_status, AddrP::realtime_tick}; break;
         case SERIES_PRO: id_addr_list_map[id] = {AddrPro::moving}; break;
@@ -510,10 +633,10 @@ tuple<double, uint8_t> DynamixelHandler::BulkReadExtra_rapid(const set<id_t>& id
     for ( const auto& [id, data] : id_data_vec_map ) switch ( series_[id] ) {
         case SERIES_X:
         case SERIES_P: 
-            extra_u8_[id][EXTRA_MOVING_STATUS] =((data[0] & 0x01) << EXTRA_U8_MOVING_STATUS_MOVING_BIT) + data[1];
-            extra_db_[id][EXTRA_REALTIME_TICK] = id_addr_list_map[id][2].pulse2val(data[2], model_[id]); break;
+            extra_u8_r_[id][EXTRA_MOVING_STATUS] =((data[0] & 0x01) << EXTRA_U8_MOVING_STATUS_MOVING_BIT) + data[1];
+            extra_db_r_[id][EXTRA_REALTIME_TICK] = id_addr_list_map[id][2].pulse2val(data[2], model_[id]); break;
         case SERIES_PRO:
-            extra_u8_[id][EXTRA_MOVING_STATUS] = (data[0] & 0x01) << EXTRA_U8_MOVING_STATUS_MOVING_BIT;  break;
+            extra_u8_r_[id][EXTRA_MOVING_STATUS] = (data[0] & 0x01) << EXTRA_U8_MOVING_STATUS_MOVING_BIT;  break;
         default: break; // ここに来るのはSERIES_UNKNOWNだけのはず
     }
 
@@ -522,18 +645,16 @@ tuple<double, uint8_t> DynamixelHandler::BulkReadExtra_rapid(const set<id_t>& id
 }
 
 tuple<double, uint8_t> DynamixelHandler::BulkReadExtra_slow(const set<id_t>& id_set) {
-    set<id_t> valid_id_set;
-    for ( auto id : id_set ) if ( is_in(id, id_set_) ) valid_id_set.insert(id);
-    if ( valid_id_set.empty() ) return {1.0, 0};
+    if ( id_set.empty() ) return {1.0, 0};
     const auto NaN = std::numeric_limits<double>::quiet_NaN();
 
     uint8_t n_id = 0;
-    for ( auto id : valid_id_set ) if ( series_[id] != SERIES_UNKNOWN ) n_id++;
+    for ( auto id : id_set ) if ( series_[id] != SERIES_UNKNOWN ) n_id++;
 
     double sum_rate = 0.0,  n_rate = 0.0;
     // Group C1
     map<id_t, vector<DynamixelAddress>> id_addrs_map_c1;
-    for ( auto id : valid_id_set ) switch ( series_[id] ) {
+    for ( auto id : id_set ) switch ( series_[id] ) {
         case SERIES_X:   id_addrs_map_c1[id] = {AddrX::return_delay_time, AddrX::drive_mode, AddrX::shadow_id, AddrX::homing_offset, AddrX::moving_threshold}; break;
         case SERIES_P:   id_addrs_map_c1[id] = {AddrP::return_delay_time, AddrP::drive_mode, AddrP::shadow_id, AddrP::homing_offset, AddrP::moving_threshold}; break;
         case SERIES_PRO: id_addrs_map_c1[id] = {AddrPro::return_delay_time, AddrPro::homing_offset, AddrPro::moving_threshold}; break;
@@ -546,15 +667,15 @@ tuple<double, uint8_t> DynamixelHandler::BulkReadExtra_slow(const set<id_t>& id_
         for ( const auto& [id, data] : id_data_vec_map ) switch ( series_[id] ) {
             case SERIES_X:
             case SERIES_P:
-                extra_db_[id][EXTRA_RETURN_DELAY_TIME] = id_addrs_map_c1[id][0].pulse2val(data[0], model_[id]);
-                extra_u8_[id][EXTRA_DRIVE_MODE]        = data[1];
-                extra_u8_[id][EXTRA_SHADOW_ID]         = data[2];
-                extra_db_[id][EXTRA_HOMING_OFFSET]     = id_addrs_map_c1[id][3].pulse2val(data[3], model_[id]);
-                extra_db_[id][EXTRA_MOVING_THRESHOLD]  = id_addrs_map_c1[id][4].pulse2val(data[4], model_[id]); break;
+                extra_db_r_[id][EXTRA_RETURN_DELAY_TIME] = id_addrs_map_c1[id][0].pulse2val(data[0], model_[id]);
+                extra_u8_r_[id][EXTRA_DRIVE_MODE       ] = data[1];
+                extra_u8_r_[id][EXTRA_SHADOW_ID        ] = data[2];
+                extra_db_r_[id][EXTRA_HOMING_OFFSET    ] = id_addrs_map_c1[id][3].pulse2val(data[3], model_[id]);
+                extra_db_r_[id][EXTRA_MOVING_THRESHOLD ] = id_addrs_map_c1[id][4].pulse2val(data[4], model_[id]); break;
             case SERIES_PRO:
-                extra_db_[id][EXTRA_RETURN_DELAY_TIME] = id_addrs_map_c1[id][0].pulse2val(data[0], model_[id]);
-                extra_db_[id][EXTRA_HOMING_OFFSET]     = id_addrs_map_c1[id][1].pulse2val(data[1], model_[id]);
-                extra_db_[id][EXTRA_MOVING_THRESHOLD]  = id_addrs_map_c1[id][2].pulse2val(data[2], model_[id]); break;
+                extra_db_r_[id][EXTRA_RETURN_DELAY_TIME] = id_addrs_map_c1[id][0].pulse2val(data[0], model_[id]);
+                extra_db_r_[id][EXTRA_HOMING_OFFSET    ] = id_addrs_map_c1[id][1].pulse2val(data[1], model_[id]);
+                extra_db_r_[id][EXTRA_MOVING_THRESHOLD ] = id_addrs_map_c1[id][2].pulse2val(data[2], model_[id]); break;
             default: break; // ここに来るのはSERIES_UNKNOWNだけのはず
         }
         sum_rate += N_total == 0 ? 0.0 : N_suc / (double)N_total;
@@ -563,10 +684,8 @@ tuple<double, uint8_t> DynamixelHandler::BulkReadExtra_slow(const set<id_t>& id_
 
     // Group C2
     map<id_t, vector<DynamixelAddress>> id_addrs_map_c2;
-    for ( auto id : valid_id_set ) switch ( series_[id] ) {
-        case SERIES_X:   id_addrs_map_c2[id] = has_pwm_slope(model_[id])  // pwm_slopeはX330系のみ（Addr=62）
-                                              ? vector<DynamixelAddress>{AddrX::shutdown, AddrX::startup_configuration, AddrX::pwm_slope}
-                                              : vector<DynamixelAddress>{AddrX::shutdown, AddrX::startup_configuration}; break;
+    for ( auto id : id_set ) switch ( series_[id] ) {
+        case SERIES_X:   id_addrs_map_c2[id] = {AddrX::shutdown, AddrX::startup_configuration, AddrX::pwm_slope}; break; // pwm_slopeはX330系のみ（Addr=62）
         case SERIES_P:   id_addrs_map_c2[id] = {AddrP::shutdown, AddrP::startup_configuration}; break;
         case SERIES_PRO: id_addrs_map_c2[id] = {AddrPro::shutdown}; break;
         default: break; // ここに来るのはSERIES_UNKNOWNだけのはず
@@ -577,19 +696,19 @@ tuple<double, uint8_t> DynamixelHandler::BulkReadExtra_slow(const set<id_t>& id_
         const int N_suc   = id_data_vec_map.size();
         for ( const auto& [id, data] : id_data_vec_map ) switch ( series_[id] ) {
             case SERIES_X:
-                extra_u8_[id][EXTRA_SHUTDOWN]              = data[0];
-                extra_u8_[id][EXTRA_RESTORE_CONFIGURATION] = data[1];
-                extra_db_[id][EXTRA_PWM_SLOPE]             = (has_pwm_slope(model_[id]) && data.size() >= 3)
-                                                            ? id_addrs_map_c2[id][2].pulse2val(data[2], model_[id]) : NaN;
+                extra_u8_r_[id][EXTRA_SHUTDOWN      ] = data[0];
+                extra_u8_r_[id][EXTRA_RESTORE_CONFIG] = data[1];
+                extra_db_r_[id][EXTRA_PWM_SLOPE     ] = 
+                    has_pwm_slope(model_[id]) ? id_addrs_map_c2[id][2].pulse2val(data[2], model_[id]) : NaN;
                 break;
             case SERIES_P:
-                extra_u8_[id][EXTRA_SHUTDOWN]              = data[0];
-                extra_u8_[id][EXTRA_RESTORE_CONFIGURATION] = data[1];
-                extra_db_[id][EXTRA_PWM_SLOPE]             = NaN;
+                extra_u8_r_[id][EXTRA_SHUTDOWN      ] = data[0];
+                extra_u8_r_[id][EXTRA_RESTORE_CONFIG] = data[1];
+                extra_db_r_[id][EXTRA_PWM_SLOPE     ] = NaN;
                 break;
             case SERIES_PRO:
-                extra_u8_[id][EXTRA_SHUTDOWN]              = data[0];
-                extra_db_[id][EXTRA_PWM_SLOPE]             = NaN;
+                extra_u8_r_[id][EXTRA_SHUTDOWN ] = data[0];
+                extra_db_r_[id][EXTRA_PWM_SLOPE] = NaN;
                 break;
             default: break; // ここに来るのはSERIES_UNKNOWNだけのはず
         }
@@ -599,7 +718,7 @@ tuple<double, uint8_t> DynamixelHandler::BulkReadExtra_slow(const set<id_t>& id_
 
     // Group F1
     map<id_t, vector<DynamixelAddress>> id_addrs_map_f1;
-    for ( auto id : valid_id_set ) switch ( series_[id] ) {
+    for ( auto id : id_set ) switch ( series_[id] ) {
         case SERIES_X:   id_addrs_map_f1[id] = {AddrX::led}; break;
         case SERIES_P:   id_addrs_map_f1[id] = {AddrP::led_red,   AddrP::led_green,   AddrP::led_blue}; break;
         case SERIES_PRO: id_addrs_map_f1[id] = {AddrPro::led_red, AddrPro::led_green, AddrPro::led_blue}; break;
@@ -611,12 +730,12 @@ tuple<double, uint8_t> DynamixelHandler::BulkReadExtra_slow(const set<id_t>& id_
         const int N_suc   = id_data_vec_map.size();
         for ( const auto& [id, data] : id_data_vec_map ) switch ( series_[id] ) {
             case SERIES_X:
-                extra_db_[id][EXTRA_LED_RED] = data[0] ? 100.0 : 0.0; break;
+                extra_db_r_[id][EXTRA_LED_RED] = data[0] ? 100.0 : 0.0; break;
             case SERIES_P:
             case SERIES_PRO:
-                extra_db_[id][EXTRA_LED_RED]   = std::clamp(data[0] * 100.0 / 255.0, 0.0, 100.0); 
-                extra_db_[id][EXTRA_LED_GREEN] = std::clamp(data[1] * 100.0 / 255.0, 0.0, 100.0); 
-                extra_db_[id][EXTRA_LED_BLUE]  = std::clamp(data[2] * 100.0 / 255.0, 0.0, 100.0); break;
+                extra_db_r_[id][EXTRA_LED_RED]   = std::clamp(data[0] * 100.0 / 255.0, 0.0, 100.0); 
+                extra_db_r_[id][EXTRA_LED_GREEN] = std::clamp(data[1] * 100.0 / 255.0, 0.0, 100.0); 
+                extra_db_r_[id][EXTRA_LED_BLUE]  = std::clamp(data[2] * 100.0 / 255.0, 0.0, 100.0); break;
             default: break; // ここに来るのはSERIES_UNKNOWNだけのはず
         }
         sum_rate += N_total == 0 ? 0.0 : N_suc / (double)N_total;
@@ -625,18 +744,17 @@ tuple<double, uint8_t> DynamixelHandler::BulkReadExtra_slow(const set<id_t>& id_
 
     // Group F2
     map<id_t, vector<DynamixelAddress>> id_addrs_map_f2;
-    for ( auto id : valid_id_set ) switch ( series_[id] ) {
+    for ( auto id : id_set ) switch ( series_[id] ) {
         case SERIES_X: id_addrs_map_f2[id] = {AddrX::bus_watchdog}; break;
         case SERIES_P: id_addrs_map_f2[id] = {AddrP::bus_watchdog}; break;
-        case SERIES_PRO: id_addrs_map_f2[id] = {AddrPro::bus_watchdog}; break; // dummy address
-        default: break; // ここに来るのはSERIES_UNKNOWNだけのはず
+        default: break; // PRO と dummy は bus_watchdog 非対応
     }
     if ( !id_addrs_map_f2.empty() ) {
         const auto id_data_vec_map = BulkRead_log(id_addrs_map_f2, verbose_["r_extra"], verbose_["r_extra_err"]);
         const int N_total = id_addrs_map_f2.size();
         const int N_suc   = id_data_vec_map.size();
-        for ( const auto& [id, data] : id_data_vec_map ) // 全シリーズとも1要素のみ
-            watchdog_r_[id] = id_addrs_map_f2[id][0].pulse2val(data[0], model_[id]);
+        for ( const auto& [id, data] : id_data_vec_map ) // 各IDとも1要素のみ
+            extra_db_r_[id][EXTRA_BUS_WATCHDOG] = id_addrs_map_f2[id][0].pulse2val(data[0], model_[id]);
         sum_rate += N_total == 0 ? 0.0 : N_suc / (double)N_total;
         n_rate   += 1.0;
     }
@@ -687,7 +805,7 @@ template <typename Addr> bool DynamixelHandler::CheckDynamixels(const set<id_t>&
 
     // bus_watchdogのエラーの確認．エラーでてたら0書き込みで解除する．
     vector<id_t> bw_err_id_list;
-    for (auto id : target_id_list) if (watchdog_r_[id] < 0.0) bw_err_id_list.push_back(id);
+    for (auto id : target_id_list) if (extra_db_r_[id][EXTRA_BUS_WATCHDOG] < 0.0) bw_err_id_list.push_back(id);
     if (!bw_err_id_list.empty())
         SyncWrite_log(Addr::bus_watchdog, bw_err_id_list, vector<int64_t>(bw_err_id_list.size(), 0/*OFF*/), verbose_["w_status"]);
 
@@ -698,8 +816,8 @@ template <typename Addr> bool DynamixelHandler::CheckDynamixels(const set<id_t>&
         case OPERATING_MODE_VELOCITY: [[fallthrough]];
         case OPERATING_MODE_CURRENT : [[fallthrough]];
         case OPERATING_MODE_PWM     : {
-            if ( !do_stop_end_ && watchdog_w_[id] <= 0) continue; // do_stop_end_ も false かつ， コマンド指定値もなく，  なら，書き込まない．
-            double time_ms = watchdog_w_[id] >= 0.0 ? watchdog_w_[id] : default_["bus_watchdog_ms"];
+            if ( !do_stop_end_ && bus_watch_[id] <= 0) continue; // do_stop_end_ も false かつ， コマンド指定値もなく， なら，書き込まない．
+            double time_ms = bus_watch_[id] >= 0.0 ? bus_watch_[id] : default_["bus_watchdog_ms"];
             bus_watchdog_map[id].push_back(Addr::bus_watchdog.val2pulse(time_ms, model_[id]));
         }
     }
