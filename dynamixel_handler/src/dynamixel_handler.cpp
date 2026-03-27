@@ -112,6 +112,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     this->get_parameter_or("verbose/write_goal"         , verbose_["w_goal"  ], false);
     this->get_parameter_or("verbose/write_gain"         , verbose_["w_gain"  ], false);
     this->get_parameter_or("verbose/write_limit"        , verbose_["w_limit" ], false);
+    this->get_parameter_or("verbose/write_extra"        , verbose_["w_extra" ], false);
     this->get_parameter_or("verbose/read_status.raw"    , verbose_["r_status"    ], false);
     this->get_parameter_or("verbose/read_status.err"    , verbose_["r_status_err"], false);
     this->get_parameter_or("verbose/read_present.raw"   , verbose_["r_present"    ], false);

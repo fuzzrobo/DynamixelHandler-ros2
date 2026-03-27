@@ -110,11 +110,11 @@ bool DynamixelHandler::AddDynamixel(id_t id){
 
     tq_mode_r_[id] = ReadTorqueEnable(id);
     op_mode_r_[id] = (opmode_t)ReadOperatingMode(id);
+    extra_db_w_[id] = extra_db_r_[id];
+    extra_u8_w_[id] = extra_u8_r_[id];
     limit_w_[id] = limit_r_[id];
     gain_w_[id] = gain_r_[id];
     goal_w_[id] = goal_r_[id];
-    extra_db_w_[id] = extra_db_r_[id];
-    extra_u8_w_[id] = extra_u8_r_[id];
     bus_watch_[id] = -1.0; // command未指定
 
     if ( auto val=default_["profile_acc_deg_ss"]; abs( val - goal_r_[id][PROFILE_ACC]/DEG) > 3 ) 

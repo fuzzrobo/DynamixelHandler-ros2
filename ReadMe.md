@@ -605,7 +605,7 @@ Operating mode list
 | `bus_watchdog_ms`        | -                          | `float64[]` | 通信断時停止タイムアウト（ms）        |                                                 |
 | `reboot`                 | -                          | `bool[]`    | reboot要求フラグ             | 状態topicでは通常 `false`                             |
 
-非対応機種の `/dynamixel/state/extra` では，項目ごとに次の値が publish される．
+ダミーサーボを除く非対応機種の `/dynamixel/state/extra` では，項目ごとに次の値が publish される．
 - `float64[]` 系の項目は `nan`
 - `uint16[]` / `uint8[]` 系の項目は `0`
 - `string[]` 系の項目は空文字 `""`
@@ -1550,8 +1550,8 @@ Xシリーズの場合，`/dynamixel/commands/x`の`limit`フィールド or `/d
 > firmwareのバグの模様，バージョンによってはこの問題が解消されているかもしれないが，危険なので位置制御系のモードで bus_watchdog を使うのは避けるべき．
 > 本パッケージの既定では，`term/servo_auto_stop=true` かつ PWM・電流・速度制御モードの場合に bus_watchdog を自動管理する（既定値は `default/bus_watchdog`）．
 > `command/extra.bus_watchdog_ms` を指定したIDは，`term/servo_auto_stop` の値に関わらず指定値を優先して管理される（`0` 指定は watchdog無効値として扱う）．
-> `0` 指定時の定期書き込みは `term/servo_auto_stop=true` のときのみ継続され，`false` のときは受信時書き込みのみとなる．
-> `command/extra.bus_watchdog_ms` の書き込み自体は受信時に即時反映されるが，bus_watchdog の監視/解除/再設定は `pub_ratio/status` 周期で実行される．
+> `0` 指定時の定期書き込みは `term/servo_auto_stop=true` のときのみ継続され，`false` のときは `command/extra` による単発書き込みのみとなる．
+> `command/extra.bus_watchdog_ms` は受信時に staging され，次回メインループ先頭の extra write で反映される．一方で，bus_watchdog の監視/解除/再設定は `pub_ratio/status` 周期で実行される．
 > したがって `pub_ratio/status=0` の場合，この監視/解除/再設定はメインループでは動作しない．
 
 ### サポート外

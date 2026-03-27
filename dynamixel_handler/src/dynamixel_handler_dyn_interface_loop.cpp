@@ -246,8 +246,8 @@ void DynamixelHandler::BulkWriteExtra(set<ExtraIndex> extra_indice_write, const 
     }
 
     // RAM　への書き込みを処理． 
-    if ( extra_indice_write.erase(EXTRA_LED_RED)  || // 要素が消せた場合はtrue(1)が返るので存在判定と削除を同時に行う．
-         extra_indice_write.erase(EXTRA_LED_BLUE) || extra_indice_write.erase(EXTRA_LED_GREEN) ) {
+    if ( extra_indice_write.erase(EXTRA_LED_RED)  + // 要素が消せた場合はtrue(1)が返るので存在判定と削除を同時に行う．
+         extra_indice_write.erase(EXTRA_LED_BLUE) + extra_indice_write.erase(EXTRA_LED_GREEN) > 0) {
         map<id_t, vector<DynamixelAddress>> id_addrs_map;
         map<id_t, vector<int64_t>> id_data_vec_map;
         for ( auto id : updated_id_extra ) if (is_in(id, id_set_)) switch ( series_[id] ) {

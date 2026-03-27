@@ -282,13 +282,13 @@ class DynamixelHandler : public rclcpp::Node {
         static inline unordered_map<id_t, array<uint8_t, _num_ex_u8 >> extra_u8_r_; // 各dynamixelの id と extraのuint8系データ
         static inline unordered_map<id_t, array<uint8_t, _num_ex_u8 >> extra_u8_w_; // 各dynamixelの id と extraのuint8系目標値
 
-        // 上記の変数を適切に使うための補助的なフラグ
+        // 上記の変数を適切に使うための補助的な状態
         static inline unordered_map<id_t, double> when_op_mode_updated_; // 各dynamixelの id と op_mode_ が更新された時刻のマップ
         static inline unordered_map<id_t, double> when_hw_error_cleared_;   // 各dynamixelの id と hardware error をクリアした時刻のマップ
         static inline unordered_set<id_t> updated_id_goal_;    // topicのcallbackによって，goal_w_が更新されたidの集合
-        static inline unordered_set<id_t> updated_id_gain_;    // topicのcallbackによって，limit_w_が更新されたidの集合
+        static inline unordered_set<id_t> updated_id_gain_;    // topicのcallbackによって，gain_w_が更新されたidの集合
         static inline unordered_set<id_t> updated_id_limit_;   // topicのcallbackによって，limit_w_が更新されたidの集合
-        static inline unordered_set<id_t> updated_id_extra_;   // topicのcallbackによって，extra_w_が更新されたidの集合
+        static inline unordered_set<id_t> updated_id_extra_;   // topicのcallbackによって，extra_db_w_ / extra_u8_w_ が更新されたidの集合
         // 各周期で実行するserial通信の内容を決めるためのset, 順序が必要なのでset
         static inline set<GoalIndex   > goal_indice_write_;
         static inline set<GainIndex   > gain_indice_write_;
