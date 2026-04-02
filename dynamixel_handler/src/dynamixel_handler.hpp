@@ -288,12 +288,14 @@ class DynamixelHandler : public rclcpp::Node {
         static inline unordered_set<id_t> updated_id_goal_;    // topicのcallbackによって，goal_w_が更新されたidの集合
         static inline unordered_set<id_t> updated_id_gain_;    // topicのcallbackによって，gain_w_が更新されたidの集合
         static inline unordered_set<id_t> updated_id_limit_;   // topicのcallbackによって，limit_w_が更新されたidの集合
-        static inline unordered_set<id_t> updated_id_extra_;   // topicのcallbackによって，extra_db_w_ / extra_u8_w_ が更新されたidの集合
+        static inline unordered_set<id_t> updated_id_ex_ram_; // topicのcallbackによって，RAM extra書き込み対象になったidの集合
+        static inline unordered_set<id_t> updated_id_ex_rom_; // topicのcallbackによって，ROM extra書き込み対象になったidの集合
         // 各周期で実行するserial通信の内容を決めるためのset, 順序が必要なのでset
         static inline set<GoalIndex   > goal_indice_write_;
         static inline set<GainIndex   > gain_indice_write_;
         static inline set<LimitIndex  > limit_indice_write_;
-        static inline set<ExtraIndex  > extra_indice_write_;
+        static inline set<ExtraIndex  > ex_ram_indice_write_;
+        static inline set<ExtraIndex  > ex_rom_indice_write_;
         static inline set<PresentIndex> present_indice_read_ = {PRESENT_POSITION, PRESENT_VELOCITY, PRESENT_CURRENT, PRESENT_PWM, VELOCITY_TRAJECTORY, POSITION_TRAJECTORY, PRESENT_INPUT_VOLTAGE, PRESENT_TEMPERATURE};
         static inline set<GoalIndex   > goal_indice_read_    = {GOAL_POSITION, GOAL_VELOCITY, GOAL_CURRENT, GOAL_PWM, PROFILE_ACC, PROFILE_VEL};
         static inline set<GainIndex   > gain_indice_read_    = {VELOCITY_I_GAIN, VELOCITY_P_GAIN, POSITION_D_GAIN, POSITION_I_GAIN, POSITION_P_GAIN, FEEDFORWARD_ACC_GAIN, FEEDFORWARD_VEL_GAIN};
@@ -381,7 +383,8 @@ class DynamixelHandler : public rclcpp::Node {
         template <typename Addr=AddrCommon> void SyncWriteGoal (set<GoalIndex>   goal_indice_write, const unordered_set<id_t>&  updated_id_goal);
         template <typename Addr=AddrCommon> void SyncWriteGain (set<GainIndex>   gain_indice_write, const unordered_set<id_t>&  updated_id_gain);
         template <typename Addr=AddrCommon> void SyncWriteLimit(set<LimitIndex> limit_indice_write, const unordered_set<id_t>& updated_id_limit);
-                                            void BulkWriteExtra(set<ExtraIndex> extra_indice_write, const unordered_set<id_t>& updated_id_extra);
+                                            void BulkWriteExtra_ram(set<ExtraIndex> ex_ram_indice_write, const unordered_set<id_t>& updated_id_ex_ram);
+                                            void BulkWriteExtra_rom(set<ExtraIndex> ex_rom_indice_write, const unordered_set<id_t>& updated_id_ex_rom);
         template <typename Addr=AddrCommon> tuple<double, uint8_t> SyncReadPresent(set<PresentIndex> present_indice_read, const set<id_t>& id_set=id_set_);
         template <typename Addr=AddrCommon> tuple<double, uint8_t> SyncReadGoal   (set<GoalIndex>       goal_indice_read, const set<id_t>& id_set=id_set_);
         template <typename Addr=AddrCommon> tuple<double, uint8_t> SyncReadGain   (set<GainIndex>       gain_indice_read, const set<id_t>& id_set=id_set_); 

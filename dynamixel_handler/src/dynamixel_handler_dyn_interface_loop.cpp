@@ -236,21 +236,20 @@ template <typename Addr> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> l
     SyncWriteLimit<Addr>(limit_indice_write, updated_id_limit);
 }
 
-void DynamixelHandler::BulkWriteExtra(set<ExtraIndex> extra_indice_write, const unordered_set<id_t>& updated_id_extra){
+void DynamixelHandler::BulkWriteExtra_ram(set<ExtraIndex> extra_indice_write, const unordered_set<id_t>& updated_id_ex){
     if ( extra_indice_write.empty() ) return; // 空なら即時return
 
     // dummy の処理
-    for ( auto id : updated_id_extra ) if ( series_[id] == SERIES_UNKNOWN ) for ( auto e : extra_indice_write ) {
+    for ( auto id : updated_id_ex ) if ( series_[id] == SERIES_UNKNOWN ) for ( auto e : extra_indice_write ) {
         if ( e < _num_ex_db ) extra_db_r_[id][e] = extra_db_w_[id][e];
         else                  extra_u8_r_[id][e] = extra_u8_w_[id][e];
     }
 
-    // RAM　への書き込みを処理． 
-    if ( extra_indice_write.erase(EXTRA_LED_RED)  + // 要素が消せた場合はtrue(1)が返るので存在判定と削除を同時に行う．
-         extra_indice_write.erase(EXTRA_LED_BLUE) + extra_indice_write.erase(EXTRA_LED_GREEN) > 0) {
+    if ( extra_indice_write.count(EXTRA_LED_RED)  +
+         extra_indice_write.count(EXTRA_LED_BLUE) + extra_indice_write.count(EXTRA_LED_GREEN) > 0) {
         map<id_t, vector<DynamixelAddress>> id_addrs_map;
         map<id_t, vector<int64_t>> id_data_vec_map;
-        for ( auto id : updated_id_extra ) if (is_in(id, id_set_)) switch ( series_[id] ) {
+        for ( auto id : updated_id_ex ) if (is_in(id, id_set_)) switch ( series_[id] ) {
             case SERIES_X:
                 id_addrs_map[id] = {AddrX::led};
                 id_data_vec_map[id] = {extra_db_w_[id][EXTRA_LED_RED] >= 50.0 ? 1 : 0};
@@ -271,10 +270,10 @@ void DynamixelHandler::BulkWriteExtra(set<ExtraIndex> extra_indice_write, const 
         }
         if ( !id_data_vec_map.empty() ) BulkWrite_log(id_addrs_map, id_data_vec_map, verbose_["w_extra"]);
     }
-    if ( extra_indice_write.erase(EXTRA_BUS_WATCHDOG) ) {
+    if ( extra_indice_write.count(EXTRA_BUS_WATCHDOG) ) {
         map<id_t, vector<DynamixelAddress>> id_addrs_map;
         map<id_t, vector<int64_t>> id_data_vec_map;
-        for ( auto id : updated_id_extra ) if (is_in(id, id_set_)) switch ( series_[id] ) {
+        for ( auto id : updated_id_ex ) if (is_in(id, id_set_)) switch ( series_[id] ) {
             case SERIES_X:
                 id_addrs_map[id] = {AddrX::bus_watchdog};
                 id_data_vec_map[id] = {AddrX::bus_watchdog.val2pulse(extra_db_w_[id][EXTRA_BUS_WATCHDOG], model_[id])};
@@ -287,12 +286,20 @@ void DynamixelHandler::BulkWriteExtra(set<ExtraIndex> extra_indice_write, const 
         }
         if ( !id_data_vec_map.empty() ) BulkWrite_log(id_addrs_map, id_data_vec_map, verbose_["w_extra"]);
     }
+}
 
-    if ( extra_indice_write.empty() ) return; // 以降はROMデータへの書き込み
+void DynamixelHandler::BulkWriteExtra_rom(set<ExtraIndex> extra_indice_write, const unordered_set<id_t>& updated_id_ex){
+    if ( extra_indice_write.empty() ) return; // 空なら即時return
+
+    // dummy の処理
+    for ( auto id : updated_id_ex ) if ( series_[id] == SERIES_UNKNOWN ) for ( auto e : extra_indice_write ) {
+        if ( e < _num_ex_db ) extra_db_r_[id][e] = extra_db_w_[id][e];
+        else                  extra_u8_r_[id][e] = extra_u8_w_[id][e];
+    }
 
     map<id_t, vector<DynamixelAddress>> id_addrs_map_tq;
     map<id_t, vector<int64_t>> id_data_vec_map_tq_off, id_data_vec_map_tq_restore;
-    for ( auto id : updated_id_extra ) if (is_in(id, id_set_)) { 
+    for ( auto id : updated_id_ex ) if (is_in(id, id_set_)) {
         switch ( series_[id] ) {
             case SERIES_X:  id_addrs_map_tq[id] = {AddrX::torque_enable};   break;
             case SERIES_P:  id_addrs_map_tq[id] = {AddrP::torque_enable};   break;
@@ -302,6 +309,7 @@ void DynamixelHandler::BulkWriteExtra(set<ExtraIndex> extra_indice_write, const 
         id_data_vec_map_tq_off[id]     = {TORQUE_DISABLE};
         id_data_vec_map_tq_restore[id] = {tq_mode_r_[id]};
     }
+    if ( id_data_vec_map_tq_off.empty() ) return;
 
     BulkWrite_log(id_addrs_map_tq, id_data_vec_map_tq_off, verbose_["w_extra"]);
 
@@ -311,7 +319,7 @@ void DynamixelHandler::BulkWriteExtra(set<ExtraIndex> extra_indice_write, const 
         auto set_addr_val = [&](id_t id, const auto& addr, double val){
             id_addrs_map[id] = {addr}; id_data_vec_map[id] = {addr.val2pulse(val, model_[id])};
         };
-        for ( auto id : updated_id_extra ) if (is_in(id, id_set_)) switch ( series_[id] ) { 
+        for ( auto id : updated_id_ex ) if (is_in(id, id_set_)) switch ( series_[id] ) {
             case SERIES_X: switch ( e ) {
                     case EXTRA_RETURN_DELAY_TIME: set_addr_val(id, AddrX::return_delay_time,     extra_db_w_[id][e]); break;
                     case EXTRA_DRIVE_MODE       : set_addr_val(id, AddrX::drive_mode,            extra_u8_w_[id][e]); break;

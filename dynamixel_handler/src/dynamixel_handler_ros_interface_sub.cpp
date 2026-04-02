@@ -713,11 +713,11 @@ void DynamixelHandler::CallbackCmd_Extra_Config(const DynamixelExtra& msg, const
         const bool is_dummy = series_[ID] == SERIES_UNKNOWN;
         auto set_db = [&](ExtraDoubleIndex idx, double val){
             extra_db_w_[ID][idx] = val;
-            updated_id_extra_.insert(ID); extra_indice_write_.insert(idx);
+            updated_id_ex_rom_.insert(ID); ex_rom_indice_write_.insert(idx);
         };
         auto set_u8 = [&](ExtraIntIndex idx, uint8_t val){
             extra_u8_w_[ID][idx] = val;
-            updated_id_extra_.insert(ID); extra_indice_write_.insert(idx);
+            updated_id_ex_rom_.insert(ID); ex_rom_indice_write_.insert(idx);
         };
         
         if ( has_shadow && (is_dummy || has_shadow_id (model_[ID])) ) set_u8(EXTRA_SHADOW_ID, msg.shadow_id[i]);
@@ -784,16 +784,16 @@ void DynamixelHandler::CallbackCmd_Extra_Func(const DynamixelExtra& msg, const v
     for (size_t i=0; i<msg.id_list.size(); i++) if ( id_t ID = msg.id_list[i]; is_in(ID, valid_id_list) ) {
         const bool is_dummy = series_[ID] == SERIES_UNKNOWN;
         if ( valid_led ) {
-            if ( valid_led_r ) { extra_db_w_[ID][EXTRA_LED_RED  ] = clamp(msg.led.red_percent[i]  , 0.0, 100.0); extra_indice_write_.insert(EXTRA_LED_RED  ); }
-            if ( valid_led_g ) { extra_db_w_[ID][EXTRA_LED_GREEN] = clamp(msg.led.green_percent[i], 0.0, 100.0); extra_indice_write_.insert(EXTRA_LED_GREEN); }
-            if ( valid_led_b ) { extra_db_w_[ID][EXTRA_LED_BLUE ] = clamp(msg.led.blue_percent[i] , 0.0, 100.0); extra_indice_write_.insert(EXTRA_LED_BLUE ); }
-            updated_id_extra_.insert(ID);
+            if ( valid_led_r ) { extra_db_w_[ID][EXTRA_LED_RED  ] = clamp(msg.led.red_percent[i]  , 0.0, 100.0); ex_ram_indice_write_.insert(EXTRA_LED_RED  ); }
+            if ( valid_led_g ) { extra_db_w_[ID][EXTRA_LED_GREEN] = clamp(msg.led.green_percent[i], 0.0, 100.0); ex_ram_indice_write_.insert(EXTRA_LED_GREEN); }
+            if ( valid_led_b ) { extra_db_w_[ID][EXTRA_LED_BLUE ] = clamp(msg.led.blue_percent[i] , 0.0, 100.0); ex_ram_indice_write_.insert(EXTRA_LED_BLUE ); }
+            updated_id_ex_ram_.insert(ID);
         }
 
         if ( valid_watch && (is_dummy || has_bus_watchdog(model_[ID])) ) {
             extra_db_w_[ID][EXTRA_BUS_WATCHDOG] = clamp(msg.bus_watchdog_ms[i], 0.0, 508.0 /*ms*/);
             bus_watch_[ID] = extra_db_w_[ID][EXTRA_BUS_WATCHDOG];
-            updated_id_extra_.insert(ID); extra_indice_write_.insert(EXTRA_BUS_WATCHDOG);
+            updated_id_ex_ram_.insert(ID); ex_ram_indice_write_.insert(EXTRA_BUS_WATCHDOG);
         }
 
         if ( valid_reboot ) if ( msg.reboot[i] ) Reboot(ID);

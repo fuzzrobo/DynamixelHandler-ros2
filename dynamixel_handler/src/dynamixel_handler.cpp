@@ -173,8 +173,10 @@ void DynamixelHandler::MainLoop(){
     if (imu_opencr_   ) imu_opencr_->MainProcess();
 
     //* topicをSubscribe & Dynamixelへ目標角をWrite
-    BulkWriteExtra(extra_indice_write_, updated_id_extra_); 
-    extra_indice_write_.clear(); updated_id_extra_.clear();
+    BulkWriteExtra_ram(ex_ram_indice_write_, updated_id_ex_ram_);
+    ex_ram_indice_write_.clear(); updated_id_ex_ram_.clear(); 
+    BulkWriteExtra_rom(ex_rom_indice_write_, updated_id_ex_rom_);
+    ex_rom_indice_write_.clear(); updated_id_ex_rom_.clear();
     for ( auto id : id_set_ ) { // 各要素について，達成されるまで繰り返すようにする．
         if (op_mode_w_.count(id)){ ChangeOperatingMode(id, op_mode_w_[id]) && op_mode_w_.erase(id);}
         if ( hw_err_w_.count(id)){ ClearHardwareError (id,  hw_err_w_[id]);    hw_err_w_.erase(id);} // hw_err_w_[id]=複数回転をoffsetで復元するか
