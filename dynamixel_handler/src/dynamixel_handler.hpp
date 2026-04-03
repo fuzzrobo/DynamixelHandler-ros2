@@ -85,8 +85,8 @@ class DynamixelHandler : public rclcpp::Node {
         void MainLoop();     // メインループ
 
         //* ROS publishを担う関数と subscliber callback関数
-        void BroadcastStates(std::shared_ptr<DxlStates> msg);
-        void BroadcastDebug(std::shared_ptr<DxlStates> msg);
+        void BroadcastStates(const DxlStates& msg);
+        void BroadcastDebug(const DxlStates& msg);
         DynamixelStatus BroadcastState_Status();
         DynamixelPresent BroadcastState_Present();
         DynamixelGoal BroadcastState_Goal(); 
@@ -291,8 +291,8 @@ class DynamixelHandler : public rclcpp::Node {
         static inline unordered_set<id_t> updated_id_ex_ram_; // topicのcallbackによって，RAM extra書き込み対象になったidの集合
         static inline unordered_set<id_t> updated_id_ex_rom_; // topicのcallbackによって，ROM extra書き込み対象になったidの集合
         // 各周期で実行するserial通信の内容を決めるためのset, 順序が必要なのでset
-        static inline set<GoalIndex   > goal_indice_write_;
-        static inline set<GainIndex   > gain_indice_write_;
+        static inline set<GoalIndex   > goal_indice_write_; // bitset / uint32_t mask 化も検討したが, isolated microbenchmarkでは短縮量が約0.001ms/loopに留まり,
+        static inline set<GainIndex   > gain_indice_write_; // 実運用ではserial通信やROS I/Oに埋もれるため, 現状はminmax_element / eraseがそのまま使える実装の分かりやすさを優先する.
         static inline set<LimitIndex  > limit_indice_write_;
         static inline set<ExtraIndex  > ex_ram_indice_write_;
         static inline set<ExtraIndex  > ex_rom_indice_write_;

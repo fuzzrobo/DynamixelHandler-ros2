@@ -15,6 +15,8 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
 find_package(pybind11_vendor REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
 
+option(BUILD_BENCHMARK_DYNAMIXEL_COMMUNICATOR "Build benchmark_dynamixel_communicator tool" OFF)
+
 # =============================== dynamixel_communicator =========================
 add_library(
   dynamixel_communicator STATIC
@@ -58,23 +60,25 @@ install(
 
 # ============================ dynamixel_handler ================================
 
-add_executable(
-  benchmark_dynamixel_communicator
-  tools/benchmark_dynamixel_communicator.cpp
-)
-target_compile_features(
-  benchmark_dynamixel_communicator
-  PUBLIC cxx_std_17
-)
-target_link_libraries(
-  benchmark_dynamixel_communicator
-  dynamixel_communicator
-)
+if(BUILD_BENCHMARK_DYNAMIXEL_COMMUNICATOR)
+  add_executable(
+    benchmark_dynamixel_communicator
+    tools/benchmark_dynamixel_communicator.cpp
+  )
+  target_compile_features(
+    benchmark_dynamixel_communicator
+    PUBLIC cxx_std_17
+  )
+  target_link_libraries(
+    benchmark_dynamixel_communicator
+    dynamixel_communicator
+  )
 
-install(
-  TARGETS benchmark_dynamixel_communicator
-  DESTINATION lib/${PROJECT_NAME}
-)
+  install(
+    TARGETS benchmark_dynamixel_communicator
+    DESTINATION lib/${PROJECT_NAME}
+  )
+endif()
 
 # 実行可能ファイルの名前を変更
 add_executable(

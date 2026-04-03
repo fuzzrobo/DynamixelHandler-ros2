@@ -150,7 +150,7 @@ DynamixelExtra DynamixelHandler::BroadcastState_Extra() {
 
 DynamixelLimit DynamixelHandler::BroadcastState_Limit(){
     DynamixelLimit msg;
-    for (const auto id : id_set_ ) { const auto limit = limit_r_[id];
+    for (const auto id : id_set_ ) { const auto& limit = limit_r_[id];
         msg.id_list.push_back(id);
         msg.temperature_limit_degc.push_back   (round4(limit[TEMPERATURE_LIMIT ]    ));
         msg.max_voltage_limit_v.push_back      (round4(limit[MAX_VOLTAGE_LIMIT ]    ));
@@ -168,7 +168,7 @@ DynamixelLimit DynamixelHandler::BroadcastState_Limit(){
 
 DynamixelGain DynamixelHandler::BroadcastState_Gain(){
     DynamixelGain msg;
-    for ( const auto id : id_set_ ) { const auto gain = gain_r_[id];
+    for ( const auto id : id_set_ ) { const auto& gain = gain_r_[id];
         msg.id_list.push_back(id);
         msg.velocity_i_gain_pulse.push_back     (gain[VELOCITY_I_GAIN     ]);
         msg.velocity_p_gain_pulse.push_back     (gain[VELOCITY_P_GAIN     ]);
@@ -184,7 +184,7 @@ DynamixelGain DynamixelHandler::BroadcastState_Gain(){
 
 DynamixelGoal DynamixelHandler::BroadcastState_Goal(){
     DynamixelGoal msg;
-    for ( auto id : id_set_ ) { const auto goal = goal_r_[id];
+    for ( auto id : id_set_ ) { const auto& goal = goal_r_[id];
         msg.id_list.push_back(id);
         msg.pwm_percent.push_back       (round4(goal[GOAL_PWM     ]));
         msg.current_ma.push_back        (round4(goal[GOAL_CURRENT ]));
@@ -197,9 +197,9 @@ DynamixelGoal DynamixelHandler::BroadcastState_Goal(){
     return msg;
 }
 
-void DynamixelHandler::BroadcastDebug(std::shared_ptr<DxlStates> st_msg){
+void DynamixelHandler::BroadcastDebug(const DxlStates& st_msg){
     static DynamixelDebug msg;
-    if ( !st_msg->status.id_list.empty() ) msg.status = st_msg->status;
+    if ( !st_msg.status.id_list.empty() ) msg.status = st_msg.status;
     msg.current_ma.present.clear()    ; msg.current_ma.goal.clear();
     msg.velocity_deg_s.present.clear(); msg.velocity_deg_s.goal.clear();
     msg.position_deg.present.clear()  ; msg.position_deg.goal.clear();
@@ -214,6 +214,6 @@ void DynamixelHandler::BroadcastDebug(std::shared_ptr<DxlStates> st_msg){
     publish_if(pub_debug_, msg);
 }
 
-void DynamixelHandler::BroadcastStates(std::shared_ptr<DxlStates> msg){
-    publish_if(pub_dxl_states_, *msg);
+void DynamixelHandler::BroadcastStates(const DxlStates& msg){
+    publish_if(pub_dxl_states_, msg);
 }

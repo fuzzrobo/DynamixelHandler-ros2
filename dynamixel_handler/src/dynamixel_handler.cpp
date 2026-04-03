@@ -236,8 +236,8 @@ void DynamixelHandler::MainLoop(){
     if ( success_rate[ERROR  ]>0.0 ) msg.error   = BroadcastState_Error();
     if ( success_rate[EXTRA_D]+success_rate[EXTRA_S] > 0.0 ) msg.extra = BroadcastState_Extra();
     if ( is_any_read ) { n_any_read++;
-        BroadcastDebug( std::make_shared<DxlStates>(msg) );
-        BroadcastStates( std::make_shared<DxlStates>(msg) );
+        BroadcastDebug(msg);
+        BroadcastStates(msg);
     }
 /* 処理時間時間の計測 */ t_read  += duration_cast<microseconds>(system_clock::now()-s_read ).count() / 1000.0;
 /* 処理時間時間の計測 */ t_total += duration_cast<microseconds>(system_clock::now()-s_total).count() / 1000.0;
