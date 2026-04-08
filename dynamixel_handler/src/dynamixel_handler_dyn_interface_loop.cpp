@@ -7,6 +7,7 @@
 #include <utility>
 
 using std::to_string;
+using StateLock = std::lock_guard<std::recursive_mutex>;
 
 template <typename Container>
 vector<uint8_t> DynamixelHandler::id_filter(const Container& id_set, series_t series){
@@ -49,7 +50,7 @@ void DynamixelHandler::BulkWrite_log(
 
 map<uint8_t, int64_t> DynamixelHandler::SyncRead_log(
     const DynamixelAddress & addr, const vector<id_t>& id_list, bool verbose, bool verbose_err
-){ 
+){
     auto id_data_vec_map = SyncRead_log(vector<DynamixelAddress>({addr}), id_list, verbose, verbose_err);
     map<id_t, int64_t> id_data_map;
     for (const auto& [id, data_vec] : id_data_vec_map) id_data_map[id] = data_vec[0];
@@ -67,7 +68,7 @@ map<uint8_t, vector<int64_t>> DynamixelHandler::SyncRead_log(
     if ( verbose_err ) if ( is_timeout_ || is_comm_err_ ) {
         vector<id_t> failed_id_list;
         for ( auto id : id_list ) if ( !id_data_vec_map.count(id) ) failed_id_list.push_back(id);
-        ROS_WARN_STREAM( "  '" << id_list.size() - id_data_vec_map.size() << "' servo(s) failed to read" 
+        ROS_WARN_STREAM( "  '" << id_list.size() - id_data_vec_map.size() << "' servo(s) failed to read"
                         << (is_timeout_ ? " (time out)" : " (some kind packet error)") << "\n"
                         << id_list_layout(failed_id_list) << "\n");
     }
@@ -115,7 +116,7 @@ template <> void DynamixelHandler::SyncWriteGoal(set<GoalIndex> goal_indice_writ
 template <typename Addr> void DynamixelHandler::SyncWriteGoal(set<GoalIndex> goal_indice_write, const unordered_set<id_t>& updated_id_goal){
     if ( goal_indice_write.empty() ) return; // 空なら即時return
     //* 書き込む範囲のイテレータを取得, 分割書き込みが有効な場合書き込む範囲を1つ目のみに制限,残りは再帰的に処理する．
-    auto [start,end] = minmax_element(goal_indice_write.begin(), goal_indice_write.end()); 
+    auto [start,end] = minmax_element(goal_indice_write.begin(), goal_indice_write.end());
     /*フラグによる分割*/ if ( use_split_write_ ) end = start; // 分割書き込みが有効な場合は書き込む範囲を1つ目のみに制限
     //* 書き込みに必要な変数を用意
     vector<DynamixelAddress> goal_addr_list;  // 書き込むコマンドのアドレスのベクタ
@@ -142,7 +143,7 @@ template <typename Addr> void DynamixelHandler::SyncWriteGoal(set<GoalIndex> goa
     SyncWriteGoal<Addr>(goal_indice_write, updated_id_goal);
 }
 
-/** 
+/**
  * @func SyncWriteGain
  */
 template <> void DynamixelHandler::SyncWriteGain(set<GainIndex> gain_indice_write, const unordered_set<id_t>& updated_id_gain){
@@ -205,7 +206,7 @@ template <> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> limit_indice_w
 template <typename Addr> void DynamixelHandler::SyncWriteLimit(set<LimitIndex> limit_indice_write, const unordered_set<id_t>& updated_id_limit){
     if ( limit_indice_write.empty() ) return; // 空なら即時return
     //* 書き込む範囲のイテレータを取得, 分割書き込みが有効な場合書き込む範囲を1つ目のみに制限,残りは再帰的に処理する．
-    auto [start,end] = minmax_element(limit_indice_write.begin(), limit_indice_write.end()); 
+    auto [start,end] = minmax_element(limit_indice_write.begin(), limit_indice_write.end());
     /*フラグによる分割*/   if ( use_split_write_ ) end = start; // 分割書き込みを常に有効にする．
     /*データ数による分割*/ if ( updated_id_limit.size() * (*end-*start+1) > 12*_num_limit ) end = start; // 一度に書き込むデータ数が多い場合は分割する
     /*内容による分割*/   if ( *start <= CURRENT_LIMIT && VELOCITY_LIMIT <= *end ) end = start; // xシリーズはacceleration_limitが存在しないため．p, proはそのまま書けるが，分割する分には問題ないため．シリーズ分岐なし．
@@ -340,7 +341,7 @@ void DynamixelHandler::BulkWriteExtra_rom(set<ExtraIndex> extra_indice_write, co
                     case EXTRA_SHUTDOWN         : set_addr_val(id, AddrX::shutdown,              extra_u8_w_[id][e]); break;
                     case EXTRA_RESTORE_CONFIG   : set_addr_val(id, AddrX::startup_configuration, extra_u8_w_[id][e]); break;
                     case EXTRA_PWM_SLOPE        : if ( has_pwm_slope(model_[id]) ) set_addr_val(id, AddrX::pwm_slope, extra_db_w_[id][e]); break;
-                    default: break; 
+                    default: break;
                 } break;
             case SERIES_P: switch ( e ) {
                     case EXTRA_RETURN_DELAY_TIME: set_addr_val(id, AddrP::return_delay_time,     extra_db_w_[id][e]); break;
@@ -382,14 +383,15 @@ template <> tuple<double, uint8_t> DynamixelHandler::SyncReadPresent(set<Present
     auto [suc_rate_X, num_x] = SyncReadPresent<AddrX>(present_indice_read, id_set);
     auto [suc_rate_P, num_p] = SyncReadPresent<AddrP>(present_indice_read, id_set);
     auto [suc_rate_PRO, num_pro] = SyncReadPresent<AddrPro>(present_indice_read, id_set);
-    for ( auto id : id_filter(id_set, SERIES_UNKNOWN) ) {
-        present_r_[id][PRESENT_PWM          ] = goal_w_[id][GOAL_PWM     ];
-        present_r_[id][PRESENT_CURRENT      ] = goal_w_[id][GOAL_CURRENT ];
-        present_r_[id][PRESENT_VELOCITY     ] = goal_w_[id][GOAL_VELOCITY];
-        present_r_[id][PRESENT_POSITION     ] = goal_w_[id][GOAL_POSITION];
-        present_r_[id][PRESENT_INPUT_VOLTAGE] = 25;
-        present_r_[id][PRESENT_TEMPERATURE  ] = 25;
-    }
+    { StateLock lock(mutex_state_);
+        for ( auto id : id_filter(id_set, SERIES_UNKNOWN) ) {
+            present_r_[id][PRESENT_PWM          ] = goal_w_[id][GOAL_PWM     ];
+            present_r_[id][PRESENT_CURRENT      ] = goal_w_[id][GOAL_CURRENT ];
+            present_r_[id][PRESENT_VELOCITY     ] = goal_w_[id][GOAL_VELOCITY];
+            present_r_[id][PRESENT_POSITION     ] = goal_w_[id][GOAL_POSITION];
+            present_r_[id][PRESENT_INPUT_VOLTAGE] = 25;
+            present_r_[id][PRESENT_TEMPERATURE  ] = 25;
+    } }
     auto num_all = num_x + num_p + num_pro;
     return {(num_all)==0 ? 1.0 : (suc_rate_X*num_x + suc_rate_P*num_p + suc_rate_PRO*num_pro) / (num_all), num_all};
 }
@@ -403,13 +405,13 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadPresen
     //* 読み込みに必要な変数を用意
     vector<DynamixelAddress> state_addr_list;
     for (PresentIndex st=*start; st<=*end; st++) switch (st) {
-        case PRESENT_PWM          : state_addr_list.push_back(Addr::present_pwm          ); break; 
-        case PRESENT_CURRENT      : state_addr_list.push_back(Addr::present_current      ); break; 
-        case PRESENT_VELOCITY     : state_addr_list.push_back(Addr::present_velocity     ); break;    
-        case PRESENT_POSITION     : state_addr_list.push_back(Addr::present_position     ); break;   
-        case VELOCITY_TRAJECTORY  : state_addr_list.push_back(Addr::velocity_trajectory  ); break;   
-        case POSITION_TRAJECTORY  : state_addr_list.push_back(Addr::position_trajectory  ); break;  
-        case PRESENT_INPUT_VOLTAGE: state_addr_list.push_back(Addr::present_input_voltage); break; 
+        case PRESENT_PWM          : state_addr_list.push_back(Addr::present_pwm          ); break;
+        case PRESENT_CURRENT      : state_addr_list.push_back(Addr::present_current      ); break;
+        case PRESENT_VELOCITY     : state_addr_list.push_back(Addr::present_velocity     ); break;
+        case PRESENT_POSITION     : state_addr_list.push_back(Addr::present_position     ); break;
+        case VELOCITY_TRAJECTORY  : state_addr_list.push_back(Addr::velocity_trajectory  ); break;
+        case POSITION_TRAJECTORY  : state_addr_list.push_back(Addr::position_trajectory  ); break;
+        case PRESENT_INPUT_VOLTAGE: state_addr_list.push_back(Addr::present_input_voltage); break;
         case PRESENT_TEMPERATURE  : state_addr_list.push_back(Addr::present_temperature  ); break;
         default: /*ここに来たらエラ-*/ ROS_STOP("Unknown PresentIndex");
     }
@@ -419,16 +421,17 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadPresen
     const int N_suc   = id_st_vec_map.size();
     //* present_r_に反映
     const unsigned int num_state_now  = *end-*start+1;
-    for ( size_t i = 0; i < num_state_now; i++ ) {
-        const auto addr = state_addr_list[i];
-        for (const auto& [id, data_int] : id_st_vec_map)
-            present_r_[id][*start+i] = addr.pulse2val( data_int[i], model_[id]);
-    }
+    { StateLock lock(mutex_state_);
+        for ( size_t i = 0; i < num_state_now; i++ ) {
+            const auto addr = state_addr_list[i];
+            for (const auto& [id, data_int] : id_st_vec_map)
+                present_r_[id][*start+i] = addr.pulse2val( data_int[i], model_[id]);
+    } }
     // 今回読み込んだ範囲を消去して残りを再帰的に処理, use_split_read_=falseの場合は全て削除されるので,再帰しない
     present_indice_read.erase(start, ++end); // 今回読み込んだ範囲を消去
     const unsigned int num_state_next = present_indice_read.size();
     auto [suc_rate, tmp] = SyncReadPresent<Addr>(present_indice_read, id_set); // 2つめの要素はN_totalと等しいので利用しない．
-    return {       suc_rate        *num_state_next / (num_state_now+num_state_next) 
+    return {       suc_rate        *num_state_next / (num_state_now+num_state_next)
             + N_suc/(double)N_total*num_state_now /  (num_state_now+num_state_next), N_total};
 }
 
@@ -447,16 +450,17 @@ template <> tuple<double, uint8_t> DynamixelHandler::SyncReadHardwareErrors(cons
 template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadHardwareErrors(const set<id_t>& id_set){
     vector<id_t> target_id_list = id_filter(id_set, Addr::series());
     if ( target_id_list.empty() ) return {1.0, 0}; // 読み込むデータがない場合は即時return
-    
+
     auto id_error_map = SyncRead_log(Addr::hardware_error_status, target_id_list, false, false);
     if ( dyn_comm_.timeout_last_read() ) return {0.0, target_id_list.size() }; // 読み込み失敗
 
     // hw_err_r_に反映
     bool has_any_error = false;
-    for (const auto& [id, error] : id_error_map ) {
-        hw_err_r_[id] = bitset<8>(error);
-        if ( hw_err_r_[id].any() ) has_any_error = true;
-    }
+    { StateLock lock(mutex_state_);
+        for (const auto& [id, error] : id_error_map ) {
+            hw_err_r_[id] = bitset<8>(error);
+            if ( hw_err_r_[id].any() ) has_any_error = true;
+    } }
 
     // コンソールへの表示
     if ( verbose_["r_hwerr"] ) if ( has_any_error ) { //todo shutdown の各ビットを見て，  WARN/ERROR の切り替えや， パラメータに応じた表示のON/OFFをしたいなぁ
@@ -482,7 +486,7 @@ template <> tuple<double, uint8_t> DynamixelHandler::SyncReadGain(set<GainIndex>
     auto [suc_rate_X, num_x] = SyncReadGain<AddrX>(gain_indice_read, id_set);
     auto [suc_rate_P, num_p] = SyncReadGain<AddrP>(gain_indice_read, id_set);
     auto [suc_rate_PRO, num_pro] = SyncReadGain<AddrPro>(gain_indice_read, id_set);
-    for (auto id : id_filter(id_set, SERIES_UNKNOWN)) gain_r_[id] = gain_w_[id]; // dummy servo の場合
+    { StateLock lock(mutex_state_); for (auto id : id_filter(id_set, SERIES_UNKNOWN)) gain_r_[id] = gain_w_[id]; } // dummy servo の場合
     auto num_all = num_x + num_p + num_pro;
     return {(num_all)==0 ? 1.0 : (suc_rate_X*num_x + suc_rate_P*num_p + suc_rate_PRO*num_pro) / (num_all), num_all};
 }
@@ -513,12 +517,13 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadGain(s
     const int N_suc   = id_gain_vec_map.size();
     // gain_r_に反映
     const unsigned int num_gain_now  = *end-*start+1;
-    for ( size_t i = 0; i < num_gain_now; i++ ) { 
-        DynamixelAddress addr = gain_addr_list[i];
-        for (const auto& [id, data_int] : id_gain_vec_map)
-            gain_r_[id][*start+i] = static_cast<uint16_t>( addr.pulse2val( data_int[i], model_[id] ) ); // pulse2valはdoubleを返すので，uint16_tにキャスト
-    }
-    // 今回読み込んだ範囲を消去して残りを再帰的に処理, 
+    { StateLock lock(mutex_state_);
+        for ( size_t i = 0; i < num_gain_now; i++ ) {
+            DynamixelAddress addr = gain_addr_list[i];
+            for (const auto& [id, data_int] : id_gain_vec_map)
+                gain_r_[id][*start+i] = static_cast<uint16_t>( addr.pulse2val( data_int[i], model_[id] ) ); // pulse2valはdoubleを返すので，uint16_tにキャスト
+    } }
+    // 今回読み込んだ範囲を消去して残りを再帰的に処理,
     gain_indice_read.erase(start, ++end); // 今回読み込んだ範囲を消去
     const unsigned int num_gain_next = gain_indice_read.size();
     auto [suc_rate, tmp] = SyncReadGain<Addr>(gain_indice_read, id_set);  // 2つめの要素はN_totalと等しいので利用しない．
@@ -535,7 +540,7 @@ template <> tuple<double, uint8_t> DynamixelHandler::SyncReadLimit(set<LimitInde
     auto [suc_rate_X, num_x] = SyncReadLimit<AddrX>(limit_indice_read, id_set);
     auto [suc_rate_P, num_p] = SyncReadLimit<AddrP>(limit_indice_read, id_set);
     auto [suc_rate_PRO, num_pro] = SyncReadLimit<AddrPro>(limit_indice_read, id_set);
-    for (auto id : id_filter(id_set, SERIES_UNKNOWN)) limit_r_[id] = limit_w_[id]; // dummy servo の場合
+    { StateLock lock(mutex_state_); for (auto id : id_filter(id_set, SERIES_UNKNOWN)) limit_r_[id] = limit_w_[id]; } // dummy servo の場合
     auto num_all = num_x + num_p + num_pro;
     return {(num_all)==0 ? 1.0 : (suc_rate_X*num_x + suc_rate_P*num_p + suc_rate_PRO*num_pro) / (num_all), num_all};
 }
@@ -568,16 +573,17 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadLimit(
     const int N_suc   = id_limit_vec_map.size();
     // limit_r_に反映
     const unsigned int num_limit_now  = *end-*start+1;
-    for ( size_t i = 0; i < num_limit_now; i++ ) {
-        DynamixelAddress addr = limit_addr_list[i];
-        for (const auto& [id, data_int] : id_limit_vec_map)
-            limit_r_[id][*start+i] = addr.pulse2val( data_int[i], model_[id] );
-    }
+    { StateLock lock(mutex_state_);
+        for ( size_t i = 0; i < num_limit_now; i++ ) {
+            DynamixelAddress addr = limit_addr_list[i];
+            for (const auto& [id, data_int] : id_limit_vec_map)
+                limit_r_[id][*start+i] = addr.pulse2val( data_int[i], model_[id] );
+    } }
     // 今回読み込んだ範囲を消去して残りを再帰的に処理,
     limit_indice_read.erase(start, ++end); // 今回読み込んだ範囲を消去
     const unsigned int num_limit_next = limit_indice_read.size();
     auto [suc_rate, tmp] = SyncReadLimit<Addr>(limit_indice_read, id_set);
-    return {       suc_rate        *num_limit_next / (num_limit_now+num_limit_next) 
+    return {       suc_rate        *num_limit_next / (num_limit_now+num_limit_next)
             + N_suc/(double)N_total*num_limit_now /  (num_limit_now+num_limit_next), N_total};
 }
 
@@ -590,7 +596,7 @@ template <> tuple<double, uint8_t> DynamixelHandler::SyncReadGoal(set<GoalIndex>
     auto [suc_rate_X, num_x] = SyncReadGoal<AddrX>(goal_indice_read, id_set);
     auto [suc_rate_P, num_p] = SyncReadGoal<AddrP>(goal_indice_read, id_set);
     auto [suc_rate_PRO, num_pro] = SyncReadGoal<AddrPro>(goal_indice_read, id_set);
-    for (auto id : id_filter(id_set, SERIES_UNKNOWN)) goal_r_[id] = goal_w_[id]; // dummy servo の場合
+    { StateLock lock(mutex_state_); for (auto id : id_filter(id_set, SERIES_UNKNOWN)) goal_r_[id] = goal_w_[id]; } // dummy servo の場合
     auto num_all = num_x + num_p + num_pro;
     return {(num_all)==0 ? 1.0 : (suc_rate_X*num_x + suc_rate_P*num_p + suc_rate_PRO*num_pro) / (num_all), num_all};
 }
@@ -620,16 +626,17 @@ template <typename Addr> tuple<double, uint8_t> DynamixelHandler::SyncReadGoal(s
     const int N_suc   = id_goal_vec_map.size();
     // goal_r_に反映
     const unsigned int  num_goal_now  = *end-*start+1;
-    for ( size_t i = 0; i < num_goal_now; i++) {
-        DynamixelAddress addr = goal_addr_list[i];
-        for (const auto& [id, data_int] : id_goal_vec_map)
-            goal_r_[id][*start+i] = addr.pulse2val( data_int[i], model_[id] );
-    }
-    // 今回読み込んだ範囲を消去して残りを再帰的に処理, 
+    { StateLock lock(mutex_state_);
+        for ( size_t i = 0; i < num_goal_now; i++) {
+            DynamixelAddress addr = goal_addr_list[i];
+            for (const auto& [id, data_int] : id_goal_vec_map)
+                goal_r_[id][*start+i] = addr.pulse2val( data_int[i], model_[id] );
+    } }
+    // 今回読み込んだ範囲を消去して残りを再帰的に処理,
     goal_indice_read.erase(start, ++end); // 今回読み込んだ範囲を消去
     const unsigned int  num_goal_next = goal_indice_read.size();
     auto [suc_rate, tmp] = SyncReadGoal<Addr>(goal_indice_read, id_set);
-    return {       suc_rate        *num_goal_next / (num_goal_now+num_goal_next) 
+    return {       suc_rate        *num_goal_next / (num_goal_now+num_goal_next)
             + N_suc/(double)N_total*num_goal_now /  (num_goal_now+num_goal_next), N_total};
 }
 
@@ -649,15 +656,16 @@ tuple<double, uint8_t> DynamixelHandler::BulkReadExtra_rapid(const set<id_t>& id
     const int N_total = id_addr_list_map.size();
     const int N_suc   = id_data_vec_map.size();
 
-    for ( const auto& [id, data] : id_data_vec_map ) switch ( series_[id] ) {
-        case SERIES_X:
-        case SERIES_P: 
-            extra_u8_r_[id][EXTRA_MOVING_STATUS] =((data[0] & 0x01) << EXTRA_U8_MOVING_STATUS_MOVING_BIT) + data[1];
-            extra_db_r_[id][EXTRA_REALTIME_TICK] = id_addr_list_map[id][2].pulse2val(data[2], model_[id]); break;
-        case SERIES_PRO:
-            extra_u8_r_[id][EXTRA_MOVING_STATUS] = (data[0] & 0x01) << EXTRA_U8_MOVING_STATUS_MOVING_BIT;  break;
-        default: break; // ここに来るのはSERIES_UNKNOWNだけのはず
-    }
+    { StateLock lock(mutex_state_);
+        for ( const auto& [id, data] : id_data_vec_map ) switch ( series_[id] ) {
+            case SERIES_X:
+            case SERIES_P:
+                extra_u8_r_[id][EXTRA_MOVING_STATUS] =((data[0] & 0x01) << EXTRA_U8_MOVING_STATUS_MOVING_BIT) + data[1];
+                extra_db_r_[id][EXTRA_REALTIME_TICK] = id_addr_list_map[id][2].pulse2val(data[2], model_[id]); break;
+            case SERIES_PRO:
+                extra_u8_r_[id][EXTRA_MOVING_STATUS] = (data[0] & 0x01) << EXTRA_U8_MOVING_STATUS_MOVING_BIT;  break;
+            default: break; // ここに来るのはSERIES_UNKNOWNだけのはず
+    } }
 
     const uint8_t n_id = id_addr_list_map.size();
     return {N_total == 0 ? 1.0 : N_suc / (double)N_total, n_id};
@@ -683,6 +691,7 @@ tuple<double, uint8_t> DynamixelHandler::BulkReadExtra_slow(const set<id_t>& id_
         const auto id_data_vec_map = BulkRead_log(id_addrs_map_c1, verbose_["r_extra"], verbose_["r_extra_err"]);
         const int N_total = id_addrs_map_c1.size();
         const int N_suc   = id_data_vec_map.size();
+        StateLock lock(mutex_state_);
         for ( const auto& [id, data] : id_data_vec_map ) switch ( series_[id] ) {
             case SERIES_X:
             case SERIES_P:
@@ -713,11 +722,12 @@ tuple<double, uint8_t> DynamixelHandler::BulkReadExtra_slow(const set<id_t>& id_
         const auto id_data_vec_map = BulkRead_log(id_addrs_map_c2, verbose_["r_extra"], verbose_["r_extra_err"]);
         const int N_total = id_addrs_map_c2.size();
         const int N_suc   = id_data_vec_map.size();
+        StateLock lock(mutex_state_);
         for ( const auto& [id, data] : id_data_vec_map ) switch ( series_[id] ) {
             case SERIES_X:
                 extra_u8_r_[id][EXTRA_SHUTDOWN      ] = data[0];
                 extra_u8_r_[id][EXTRA_RESTORE_CONFIG] = data[1];
-                extra_db_r_[id][EXTRA_PWM_SLOPE     ] = 
+                extra_db_r_[id][EXTRA_PWM_SLOPE     ] =
                     has_pwm_slope(model_[id]) ? id_addrs_map_c2[id][2].pulse2val(data[2], model_[id]) : NaN;
                 break;
             case SERIES_P:
@@ -747,13 +757,14 @@ tuple<double, uint8_t> DynamixelHandler::BulkReadExtra_slow(const set<id_t>& id_
         const auto id_data_vec_map = BulkRead_log(id_addrs_map_f1, verbose_["r_extra"], verbose_["r_extra_err"]);
         const int N_total = id_addrs_map_f1.size();
         const int N_suc   = id_data_vec_map.size();
+        StateLock lock(mutex_state_);
         for ( const auto& [id, data] : id_data_vec_map ) switch ( series_[id] ) {
             case SERIES_X:
                 extra_db_r_[id][EXTRA_LED_RED] = data[0] ? 100.0 : 0.0; break;
             case SERIES_P:
             case SERIES_PRO:
-                extra_db_r_[id][EXTRA_LED_RED]   = std::clamp(data[0] * 100.0 / 255.0, 0.0, 100.0); 
-                extra_db_r_[id][EXTRA_LED_GREEN] = std::clamp(data[1] * 100.0 / 255.0, 0.0, 100.0); 
+                extra_db_r_[id][EXTRA_LED_RED]   = std::clamp(data[0] * 100.0 / 255.0, 0.0, 100.0);
+                extra_db_r_[id][EXTRA_LED_GREEN] = std::clamp(data[1] * 100.0 / 255.0, 0.0, 100.0);
                 extra_db_r_[id][EXTRA_LED_BLUE]  = std::clamp(data[2] * 100.0 / 255.0, 0.0, 100.0); break;
             default: break; // ここに来るのはSERIES_UNKNOWNだけのはず
         }
@@ -772,6 +783,7 @@ tuple<double, uint8_t> DynamixelHandler::BulkReadExtra_slow(const set<id_t>& id_
         const auto id_data_vec_map = BulkRead_log(id_addrs_map_f2, verbose_["r_extra"], verbose_["r_extra_err"]);
         const int N_total = id_addrs_map_f2.size();
         const int N_suc   = id_data_vec_map.size();
+        StateLock lock(mutex_state_);
         for ( const auto& [id, data] : id_data_vec_map ) // 各IDとも1要素のみ
             extra_db_r_[id][EXTRA_BUS_WATCHDOG] = id_addrs_map_f2[id][0].pulse2val(data[0], model_[id]);
         sum_rate += N_total == 0 ? 0.0 : N_suc / (double)N_total;
@@ -786,13 +798,13 @@ template <> void DynamixelHandler::StopDynamixels(const set<id_t>& id_set){
     StopDynamixels<AddrX>(id_set);
     StopDynamixels<AddrP>(id_set);
     StopDynamixels<AddrPro>(id_set);
-} 
+}
 template <typename Addr> void DynamixelHandler::StopDynamixels(const set<id_t>& id_set){
     vector<id_t> target_id_list = id_filter(id_set, Addr::series());
     if ( target_id_list.empty() ) return; // 読み込むデータがない場合は即時return
 
-    ROS_INFO(" %s servo will be stopped",  Addr::series()==SERIES_X ? "X series" 
-                                         : Addr::series()==SERIES_P ? "P series" 
+    ROS_INFO(" %s servo will be stopped",  Addr::series()==SERIES_X ? "X series"
+                                         : Addr::series()==SERIES_P ? "P series"
                                          : Addr::series()==SERIES_PRO ? "PRO series" : "Unknown");
     if ( do_torque_off_ ) { // ノード停止時の挙動して， do_torque_off_ は do_stop_end_ を包含する．
         dyn_comm_.SyncWrite(Addr::torque_enable, target_id_list, vector<int64_t>(target_id_list.size(), TORQUE_DISABLE));
@@ -830,23 +842,24 @@ template <typename Addr> bool DynamixelHandler::CheckDynamixels(const set<id_t>&
 
     // bus_watchdogの書き込み． command指定値があればそれを優先し，未指定( <0 )なら do_stop_end_ の設定に従う．
     map<id_t, vector<int64_t>> bus_watchdog_map;
-    for (auto id : target_id_list) switch (op_mode_r_[id]) {
-        default: break; // position系は homing_offset の既知問題があるため除外
-        case OPERATING_MODE_VELOCITY: [[fallthrough]];
-        case OPERATING_MODE_CURRENT : [[fallthrough]];
-        case OPERATING_MODE_PWM     : {
-            if ( !do_stop_end_ && bus_watch_[id] <= 0) continue; // do_stop_end_ も false かつ， コマンド指定値もなく， なら，書き込まない．
-            double time_ms = bus_watch_[id] >= 0.0 ? bus_watch_[id] : default_["bus_watchdog_ms"];
-            bus_watchdog_map[id].push_back(Addr::bus_watchdog.val2pulse(time_ms, model_[id]));
-        }
-    }
+    {   StateLock lock(mutex_state_);
+        for (auto id : target_id_list) switch (op_mode_r_[id]) {
+            default: break; // position系は homing_offset の既知問題があるため除外
+            case OPERATING_MODE_VELOCITY: [[fallthrough]];
+            case OPERATING_MODE_CURRENT : [[fallthrough]];
+            case OPERATING_MODE_PWM     : {
+                if ( !do_stop_end_ && bus_watch_[id] <= 0) continue; // do_stop_end_ も false かつ， コマンド指定値もなく， なら，書き込まない．
+                double time_ms = bus_watch_[id] >= 0.0 ? bus_watch_[id] : default_["bus_watchdog_ms"];
+                bus_watchdog_map[id].push_back(Addr::bus_watchdog.val2pulse(time_ms, model_[id]));
+            }
+    }   }
     if ( !bus_watchdog_map.empty() ) SyncWrite_log({Addr::bus_watchdog}, bus_watchdog_map, verbose_["w_status"]);
 
     // トルクの確認
     auto id_torque_map = SyncRead_log(Addr::torque_enable, target_id_list, verbose_["r_status"], verbose_["r_status_err"]);
     // 全ての状態が取得できていれば, 終了
-    if ( id_torque_map.size() == target_id_list.size() ) { 
-        for ( const auto& [id, torque] : id_torque_map ) tq_mode_r_[id] = (torque == TORQUE_ENABLE); 
+    if ( id_torque_map.size() == target_id_list.size() ) {
+        for ( const auto& [id, torque] : id_torque_map ) tq_mode_r_[id] = (torque == TORQUE_ENABLE);
         ping_err_.clear(); // 通信エラーがなければ，ping_err_をクリア
         return true; // ガード節
     }

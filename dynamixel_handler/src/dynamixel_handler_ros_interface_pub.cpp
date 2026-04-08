@@ -15,7 +15,7 @@ double round4(double val) { return round(val*10000.0)/10000.0; }
 
 template <typename MsgT>
 static void publish_if(const rclcpp::PublisherBase::SharedPtr& pub, const MsgT& msg) {
-    if (pub) std::static_pointer_cast<rclcpp::Publisher<MsgT>>(pub)->publish(msg);
+    if ( pub && rclcpp::ok() ) std::static_pointer_cast<rclcpp::Publisher<MsgT>>(pub)->publish(msg);
 }
 
 DynamixelStatus DynamixelHandler::BroadcastState_Status(){

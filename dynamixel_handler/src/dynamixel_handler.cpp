@@ -12,6 +12,8 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
                                                                   .allow_undeclared_parameters(true)
                                                                   .automatically_declare_parameters_from_overrides(true)) {
     ROS_INFO( "Initializing DynamixelHandler .....");
+    cbg_serial_  = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+    cbg_command_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     // 開発用
     bool is_debug; get_parameter_or("debug", is_debug, false);
     // ダミーモータのIDリストを取得, 0未満，255以上のIDを排除する
@@ -27,7 +29,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     dyn_comm_.set_verbose(serial_verbose);
     // serial通信の開始
     if ( !dyn_comm_.OpenPort() ) { fflush(stdout); // printfのバッファを吐き出す． これがないと printfの表示が遅延する
-        ROS_ERROR(" Failed to open USB device [%s]", dyn_comm_.port_name().c_str()); 
+        ROS_ERROR(" Failed to open USB device [%s]", dyn_comm_.port_name().c_str());
         if ( !is_debug && dummy_id_list.empty() ) ROS_STOP("Initialization failed (device open)");
     } else { fflush(stdout);
         ROS_INFO(" Succeeded to open device");
@@ -78,7 +80,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
     this->get_parameter_or("default/profile_acc", default_["profile_acc_deg_ss"], 600.0);
     this->get_parameter_or("default/return_delay_time", default_["return_delay_time_us"],   0.0);
     this->get_parameter_or("default/bus_watchdog"     , default_["bus_watchdog_ms"     ], 500.0);
-    // id_set_の作成に関連するもの    
+    // id_set_の作成に関連するもの
     this->get_parameter_or("init/used_servo_series.X", use_["x"], true);
     this->get_parameter_or("init/used_servo_series.P", use_["p"], false);
     this->get_parameter_or("init/used_servo_series.Pro", use_["pro"], false);
@@ -101,7 +103,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
         if ( !is_debug ) ROS_STOP("Initialization failed (no dynamixel found)");
     }
     if( num_expected>0 && num_expected!=(int)id_set_.size() ) { // 期待数が設定されているときに、見つかった数が期待数と異なる場合は初期化失敗で終了
-        ROS_ERROR(" Number of Dynamixel is not matched."); 
+        ROS_ERROR(" Number of Dynamixel is not matched.");
         ROS_ERROR(" Expected '%d', but found '%ld'. please check & retry", num_expected, id_set_.size());
         if ( !is_debug ) ROS_STOP("Initialization failed (number of dynamixel is not matched)");
     }
@@ -137,14 +139,14 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
 
     BroadcastState_Status();
     BroadcastState_Limit();
-    BroadcastState_Gain();  
-    BroadcastState_Goal();   
-    BroadcastState_Error(); 
+    BroadcastState_Gain();
+    BroadcastState_Goal();
+    BroadcastState_Error();
     BroadcastState_Extra();
 
     bool use_ex_port; get_parameter_or("option/external_port.use", use_ex_port, false);
     if ( use_ex_port ) external_port_ = std::make_unique<ExternalPort>(*this);
-    
+
     // bool use_imu_DXIMO; get_parameter_or("use/BTE098_DXMIO_with_IMU", use_imu_DXIMO, false);
     // if ( use_imu_DXIMO ) imu_dximo_ = std::make_unique<DynamixelIMU_DXIMO>(*this);
 
@@ -157,7 +159,7 @@ DynamixelHandler::DynamixelHandler() : Node("dynamixel_handler", rclcpp::NodeOpt
 using std::chrono::system_clock;
 using std::chrono::duration_cast;
 using std::chrono::microseconds;
-using std::tie; 
+using std::tie;
 using std::ignore;
 
 enum state { STATUS, PRESENT, GOAL, GAIN, LIMIT, ERROR, EXTRA_D, EXTRA_S , _num_state };
@@ -173,25 +175,28 @@ void DynamixelHandler::MainLoop(){
     if (imu_opencr_   ) imu_opencr_->MainProcess();
 
     //* topicをSubscribe & Dynamixelへ目標角をWrite
-    if ( auto_remove_count_ )
-    for (auto [id, cnt_err]: ping_err_) if ( cnt_err > auto_remove_count_ ) id_edit_[id] = false;
-    for (auto [id, add_rm ]: id_edit_ ) add_rm ? AddDynamixel(id) : RemoveDynamixel(id);
-    id_edit_.clear();
-    BulkWriteExtra_ram(ex_ram_indice_write_, updated_id_ex_ram_);
-    ex_ram_indice_write_.clear(); updated_id_ex_ram_.clear();
-    BulkWriteExtra_rom(ex_rom_indice_write_, updated_id_ex_rom_);
-    ex_rom_indice_write_.clear(); updated_id_ex_rom_.clear();
-    for ( auto id : id_set_ ) { // 各要素について，達成されるまで繰り返すようにする．
-        if (op_mode_w_.count(id)){ ChangeOperatingMode(id, op_mode_w_[id]) && op_mode_w_.erase(id);}
-        if ( hw_err_w_.count(id)){ ClearHardwareError (id,  hw_err_w_[id]);    hw_err_w_.erase(id);} // hw_err_w_[id]=複数回転をoffsetで復元するか
-        if (tq_mode_w_.count(id)){ tq_mode_w_[id]?TorqueOn(id):TorqueOff(id); tq_mode_w_.erase(id);}
-    } 
-    SyncWriteGoal(goal_indice_write_, updated_id_goal_);
-    goal_indice_write_.clear() ; updated_id_goal_.clear();
-    SyncWriteGain(gain_indice_write_, updated_id_gain_);
-    gain_indice_write_.clear() ; updated_id_gain_.clear();
-    SyncWriteLimit(limit_indice_write_, updated_id_limit_);
-    limit_indice_write_.clear(); updated_id_limit_.clear();
+    { // write 区間はまとめて lock する
+        std::lock_guard<std::recursive_mutex> lock(mutex_state_);
+        if ( auto_remove_count_ )
+        for (auto [id, cnt_err]: ping_err_) if ( cnt_err > auto_remove_count_ ) id_edit_[id] = false;
+        for (auto [id, add_rm ]: id_edit_ ) add_rm ? AddDynamixel(id) : RemoveDynamixel(id);
+        id_edit_.clear();
+        BulkWriteExtra_ram(ex_ram_indice_write_, updated_id_ex_ram_);
+        ex_ram_indice_write_.clear(); updated_id_ex_ram_.clear();
+        BulkWriteExtra_rom(ex_rom_indice_write_, updated_id_ex_rom_);
+        ex_rom_indice_write_.clear(); updated_id_ex_rom_.clear();
+        for ( auto id : id_set_ ) { // 各要素について，達成されるまで繰り返すようにする．
+            if (op_mode_w_.count(id)){ ChangeOperatingMode(id, op_mode_w_[id]) && op_mode_w_.erase(id);}
+            if ( hw_err_w_.count(id)){ ClearHardwareError (id,  hw_err_w_[id]);    hw_err_w_.erase(id);} // hw_err_w_[id]=複数回転をoffsetで復元するか
+            if (tq_mode_w_.count(id)){ tq_mode_w_[id]?TorqueOn(id):TorqueOff(id); tq_mode_w_.erase(id);}
+        }
+        SyncWriteGoal(goal_indice_write_, updated_id_goal_);
+        goal_indice_write_.clear() ; updated_id_goal_.clear();
+        SyncWriteGain(gain_indice_write_, updated_id_gain_);
+        gain_indice_write_.clear() ; updated_id_gain_.clear();
+        SyncWriteLimit(limit_indice_write_, updated_id_limit_);
+        limit_indice_write_.clear(); updated_id_limit_.clear();
+    }
 
     //* present value について read する情報を決定
     static const auto& r = pub_ratio_present_; //長いので省略
@@ -218,17 +223,17 @@ void DynamixelHandler::MainLoop(){
         n_present_suc_p += !target_id_set.empty()  && success_rate[PRESENT] > 0.0;
         n_present_suc_f +=  target_id_set==id_set_ && success_rate[PRESENT] > 1.0-1e-6;
     }
-    if ( pub_ratio_["goal" ] && cnt % pub_ratio_["goal" ] == 0 ) 
+    if ( pub_ratio_["goal" ] && cnt % pub_ratio_["goal" ] == 0 )
         tie(success_rate[GOAL], ignore) = SyncReadGoal(goal_indice_read_, target_id_set);
-    if ( pub_ratio_["gain" ] && cnt % pub_ratio_["gain" ] == 0 ) 
+    if ( pub_ratio_["gain" ] && cnt % pub_ratio_["gain" ] == 0 )
         tie(success_rate[GAIN], ignore) = SyncReadGain(gain_indice_read_, target_id_set);
-    if ( pub_ratio_["limit"] && cnt % pub_ratio_["limit"] == 0 ) 
+    if ( pub_ratio_["limit"] && cnt % pub_ratio_["limit"] == 0 )
         tie(success_rate[LIMIT], ignore) = SyncReadLimit(limit_indice_read_, target_id_set);
-    if ( pub_ratio_["error"] && cnt % pub_ratio_["error"] == 0 ) 
+    if ( pub_ratio_["error"] && cnt % pub_ratio_["error"] == 0 )
         tie(success_rate[ERROR], ignore) = SyncReadHardwareErrors(target_id_set);
-    if ( pub_ratio_["extra_dynamic"] && cnt % pub_ratio_["extra_dynamic"] == 0 ) 
+    if ( pub_ratio_["extra_dynamic"] && cnt % pub_ratio_["extra_dynamic"] == 0 )
         tie(success_rate[EXTRA_D], ignore) = BulkReadExtra_rapid(target_id_set);
-    if ( pub_ratio_["extra_static" ] && cnt % pub_ratio_["extra_static" ] == 0 ) 
+    if ( pub_ratio_["extra_static" ] && cnt % pub_ratio_["extra_static" ] == 0 )
         tie(success_rate[EXTRA_S], ignore) = BulkReadExtra_slow(target_id_set);
     bool is_any_read = std::any_of( success_rate.begin(), success_rate.end(), [](auto& x){ return x > 0.0; });
     if ( success_rate[STATUS ]>0.0 ) msg.status  = BroadcastState_Status();
@@ -247,7 +252,7 @@ void DynamixelHandler::MainLoop(){
 
     //* デバック
     if ( ratio_mainloop_ && cnt % ratio_mainloop_ == 0) {
-        float partial_suc = 100*n_present_suc_p/n_present_read; 
+        float partial_suc = 100*n_present_suc_p/n_present_read;
         float full_suc    = 100*n_present_suc_f/n_present_read;
         char msg[100]; sprintf(msg, "time=%2.2fms/loop(%2.2fms/read), success=%3.0f%%(full=%3.0f%%)",
                                t_total/ratio_mainloop_, t_read/n_any_read, partial_suc, full_suc);
@@ -255,7 +260,7 @@ void DynamixelHandler::MainLoop(){
         t_total = 0.0; /* mainloopで行われてる処理の計測時間を初期化 */
     }
     if ( cnt % max({(int)loop_rate_, (int)ratio_mainloop_, 10}) == 0)
-        t_read = n_present_suc_p = n_present_suc_f = n_present_read = n_any_read = 0.00001; /* present value の read の周期で行われてる処理の初期化 */ 
+        t_read = n_present_suc_p = n_present_suc_f = n_present_read = n_any_read = 0.00001; /* present value の read の周期で行われてる処理の初期化 */
 }
 
 DynamixelHandler::~DynamixelHandler(){

@@ -14,11 +14,12 @@ int main(int argc, char **argv) {
     auto timer_ = node.get()->create_wall_timer(
           1.0s / (node->loop_rate_)
         , bind(&DynamixelHandler::MainLoop, node.get())
+        , node->cbg_serial_
     ); // 変数に保存する必要あり
     /*Interruption*/
-    auto executor = rclcpp::executors::MultiThreadedExecutor::make_unique();
-    executor->add_node(node);
-    executor->spin();
+    rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);
+    executor.add_node(node);
+    executor.spin();
     /*Termination*/
     node.reset(); // rclcpp::shutdown() の前に呼ぶ必要あり
     rclcpp::shutdown();

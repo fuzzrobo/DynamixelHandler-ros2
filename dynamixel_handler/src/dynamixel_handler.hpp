@@ -5,6 +5,7 @@
 
 #include "dynamixel_communicator.h"
 #include <memory>
+#include <mutex>
 
 namespace dynamixel_handler_msgs {
     namespace msg {
@@ -161,6 +162,9 @@ class DynamixelHandler : public rclcpp::Node {
         rclcpp::SubscriptionBase::SharedPtr sub_dxl_p_cmds_;
         rclcpp::SubscriptionBase::SharedPtr sub_dxl_pro_cmds_;
         rclcpp::SubscriptionBase::SharedPtr sub_dxl_all_cmds_;
+        rclcpp::CallbackGroup::SharedPtr cbg_serial_;
+        rclcpp::CallbackGroup::SharedPtr cbg_command_;
+        std::recursive_mutex mutex_state_;
 
         //* 各種のフラグとパラメータ
         unsigned int  loop_rate_ = 50;
@@ -263,10 +267,10 @@ class DynamixelHandler : public rclcpp::Node {
         using opmode_t = DynamixelOperatingMode;
         static inline set<id_t> id_set_; // chained dynamixel id list // 順序を保持する必要があうのでset
         // 連結しているサーボの個々の状態を保持するunordered_map
-        static inline unordered_map<id_t, model_t > model_;  // 各dynamixelの id と model のマップ
-        static inline unordered_map<id_t, series_t> series_; // 各dynamixelの id と series のマップ
-        static inline unordered_map<id_t, bool    > id_edit_; // 各dynamixelの id について, true:add false:remove の指示
-        static inline unordered_map<id_t, uint64_t> ping_err_; // 各dynamixelの id と 連続でpingに応答しなかった回数のマップ
+        static inline unordered_map<id_t, model_t > model_;     // 各dynamixelの id と model のマップ
+        static inline unordered_map<id_t, series_t> series_;    // 各dynamixelの id と series のマップ
+        static inline unordered_map<id_t, bool    > id_edit_;   // 各dynamixelの id について, true:add false:remove の指示
+        static inline unordered_map<id_t, uint64_t> ping_err_;  // 各dynamixelの id と 連続でpingに応答しなかった回数のマップ
         static inline unordered_map<id_t, double  > bus_watch_; // 各dynamixelの id と CheckDynamixelsで使う bus_watchdog の目標値(ms)（<0: command未指定）
         static inline unordered_map<id_t, bool    > tq_mode_w_;  // 各dynamixelの id と トルクON/OFF の書き込み値のマップ (~_r_と差をなくすように書き込む)
         static inline unordered_map<id_t, bool    > tq_mode_r_;  // 各dynamixelの id と トルクON/OFF の読み込み値のマップ

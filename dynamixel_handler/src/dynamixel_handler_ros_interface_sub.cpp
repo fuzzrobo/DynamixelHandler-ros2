@@ -29,6 +29,8 @@
 #include "myUtils/make_iterator_convenient.hpp"  // enum のインクリメントと， is_in 関数の実装
 #include <limits>
 
+using StateLock = std::lock_guard<std::recursive_mutex>;
+
 // 角度変換
 static constexpr double DEG = M_PI/180.0; // degを単位に持つ数字に掛けるとradになる
 static double deg2rad(double deg){ return deg*DEG; }
@@ -36,7 +38,7 @@ static vector<bool> falses(size_t N) { return vector<bool>(N, false); }
 static vector<bool> trues (size_t N) { return vector<bool>(N,  true); }
 
 bool DynamixelHandler::check_series(id_t id, series_t series) {
-    return series_[id] == series || series_[id] == SERIES_UNKNOWN; 
+    return series_[id] == series || series_[id] == SERIES_UNKNOWN;
 }
 
 void DynamixelHandler::CallbackCmdsX(std::shared_ptr<DxlCommandsX> msg) {
@@ -86,6 +88,7 @@ void DynamixelHandler::CallbackCmdsAll(std::shared_ptr<DxlCommandsAll> msg) {
 
 void DynamixelHandler::CallbackShortcut(const DynamixelShortcut& msg) {
     if ( msg.command=="" ) return;
+    StateLock lock(mutex_state_);
     if (verbose_callback_ ) {
         ROS_INFO_STREAM(id_list_layout(msg.id_list, "Shortcut, ID"));
         ROS_INFO(" command [%s] (ID=[] or [254] means all IDs)", msg.command.c_str());
@@ -94,7 +97,7 @@ void DynamixelHandler::CallbackShortcut(const DynamixelShortcut& msg) {
     const auto& cmd = msg.command; // 略記
     const auto& N = msg.id_list.size();// IDリストのサイズ
     const auto& id_list = ( N==0 || (N==1 && msg.id_list[0]==0xFE) ) // [] or [254] なら全ID
-                          ? vector<uint16_t>(id_set_.begin(), id_set_.end()) : msg.id_list;
+                         ? vector<uint16_t>(id_set_.begin(), id_set_.end()) : msg.id_list;
          if (cmd==msg.CLEAR_ERROR || cmd=="CE"  ) CallbackCmd_Status(st.set__id_list(id_list).set__error ( trues(id_list.size())));
     else if (cmd==msg.TORQUE_ON   || cmd=="TON" ) CallbackCmd_Status(st.set__id_list(id_list).set__torque( trues(id_list.size())));
     else if (cmd==msg.TORQUE_OFF  || cmd=="TOFF") CallbackCmd_Status(st.set__id_list(id_list).set__torque(falses(id_list.size())));
@@ -121,11 +124,12 @@ void DynamixelHandler::CallbackCmd_Status(const DynamixelStatus& msg) {
     const bool has_error  = msg.id_list.size() == msg.error.size() ;
     const bool has_ping   = msg.id_list.size() == msg.ping.size()  ;
     const bool has_mode   = msg.id_list.size() == msg.mode.size()  ;
+    StateLock lock(mutex_state_);
     // msg.id_list内のIDの妥当性を確認, has_ping が true の場合は，id_set_に含まれていないIDも有効とする
     vector<uint16_t> valid_id_list;
     for (auto id : msg.id_list) if ( is_in(id, id_set_) || has_ping ) valid_id_list.push_back(id);
     if ( valid_id_list.empty() ) return; // 有効なIDがない場合は何もしない
-    // log出力, 
+    // log出力,
     if (verbose_callback_ ) {
         ROS_INFO("Status cmd, '%zu' servo(s) are tryed to updated", valid_id_list.size());
         ROS_INFO_STREAM(id_list_layout(valid_id_list, "  ID")); // valid_id_list はここで必要なので，わざわざ独立したvectorとして用意している
@@ -137,15 +141,15 @@ void DynamixelHandler::CallbackCmd_Status(const DynamixelStatus& msg) {
     // 各IDに対して，msg内の指令をもとに処理を行う
     for (size_t i=0; i<msg.id_list.size(); i++) if ( auto ID = msg.id_list[i]; is_in(ID, valid_id_list) ) { // 順番がずれるのでわざとこの書き方をしている．
         if ( has_ping   ) { id_edit_[ID] = msg.ping[i];                          }
-        if ( has_error  ) { hw_err_w_[ID]  = msg.error[i]; tq_mode_w_[ID] = true;} // エラー解除できたらトルクON
-        if ( has_torque ) { tq_mode_w_[ID] = msg.torque[i];}
+        if ( has_error  ) { hw_err_w_[ID] = msg.error[i]; tq_mode_w_[ID] = true; } // エラー解除できたらトルクON
+        if ( has_torque ) { tq_mode_w_[ID] = msg.torque[i];                      }
         if ( has_mode   ) {
                  if (msg.mode[i] == msg.CONTROL_PWM                  ) op_mode_w_[ID] = OPERATING_MODE_PWM              ;
             else if (msg.mode[i] == msg.CONTROL_CURRENT              ) op_mode_w_[ID] = OPERATING_MODE_CURRENT          ;
             else if (msg.mode[i] == msg.CONTROL_VELOCITY             ) op_mode_w_[ID] = OPERATING_MODE_VELOCITY         ;
             else if (msg.mode[i] == msg.CONTROL_POSITION             ) op_mode_w_[ID] = OPERATING_MODE_POSITION         ;
             else if (msg.mode[i] == msg.CONTROL_EXTENDED_POSITION    ) op_mode_w_[ID] = OPERATING_MODE_EXTENDED_POSITION;
-            else if (msg.mode[i] == msg.CONTROL_CURRENT_BASE_POSITION) 
+            else if (msg.mode[i] == msg.CONTROL_CURRENT_BASE_POSITION)
                                  switch (series_[ID]) { default:       op_mode_w_[ID] = OPERATING_MODE_CURRENT_BASE_POSITION; break;
                                                         case SERIES_P: op_mode_w_[ID] = OPERATING_MODE_EXTENDED_POSITION    ;
                                                                        ROS_WARN("  ID [%d] is P-series, so alternative mode is selected", ID);}
@@ -159,9 +163,10 @@ void DynamixelHandler::CallbackCmd_X_Pwm(const DynamixelControlXPwm& msg) {
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "PWM ctrl(X), ID"));
     vector<uint16_t> id_list(msg.id_list);
+    StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_X) ) { // SERIES_X か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
+        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_PWM;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -173,9 +178,10 @@ void DynamixelHandler::CallbackCmd_X_Position(const DynamixelControlXPosition& m
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Position ctrl(X), ID"));
     vector<uint16_t> id_list(msg.id_list);
+    StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_X) ) { // SERIES_X か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
+        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_POSITION;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -189,9 +195,10 @@ void DynamixelHandler::CallbackCmd_X_Velocity(const DynamixelControlXVelocity& m
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Velocity ctrl(X), ID"));
     vector<uint16_t> id_list(msg.id_list);
+    StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_X) ) { // SERIES_X か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
+        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_VELOCITY;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -204,9 +211,10 @@ void DynamixelHandler::CallbackCmd_X_Current(const DynamixelControlXCurrent& msg
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Current ctrl(X), ID"));
     vector<uint16_t> id_list(msg.id_list);
+    StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_X) ) { // SERIES_X か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
+        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_CURRENT;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -218,9 +226,10 @@ void DynamixelHandler::CallbackCmd_X_CurrentBasePosition(const DynamixelControlX
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Current-base Position ctrl(X), ID"));
     vector<uint16_t> id_list(msg.id_list);
+    StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_X) ) { // SERIES_X か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
+        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
     }
     vector<double> position_deg(msg.position_deg);
     if ( size_t N_rot=msg.rotation.size(); N_rot==0 || N_rot==id_list.size() ) {
@@ -242,9 +251,10 @@ void DynamixelHandler::CallbackCmd_X_ExtendedPosition(const DynamixelControlXExt
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Extended Position ctrl(X), ID"));
     vector<uint16_t> id_list(msg.id_list);
+    StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_X) ) { // SERIES_X か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
+        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
     }
     vector<double> position_deg(msg.position_deg);
     if ( size_t N_rot=msg.rotation.size(); N_rot==0 || N_rot==id_list.size() ) {
@@ -265,9 +275,10 @@ void DynamixelHandler::CallbackCmd_P_Pwm(const DynamixelControlPPwm& msg) {
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "PWM ctrl(P), ID"));
     vector<uint16_t> id_list(msg.id_list);
+    StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_P) ) { // SERIES_P か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
+        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_PWM;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -279,9 +290,10 @@ void DynamixelHandler::CallbackCmd_P_Current(const DynamixelControlPCurrent& msg
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Current ctrl(P), ID"));
     vector<uint16_t> id_list(msg.id_list);
+    StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_P) ) { // SERIES_P か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
+        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_CURRENT;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -293,9 +305,10 @@ void DynamixelHandler::CallbackCmd_P_Velocity(const DynamixelControlPVelocity& m
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Velocity ctrl(P), ID"));
     vector<uint16_t> id_list(msg.id_list);
+    StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_P) ) { // SERIES_P か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
+        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_VELOCITY;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -309,9 +322,10 @@ void DynamixelHandler::CallbackCmd_P_Position(const DynamixelControlPPosition& m
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Position ctrl(P), ID"));
     vector<uint16_t> id_list(msg.id_list);
+    StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_P) ) { // SERIES_P か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
+        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_POSITION;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -326,9 +340,10 @@ void DynamixelHandler::CallbackCmd_P_ExtendedPosition(const DynamixelControlPExt
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Extended Position ctrl(P), ID"));
     vector<uint16_t> id_list(msg.id_list);
+    StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_P) ) { // SERIES_P か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
+        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
     }
     vector<double> position_deg(msg.position_deg);
     if ( size_t N_rot=msg.rotation.size(); N_rot==0 || N_rot==id_list.size() ) {
@@ -353,9 +368,10 @@ void DynamixelHandler::CallbackCmd_Pro_Current(const DynamixelControlProCurrent&
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Current ctrl(Pro), ID"));
     vector<uint16_t> id_list(msg.id_list);
+    StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_PRO) ) { // SERIES_PRO か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not Pro series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
+        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_CURRENT;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -367,9 +383,10 @@ void DynamixelHandler::CallbackCmd_Pro_Velocity(const DynamixelControlProVelocit
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Velocity ctrl(Pro), ID"));
     vector<uint16_t> id_list(msg.id_list);
+    StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_PRO) ) { // SERIES_PRO か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not Pro series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
+        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_VELOCITY;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -383,9 +400,10 @@ void DynamixelHandler::CallbackCmd_Pro_Position(const DynamixelControlProPositio
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Position ctrl(Pro), ID"));
     vector<uint16_t> id_list(msg.id_list);
+    StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_PRO) ) { // SERIES_PRO か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not Pro series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
+        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_POSITION;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -400,9 +418,10 @@ void DynamixelHandler::CallbackCmd_Pro_ExtendedPosition(const DynamixelControlPr
     if ( msg.id_list.empty() ) return; // id_list が空の場合は何もしない
     if (verbose_callback_) ROS_INFO_STREAM(id_list_layout(msg.id_list, "Extended Position ctrl(Pro), ID"));
     vector<uint16_t> id_list(msg.id_list);
+    StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_PRO) ) { // SERIES_PRO か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not Pro series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする 
+        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
     }
     vector<double> position_deg(msg.position_deg);
     if ( size_t N_rot=msg.rotation.size(); N_rot==0 || N_rot==id_list.size() ) {
@@ -426,6 +445,7 @@ bool is_valid(const vector<double>& vec) { return std::all_of(vec.begin(), vec.e
 
 void DynamixelHandler::CallbackCmd_Goal(const DynamixelGoal& msg) { // mutex_goal_を追加し， 排他制御を行う． log出力を排他制御に入れないように注意する．
     // msg.id_list内のIDの妥当性を確認
+    StateLock lock(mutex_state_);
     vector<uint8_t> valid_id_list;
     for (auto id : msg.id_list) if ( is_in(id, id_set_) ) valid_id_list.push_back(id);
     if ( valid_id_list.empty() ) return; // 妥当なIDがない場合は何もしない, 以降は必ず妥当なIDが存在する
@@ -447,15 +467,15 @@ void DynamixelHandler::CallbackCmd_Goal(const DynamixelGoal& msg) { // mutex_goa
         if ( n_pos>0 ){ if( valid_pos) ROS_INFO("  - updated: goal position"); else ROS_WARN("  - skipped: goal position %s", n_pos!=N?warn_s:warn_n);}
         if ( n_pv >0 ){ if( valid_pv ) ROS_INFO("  - updated: profile vel. "); else ROS_WARN("  - skipped: profile vel.  %s", n_pv !=N?warn_s:warn_n);}
         if ( n_pa >0 ){ if( valid_pa ) ROS_INFO("  - updated: profile acc. "); else ROS_WARN("  - skipped: profile acc.  %s", n_pa !=N?warn_s:warn_n);}
-    } 
+    }
     if ( !valid_pwm && !valid_cur && !valid_vel && !valid_pos && !valid_pv && !valid_pa ) return; // 有効なIDがあるが，有効な要素がない場合は何もしない
     // goal_indice_write_　の更新
-    if ( valid_pwm ) goal_indice_write_.insert(GOAL_PWM     ); 
-    if ( valid_cur ) goal_indice_write_.insert(GOAL_CURRENT ); 
+    if ( valid_pwm ) goal_indice_write_.insert(GOAL_PWM     );
+    if ( valid_cur ) goal_indice_write_.insert(GOAL_CURRENT );
     if ( valid_vel ) goal_indice_write_.insert(GOAL_VELOCITY);
     if ( valid_pos ) goal_indice_write_.insert(GOAL_POSITION);
     if ( valid_pv  ) goal_indice_write_.insert(PROFILE_VEL  );
-    if ( valid_pa  ) goal_indice_write_.insert(PROFILE_ACC  ); 
+    if ( valid_pa  ) goal_indice_write_.insert(PROFILE_ACC  );
     // goal_w_ と updated_id_goal_ の更新
     for (size_t i=0; i<msg.id_list.size(); i++) if ( auto ID = msg.id_list[i]; is_in(ID, valid_id_list) ) { // 順番がずれるのでわざとこの書き方をしている．
         updated_id_goal_.insert(ID);
@@ -471,16 +491,17 @@ void DynamixelHandler::CallbackCmd_Goal(const DynamixelGoal& msg) { // mutex_goa
         if ( valid_pos ) g[GOAL_POSITION] = clamp( msg.position_deg[i]*DEG, is_mode_pos ? l[MIN_POSITION_LIMIT] : -256*2*M_PI,
                                                                             is_mode_pos ? l[MAX_POSITION_LIMIT] : +256*2*M_PI );
         //                                           シリーズによって最大値が変わるので注意して，制限内に収める
-        if ( valid_pv )  g[PROFILE_VEL  ] = clamp( msg.profile_vel_deg_s[i] *DEG, 0.0, !is_x_series ? l[VELOCITY_LIMIT   ] 
-                                                                                : AddrX::profile_velocity.pulse2val(32767, model_[ID])); 
-        if ( valid_pa )  g[PROFILE_ACC  ] = clamp( msg.profile_acc_deg_ss[i]*DEG, 0.0, !is_x_series ? l[ACCELERATION_LIMIT] 
-                                                                                : AddrX::profile_acceleration.pulse2val(32767, model_[ID])); 
+        if ( valid_pv )  g[PROFILE_VEL  ] = clamp( msg.profile_vel_deg_s[i] *DEG, 0.0, !is_x_series ? l[VELOCITY_LIMIT   ]
+                                                                                : AddrX::profile_velocity.pulse2val(32767, model_[ID]));
+        if ( valid_pa )  g[PROFILE_ACC  ] = clamp( msg.profile_acc_deg_ss[i]*DEG, 0.0, !is_x_series ? l[ACCELERATION_LIMIT]
+                                                                                : AddrX::profile_acceleration.pulse2val(32767, model_[ID]));
     }
     if (verbose_callback_) ROS_INFO("============+===========+============");
 }
 
 void DynamixelHandler::CallbackCmd_Gain(const DynamixelGain& msg) { // mutex_gain_を追加し， 排他制御を行う． log出力を排他制御に入れないように注意する．
     // msg.id_list内のIDの妥当性を確認
+    StateLock lock(mutex_state_);
     vector<uint8_t> valid_id_list;
     for (auto id : msg.id_list) if ( is_in(id, id_set_) ) valid_id_list.push_back(id);
     if ( valid_id_list.empty() ) return; // 妥当なIDがない場合は何もしない, 以降は必ず妥当なIDが存在する
@@ -527,11 +548,12 @@ void DynamixelHandler::CallbackCmd_Gain(const DynamixelGain& msg) { // mutex_gai
         if ( valid_fv ) gain_w_[ID][FEEDFORWARD_VEL_GAIN] = msg.feedforward_1st_gain_pulse[i];
     } // 値の範囲がまちまちすぎるので，チェックしない．
     if (verbose_callback_) ROS_INFO("========+=========+=========+========");
-    
+
 }
 
 void DynamixelHandler::CallbackCmd_Limit(const DynamixelLimit& msg) { // mutex_limit_を追加し， 排他制御を行う． log出力を排他制御に入れないように注意する．
     // msg.id_list内のIDの妥当性を確認
+    StateLock lock(mutex_state_);
     vector<uint8_t> valid_id_list;
     for (auto id : msg.id_list) if ( is_in(id, id_set_) ) valid_id_list.push_back(id);
     if ( valid_id_list.empty() ) return; // 妥当なIDがない場合は何もしない, 以降は必ず妥当なIDが存在する
@@ -561,7 +583,7 @@ void DynamixelHandler::CallbackCmd_Limit(const DynamixelLimit& msg) { // mutex_l
         if ( n_maxp>0 ){ if( valid_maxp) ROS_INFO("  - updated: max position limit"); else ROS_WARN("  - skipped: max position limit %s", n_maxp!=N?warn_s:warn_n);}
         if ( n_minp>0 ){ if( valid_minp) ROS_INFO("  - updated: min position limit"); else ROS_WARN("  - skipped: min position limit %s", n_minp!=N?warn_s:warn_n);}
     }
-    if ( !valid_temp && !valid_maxv && !valid_minv && !valid_pwm 
+    if ( !valid_temp && !valid_maxv && !valid_minv && !valid_pwm
          && !valid_cur && !valid_acc && !valid_vel && !valid_maxp && !valid_minp ) return; // 有効なIDがあるが，有効な要素がない場合は何もしない
     // limit_indice_write_　の更新
     if ( valid_temp ) limit_indice_write_.insert(TEMPERATURE_LIMIT);
@@ -591,6 +613,7 @@ void DynamixelHandler::CallbackCmd_Limit(const DynamixelLimit& msg) { // mutex_l
 
 void DynamixelHandler::CallbackCmd_Extra(const DynamixelExtra& msg) {
     if ( msg.id_list.empty() ) return;
+    StateLock lock(mutex_state_);
     vector<uint8_t> valid_id_list;
     for ( auto id : msg.id_list ) if ( is_in(id, id_set_) ) valid_id_list.push_back(id);
     if ( valid_id_list.empty() ) return;
@@ -697,22 +720,23 @@ void DynamixelHandler::CallbackCmd_Extra_Config(const DynamixelExtra& msg, const
         if ( n_sd_ovh >0 ){ if(has_sd_ovh) ROS_INFO("   -- updated: .overheating_error  "); else ROS_WARN("   -- skipped: .overheating_error   %s", warn_s);}
         if ( n_sd_vin >0 ){ if(has_sd_vin) ROS_INFO("   -- updated: .input_voltage_error"); else ROS_WARN("   -- skipped: .input_voltage_error %s", warn_s);}
     }
-    
+
     const size_t n_restore_ram = msg.restore_configuration.ram_restore.size();
     const size_t n_restore_tq  = msg.restore_configuration.startup_torque_on.size();
     const bool has_restore_ram = n_restore_ram == N;
     const bool has_restore_tq  = n_restore_tq == N;
     const bool has_restore     = has_restore_ram || has_restore_tq;
-    
+
     if ( verbose_callback_ ) {
-        if ( has_restore ) ROS_INFO("  - restore_config");  
+        if ( has_restore ) ROS_INFO("  - restore_config");
         if ( n_restore_ram >0 ){ if(has_restore_ram) ROS_INFO("   -- updated: .ram_restore      "); else ROS_WARN("   -- skipped: .ram_restore         %s", warn_s);}
         if ( n_restore_tq  >0 ){ if(has_restore_tq ) ROS_INFO("   -- updated: .startup_torque_on"); else ROS_WARN("   -- skipped: .startup_torque_on   %s", warn_s);}
     }
 
-    if ( !has_shadow && !valid_homing && !valid_threshold && !valid_pwm_slope 
+    if ( !has_shadow && !valid_homing && !valid_threshold && !valid_pwm_slope
          && !valid_ret_delay && !has_drive && !has_shutdown && !has_restore ) return; // 有効なIDがあるが，有効な要素がない場合は何もしない
 
+    StateLock lock(mutex_state_);
     for (size_t i=0; i<msg.id_list.size(); i++) if ( id_t ID = msg.id_list[i]; is_in(ID, valid_id_list) ) {
         const bool is_dummy = series_[ID] == SERIES_UNKNOWN;
         auto set_db = [&](ExtraDoubleIndex idx, double val){
@@ -723,7 +747,7 @@ void DynamixelHandler::CallbackCmd_Extra_Config(const DynamixelExtra& msg, const
             extra_u8_w_[ID][idx] = val;
             updated_id_ex_rom_.insert(ID); ex_rom_indice_write_.insert(idx);
         };
-        
+
         if ( has_shadow && (is_dummy || has_shadow_id (model_[ID])) ) set_u8(EXTRA_SHADOW_ID, msg.shadow_id[i]);
         if ( has_drive  && (is_dummy || has_drive_mode(model_[ID])) ) {
             auto mode = bitset<8>(extra_u8_w_[ID][EXTRA_DRIVE_MODE]);
@@ -762,20 +786,20 @@ void DynamixelHandler::CallbackCmd_Extra_Config(const DynamixelExtra& msg, const
 void DynamixelHandler::CallbackCmd_Extra_Func(const DynamixelExtra& msg, const vector<uint8_t>& valid_id_list) {
     const auto N = msg.id_list.size();
 
-    const size_t n_watch = msg.bus_watchdog_ms.size(); 
+    const size_t n_watch = msg.bus_watchdog_ms.size();
     const bool valid_watch = n_watch == N && is_valid(msg.bus_watchdog_ms);
 
-    const size_t n_led_r  = msg.led.red_percent.size();   
-    const size_t n_led_g  = msg.led.green_percent.size(); 
-    const size_t n_led_b  = msg.led.blue_percent.size();  
+    const size_t n_led_r  = msg.led.red_percent.size();
+    const size_t n_led_g  = msg.led.green_percent.size();
+    const size_t n_led_b  = msg.led.blue_percent.size();
     const bool valid_led_r  = n_led_r == N && is_valid(msg.led.red_percent  );
     const bool valid_led_g  = n_led_g == N && is_valid(msg.led.green_percent);
-    const bool valid_led_b  = n_led_b == N && is_valid(msg.led.blue_percent ); 
+    const bool valid_led_b  = n_led_b == N && is_valid(msg.led.blue_percent );
     const bool valid_led = valid_led_r || valid_led_g || valid_led_b;
 
-    const size_t n_reboot = msg.reboot.size();            
+    const size_t n_reboot = msg.reboot.size();
     const bool valid_reboot   = n_reboot == N;
-    
+
     if ( verbose_callback_ ) {
         if ( n_led_r >0 ) { if ( valid_led_r ) ROS_INFO("  - updated: led.red_percent  "); else ROS_WARN("  - skipped: led.red_percent        %s",n_led_r !=N?warn_s:warn_n); }
         if ( n_led_g >0 ) { if ( valid_led_g ) ROS_INFO("  - updated: led.green_percent"); else ROS_WARN("  - skipped: led.green_percent      %s",n_led_g !=N?warn_s:warn_n); }
@@ -785,6 +809,7 @@ void DynamixelHandler::CallbackCmd_Extra_Func(const DynamixelExtra& msg, const v
     }
     if ( !valid_led && !valid_watch && !valid_reboot ) return;
 
+    StateLock lock(mutex_state_);
     for (size_t i=0; i<msg.id_list.size(); i++) if ( id_t ID = msg.id_list[i]; is_in(ID, valid_id_list) ) {
         const bool is_dummy = series_[ID] == SERIES_UNKNOWN;
         if ( valid_led ) {

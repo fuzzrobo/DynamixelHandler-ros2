@@ -129,6 +129,8 @@ DynamixelHandler::ImuOpenCR::ImuOpenCR(DynamixelHandler& parent) : parent_(paren
 	
 	// ROS topicの設定
 	pub_imu_ = parent_.create_publisher<Imu>("dynamixel/imu/raw", 4);
+	rclcpp::SubscriptionOptions sub_options;
+	sub_options.callback_group = parent_.cbg_serial_;
 	sub_calib_ = parent_.create_generic_subscription(
 		"dynamixel/imu/calibration_gyro", "std_msgs/msg/Empty", rclcpp::QoS(10),
 		[this](std::shared_ptr<rclcpp::SerializedMessage> serialized_msg) {
@@ -136,7 +138,8 @@ DynamixelHandler::ImuOpenCR::ImuOpenCR(DynamixelHandler& parent) : parent_(paren
 			rclcpp::Serialization<Empty> serializer;
 			serializer.deserialize_message(serialized_msg.get(), &msg);
 			CallbackCalibGyro(std::make_shared<Empty>(msg));
-		}
+		},
+		sub_options
 	);
 	
 	is_opencr_ready_ = true;
@@ -234,7 +237,7 @@ void DynamixelHandler::ImuOpenCR::BroadcastImuData() {
 	msg_imu.orientation.y = orientation_[1];
 	msg_imu.orientation.z = orientation_[2];
 	msg_imu.orientation.w = orientation_[3];
-	pub_imu_->publish(msg_imu);
+	if ( pub_imu_ && rclcpp::ok() ) pub_imu_->publish(msg_imu);
 }
 
 void DynamixelHandler::ImuOpenCR::CallbackCalibGyro(const std_msgs::msg::Empty::SharedPtr msg) {

@@ -12,6 +12,8 @@
 #define ROS_STOP(...) \
     {{ RCLCPP_FATAL(parent_.get_logger(), __VA_ARGS__); rclcpp::shutdown(); std::exit(EXIT_FAILURE); }}
 
+using StateLock = std::lock_guard<std::recursive_mutex>;
+
 void DynamixelHandler::ExternalPort::CallbackExternalPort(const DxlExternalPort::SharedPtr msg){
     static auto& id_set_ = parent_.id_set_;
     static auto& model_ = parent_.model_;
@@ -22,6 +24,7 @@ void DynamixelHandler::ExternalPort::CallbackExternalPort(const DxlExternalPort:
     if ( msg->id_list.size() != msg->port.size() ) {
          ROS_WARN("External Port, ID and port size mismatch"); return;
     } // サイズ違いは問答無用でNG
+    StateLock lock(parent_.mutex_state_);
     for (size_t i=0; i<msg->id_list.size(); i++) {
         auto id = msg->id_list[i];
         if ( !is_in(id, id_set_) ) continue; // 存在しないIDは無視
@@ -42,10 +45,10 @@ void DynamixelHandler::ExternalPort::CallbackExternalPort(const DxlExternalPort:
     // mode, data それぞれの指令が入力されたかどうかを確認
     const bool has_data = msg->id_list.size() == msg->data.size();
     const bool has_mode = msg->id_list.size() == msg->mode.size();
-    if (verbose_callback_) { 
+    if (verbose_callback_) {
         ROS_INFO("External Port, '%zu' port(s) are tryed to updated", valid_id_list.size());
-        ROS_INFO_STREAM(id_list_layout(valid_id_list,   "  ID  ")); 
-        ROS_INFO_STREAM(id_list_layout(valid_port_list, "  port")); 
+        ROS_INFO_STREAM(id_list_layout(valid_id_list,   "  ID  "));
+        ROS_INFO_STREAM(id_list_layout(valid_port_list, "  port"));
         if ( has_data ) ROS_INFO("  - updated: data"); else if ( !msg->data.empty() ) ROS_WARN("  - skipped: data (size mismatch)");
         if ( has_mode ) ROS_INFO("  - updated: mode"); else if ( !msg->mode.empty() ) ROS_WARN("  - skipped: mode (size mismatch)");
     }
@@ -80,25 +83,26 @@ void DynamixelHandler::ExternalPort::BroadcastExternalPort(){
     static auto& id_set_ = parent_.id_set_;
     DxlExternalPort msg;
     msg.stamp = parent_.get_clock()->now();
-    for ( auto id : id_set_ ) if (has_external_port( model_[id])) 
-        for ( auto port : ex_port_indice_[series_[id]] ) {
-            msg.id_list.push_back(id);
-            msg.port.push_back(port);
-            if ( !is_in(port, touched_port_export_[id])) { 
-                msg.mode.push_back(msg.MODE_UNSET); 
-                msg.data.push_back(-1); // modeがUNSETの場合はdataは-1にする
-                continue; 
-            }
-            switch ( export_r_[id][port].mode ){
-                case EXTERNAL_PORT_MODE_AIN         : msg.mode.push_back(msg.MODE_ANALOG_IN          ); break;
-                case EXTERNAL_PORT_MODE_DOUT        : msg.mode.push_back(msg.MODE_DIGITAL_OUT        ); break;
-                case EXTERNAL_PORT_MODE_DIN_PULLUP  : msg.mode.push_back(msg.MODE_DIGITAL_IN_PULLUP  ); break;
-                case EXTERNAL_PORT_MODE_DIN_PULLDOWN: msg.mode.push_back(msg.MODE_DIGITAL_IN_PULLDOWN); break;
-            }
-            msg.data.push_back(export_r_[id][port].data);
-    }
+    { StateLock lock(parent_.mutex_state_);
+        for ( auto id : id_set_ ) if (has_external_port( model_[id]))
+            for ( auto port : ex_port_indice_[series_[id]] ) {
+                msg.id_list.push_back(id);
+                msg.port.push_back(port);
+                if ( !is_in(port, touched_port_export_[id])) {
+                    msg.mode.push_back(msg.MODE_UNSET);
+                    msg.data.push_back(-1); // modeがUNSETの場合はdataは-1にする
+                    continue;
+                }
+                switch ( export_r_[id][port].mode ){
+                    case EXTERNAL_PORT_MODE_AIN         : msg.mode.push_back(msg.MODE_ANALOG_IN          ); break;
+                    case EXTERNAL_PORT_MODE_DOUT        : msg.mode.push_back(msg.MODE_DIGITAL_OUT        ); break;
+                    case EXTERNAL_PORT_MODE_DIN_PULLUP  : msg.mode.push_back(msg.MODE_DIGITAL_IN_PULLUP  ); break;
+                    case EXTERNAL_PORT_MODE_DIN_PULLDOWN: msg.mode.push_back(msg.MODE_DIGITAL_IN_PULLDOWN); break;
+                }
+                msg.data.push_back(export_r_[id][port].data);
+    }    }
 
-    if(pub_ex_port_) pub_ex_port_->publish(msg);
+    if ( pub_ex_port_ && rclcpp::ok() ) pub_ex_port_->publish(msg);
 }
 
 uint16_t DynamixelHandler::ExternalPort::ReadExternalPortMode(id_t id, port_t port){
@@ -289,6 +293,7 @@ template <typename Addr> double DynamixelHandler::ExternalPort::SyncReadExternal
     const int N_total = target_id_list.size();
     const int N_suc   = id_exmode_vec_map.size();
     // export_r_に反映
+    StateLock lock(parent_.mutex_state_);
     for ( size_t i = 0; i < port_list.size(); i++) {
         DynamixelAddress addr = exmode_addr_list[i];
         for (const auto& [id, data_int] : id_exmode_vec_map)
@@ -326,6 +331,7 @@ template <typename Addr> double DynamixelHandler::ExternalPort::SyncReadExternal
     const int N_total = target_id_list.size();
     const int N_suc   = id_exdata_vec_map.size();
     // export_r_に反映
+    StateLock lock(parent_.mutex_state_);
     for ( size_t i = 0; i < port_list.size(); i++) {
         DynamixelAddress addr = exdata_addr_list[i];
         for (const auto& [id, data_int] : id_exdata_vec_map)
@@ -346,7 +352,9 @@ DynamixelHandler::ExternalPort::ExternalPort(DynamixelHandler& parent) : parent_
     parent_.get_parameter_or("option/external_port.verbose/read.err", verbose_read_err_, false);
 
     pub_ex_port_ = parent_.create_publisher<DxlExternalPort>("dynamixel/external_port/read", 4);
-    sub_ex_port_ = parent_.create_subscription<DxlExternalPort>("dynamixel/external_port/write", 4, bind(&DynamixelHandler::ExternalPort::CallbackExternalPort, this, _1));
+    rclcpp::SubscriptionOptions sub_options;
+    sub_options.callback_group = parent_.cbg_command_;
+    sub_ex_port_ = parent_.create_subscription<DxlExternalPort>("dynamixel/external_port/write", 4, bind(&DynamixelHandler::ExternalPort::CallbackExternalPort, this, _1), sub_options);
 
     ROS_INFO(" < ... External Port function is initialized >");
 }
@@ -359,14 +367,16 @@ void DynamixelHandler::ExternalPort::MainProcess(){
     static int cnt = -1; cnt++;
     static auto& id_set_ = parent_.id_set_;
 
-    SyncWriteExternalPortMode(updated_id_export_.mode);
-    updated_id_export_.mode.clear();
-    SyncWriteExternalPortData(updated_id_export_.data);
-    updated_id_export_.data.clear();
-
     double success_rate = 0;
-    unordered_set<uint8_t> target_id_set; 
-    for (auto id : id_set_) if ( !touched_port_export_[id].empty() && ping_err_[id]==0 ) target_id_set.insert(id);
+    unordered_set<uint8_t> target_id_set;
+    {
+        StateLock lock(parent_.mutex_state_);
+        SyncWriteExternalPortMode(updated_id_export_.mode);
+        updated_id_export_.mode.clear();
+        SyncWriteExternalPortData(updated_id_export_.data);
+        updated_id_export_.data.clear();
+        for (auto id : id_set_) if ( !touched_port_export_[id].empty() && ping_err_[id]==0 ) target_id_set.insert(id);
+    }
     if ( pub_ratio_mode_ && cnt % pub_ratio_mode_ == 0 )
         success_rate += SyncReadExternalPortMode(target_id_set);
     if ( pub_ratio_data_ && cnt % pub_ratio_data_ == 0 )
