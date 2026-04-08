@@ -4,6 +4,7 @@
 #include "myUtils/make_iterator_convenient.hpp" // enum のインクリメントと， is_in 関数の実装
 #include <cmath>
 #include <limits>
+#include <utility>
 
 using std::to_string;
 
@@ -245,6 +246,15 @@ void DynamixelHandler::BulkWriteExtra_ram(set<ExtraIndex> extra_indice_write, co
         else                  extra_u8_r_[id][e] = extra_u8_w_[id][e];
     }
 
+    // one-shot な write only コマンドの処理
+    if ( extra_indice_write.count(EXTRA_REBOOT) + 
+         extra_indice_write.count(EXTRA_TORQUE_ENABLE) + extra_indice_write.count(EXTRA_TORQUE_DISABLE) > 0 )
+        for ( auto id : updated_id_ex ) if ( is_in(id, id_set_) ) { 
+            if ( std::exchange(extra_u8_w_[id][EXTRA_TORQUE_ENABLE ], false) ) WriteTorqueEnable(id, true); 
+            if ( std::exchange(extra_u8_w_[id][EXTRA_TORQUE_DISABLE], false) ) WriteTorqueEnable(id, false);
+            if ( std::exchange(extra_u8_w_[id][EXTRA_REBOOT        ], false) ) Reboot(id);
+        }
+    // led の処理
     if ( extra_indice_write.count(EXTRA_LED_RED)  +
          extra_indice_write.count(EXTRA_LED_BLUE) + extra_indice_write.count(EXTRA_LED_GREEN) > 0) {
         map<id_t, vector<DynamixelAddress>> id_addrs_map;
@@ -270,6 +280,7 @@ void DynamixelHandler::BulkWriteExtra_ram(set<ExtraIndex> extra_indice_write, co
         }
         if ( !id_data_vec_map.empty() ) BulkWrite_log(id_addrs_map, id_data_vec_map, verbose_["w_extra"]);
     }
+    // bus_watchdog の処理
     if ( extra_indice_write.count(EXTRA_BUS_WATCHDOG) ) {
         map<id_t, vector<DynamixelAddress>> id_addrs_map;
         map<id_t, vector<int64_t>> id_data_vec_map;

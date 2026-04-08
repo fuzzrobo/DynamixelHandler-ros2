@@ -173,8 +173,12 @@ void DynamixelHandler::MainLoop(){
     if (imu_opencr_   ) imu_opencr_->MainProcess();
 
     //* topicをSubscribe & Dynamixelへ目標角をWrite
+    if ( auto_remove_count_ )
+    for (auto [id, cnt_err]: ping_err_) if ( cnt_err > auto_remove_count_ ) id_edit_[id] = false;
+    for (auto [id, add_rm ]: id_edit_ ) add_rm ? AddDynamixel(id) : RemoveDynamixel(id);
+    id_edit_.clear();
     BulkWriteExtra_ram(ex_ram_indice_write_, updated_id_ex_ram_);
-    ex_ram_indice_write_.clear(); updated_id_ex_ram_.clear(); 
+    ex_ram_indice_write_.clear(); updated_id_ex_ram_.clear();
     BulkWriteExtra_rom(ex_rom_indice_write_, updated_id_ex_rom_);
     ex_rom_indice_write_.clear(); updated_id_ex_rom_.clear();
     for ( auto id : id_set_ ) { // 各要素について，達成されるまで繰り返すようにする．
@@ -205,9 +209,8 @@ void DynamixelHandler::MainLoop(){
     //* Dynamixelから状態Read & topicをPublish
     auto msg = DxlStates().set__stamp(this->get_clock()->now());
     array<double, _num_state> success_rate{}; // 0初期化する．
-    if ( pub_ratio_["status"] && cnt % pub_ratio_["status"] == 0 ) { /*statusは関連は複数個所で順次更新されるので特別扱い*/ 
+    if ( pub_ratio_["status"] && cnt % pub_ratio_["status"] == 0 ) { /*statusは関連は複数個所で順次更新されるので特別扱い*/
         success_rate[STATUS] = CheckDynamixels() ? 1.0 : 0.1;
-        if ( auto_remove_count_ ) for (auto id: id_set_) if ( ping_err_[id] > auto_remove_count_ ) RemoveDynamixel(id);
     }
     set<uint8_t> target_id_set; for (auto id : id_set_) if ( ping_err_[id]==0 ) target_id_set.insert(id);
     if ( !present_indice_read_.empty() ){ n_present_read++;

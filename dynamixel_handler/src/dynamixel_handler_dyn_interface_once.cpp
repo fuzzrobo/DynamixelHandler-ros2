@@ -134,7 +134,8 @@ bool DynamixelHandler::AddDynamixel(id_t id){
 bool DynamixelHandler::RemoveDynamixel(id_t id){
     if ( !is_in(id, id_set_) ) return true;
     id_set_.erase(id);
-    hw_err_w_.erase(id); // 以下は次回追加されたときの誤動作防止
+    ping_err_.erase(id); // 以下は次回追加されたときの誤動作防止
+    hw_err_w_.erase(id);
     op_mode_w_.erase(id);
     tq_mode_w_.erase(id);
     ROS_INFO("   ID [%d] is removed", id);
