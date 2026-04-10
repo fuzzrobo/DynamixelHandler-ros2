@@ -181,15 +181,15 @@ void DynamixelHandler::MainLoop(){
         for (auto [id, cnt_err]: ping_err_) if ( cnt_err > auto_remove_count_ ) id_edit_[id] = false;
         for (auto [id, add_rm ]: id_edit_ ) add_rm ? AddDynamixel(id) : RemoveDynamixel(id);
         id_edit_.clear();
+        for ( auto id : id_set_ ) {
+            if (op_mode_w_.count(id)){ ChangeOperatingMode(id, op_mode_w_[id])  ? op_mode_w_.erase(id) : updated_id_goal_.erase(id);} // 変更し失敗時はgoal更新しない
+            if ( hw_err_w_.count(id)){ ClearHardwareError (id,  hw_err_w_[id]);    hw_err_w_.erase(id);} // hw_err_w_[id]=複数回転をoffsetで復元するか
+            if (tq_mode_w_.count(id)){ tq_mode_w_[id]?TorqueOn(id):TorqueOff(id); tq_mode_w_.erase(id);}
+        }
         BulkWriteExtra_ram(ex_ram_indice_write_, updated_id_ex_ram_);
         ex_ram_indice_write_.clear(); updated_id_ex_ram_.clear();
         BulkWriteExtra_rom(ex_rom_indice_write_, updated_id_ex_rom_);
         ex_rom_indice_write_.clear(); updated_id_ex_rom_.clear();
-        for ( auto id : id_set_ ) { // 各要素について，達成されるまで繰り返すようにする．
-            if (op_mode_w_.count(id)){ ChangeOperatingMode(id, op_mode_w_[id]) && op_mode_w_.erase(id);}
-            if ( hw_err_w_.count(id)){ ClearHardwareError (id,  hw_err_w_[id]);    hw_err_w_.erase(id);} // hw_err_w_[id]=複数回転をoffsetで復元するか
-            if (tq_mode_w_.count(id)){ tq_mode_w_[id]?TorqueOn(id):TorqueOff(id); tq_mode_w_.erase(id);}
-        }
         SyncWriteGoal(goal_indice_write_, updated_id_goal_);
         goal_indice_write_.clear() ; updated_id_goal_.clear();
         SyncWriteGain(gain_indice_write_, updated_id_gain_);

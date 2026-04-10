@@ -141,7 +141,7 @@ void DynamixelHandler::CallbackCmd_Status(const DynamixelStatus& msg) {
     // 各IDに対して，msg内の指令をもとに処理を行う
     for (size_t i=0; i<msg.id_list.size(); i++) if ( auto ID = msg.id_list[i]; is_in(ID, valid_id_list) ) { // 順番がずれるのでわざとこの書き方をしている．
         if ( has_ping   ) { id_edit_[ID] = msg.ping[i];                          }
-        if ( has_error  ) { hw_err_w_[ID] = msg.error[i]; tq_mode_w_[ID] = true; } // エラー解除できたらトルクON
+        if ( has_error  ) { hw_err_w_[ID] = msg.error[i]; tq_mode_w_[ID] = true; } // エラー解除とトルクONはセットで．
         if ( has_torque ) { tq_mode_w_[ID] = msg.torque[i];                      }
         if ( has_mode   ) {
                  if (msg.mode[i] == msg.CONTROL_PWM                  ) op_mode_w_[ID] = OPERATING_MODE_PWM              ;
@@ -149,10 +149,7 @@ void DynamixelHandler::CallbackCmd_Status(const DynamixelStatus& msg) {
             else if (msg.mode[i] == msg.CONTROL_VELOCITY             ) op_mode_w_[ID] = OPERATING_MODE_VELOCITY         ;
             else if (msg.mode[i] == msg.CONTROL_POSITION             ) op_mode_w_[ID] = OPERATING_MODE_POSITION         ;
             else if (msg.mode[i] == msg.CONTROL_EXTENDED_POSITION    ) op_mode_w_[ID] = OPERATING_MODE_EXTENDED_POSITION;
-            else if (msg.mode[i] == msg.CONTROL_CURRENT_BASE_POSITION)
-                                 switch (series_[ID]) { default:       op_mode_w_[ID] = OPERATING_MODE_CURRENT_BASE_POSITION; break;
-                                                        case SERIES_P: op_mode_w_[ID] = OPERATING_MODE_EXTENDED_POSITION    ;
-                                                                       ROS_WARN("  ID [%d] is P-series, so alternative mode is selected", ID);}
+            else if (msg.mode[i] == msg.CONTROL_CURRENT_BASE_POSITION) op_mode_w_[ID] = OPERATING_MODE_CURRENT_BASE_POSITION;
             else ROS_WARN("  Invalid operating mode [%s], please see DynamixelStatus.msg definition.", msg.mode[i].c_str());
         }
     } // 各単体関数(ClearHardwareErrorとか)が内部でROS_INFOを出力しているので，ここでは何も出力しない

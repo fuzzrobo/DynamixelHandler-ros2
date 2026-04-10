@@ -186,17 +186,18 @@ bool DynamixelHandler::ChangeOperatingMode(id_t id, DynamixelOperatingMode mode)
     // 変更前のトルク状態を確認
     const bool prev_torque = ReadTorqueEnable(id); // read失敗しても0が返ってくるので問題ない
     WriteTorqueEnable(id, false);
-    /*モード変更*/WriteOperatingMode(id, mode);  //**RAMのデータが消えるので注意, これは電源喪失とは異なるのでRAMデータの回復を入れる
+    if ( /*モード変更*/ WriteOperatingMode(id, mode) ) {  //**RAMのデータが消えるので注意, これは電源喪失とは異なるのでRAMデータの回復を入れる
+        // mode write 自体が成功したい場合のみ， goal_w_を全部書き込んで，本体とこのプログラムの同期行う．
+        if ( op_mode_r_[id] != OPERATING_MODE_PWM      )  WriteGoalPWM     (id, goal_w_[id][GOAL_PWM     ]);
+        if ( op_mode_r_[id] != OPERATING_MODE_CURRENT  )  WriteGoalCurrent (id, goal_w_[id][GOAL_CURRENT ]);
+        if ( op_mode_r_[id] != OPERATING_MODE_VELOCITY )  WriteGoalVelocity(id, goal_w_[id][GOAL_VELOCITY]);
+        WriteProfileAcc  (id, goal_w_[id][PROFILE_ACC  ]);
+        WriteProfileVel  (id, goal_w_[id][PROFILE_VEL  ]);
+        WriteGoalPosition(id, goal_w_[id][GOAL_POSITION]);
+        // WriteGains(id, gain_r_[id]);　// ** Gain値のデフォルトも変わる．面倒な．．．
+        WriteTorqueEnable(id, prev_torque );
+    } else ROS_WARN_T(5000, "   ID [%d] maybe unsupported operating mode [%d]", id, mode);
     when_op_mode_updated_[id] = get_clock()->now().seconds();
-    // goal_w_を全部書き込んで，本体とこのプログラムの同期行う．
-    if ( op_mode_r_[id] != OPERATING_MODE_PWM      )  WriteGoalPWM     (id, goal_w_[id][GOAL_PWM     ]);
-    if ( op_mode_r_[id] != OPERATING_MODE_CURRENT  )  WriteGoalCurrent (id, goal_w_[id][GOAL_CURRENT ]);
-    if ( op_mode_r_[id] != OPERATING_MODE_VELOCITY )  WriteGoalVelocity(id, goal_w_[id][GOAL_VELOCITY]);
-    WriteProfileAcc  (id, goal_w_[id][PROFILE_ACC  ]);
-    WriteProfileVel  (id, goal_w_[id][PROFILE_VEL  ]);
-    WriteGoalPosition(id, goal_w_[id][GOAL_POSITION]);
-    // WriteGains(id, gain_r_[id]);　// ** Gain値のデフォルトも変わる．面倒な．．．
-    WriteTorqueEnable(id, prev_torque );
     // 結果を確認
     op_mode_r_[id] = (DynamixelOperatingMode)ReadOperatingMode(id);
     if ( op_mode_r_[id]==mode ) {ROS_INFO ("   ID [%d] is changed operating mode [%d]", id, mode); return  true;}
