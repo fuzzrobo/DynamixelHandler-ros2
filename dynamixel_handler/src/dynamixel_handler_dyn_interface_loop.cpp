@@ -4,7 +4,6 @@
 #include "myUtils/make_iterator_convenient.hpp" // enum のインクリメントと， is_in 関数の実装
 #include <cmath>
 #include <limits>
-#include <utility>
 
 using std::to_string;
 using StateLock = std::lock_guard<std::recursive_mutex>;
@@ -251,9 +250,9 @@ void DynamixelHandler::BulkWriteExtra_ram(set<ExtraIndex> extra_indice_write, co
     if ( extra_indice_write.count(EXTRA_REBOOT) + 
          extra_indice_write.count(EXTRA_TORQUE_ENABLE) + extra_indice_write.count(EXTRA_TORQUE_DISABLE) > 0 )
         for ( auto id : updated_id_ex ) if ( is_in(id, id_set_) ) { 
-            if ( std::exchange(extra_u8_w_[id][EXTRA_TORQUE_ENABLE ], false) ) WriteTorqueEnable(id, true); 
-            if ( std::exchange(extra_u8_w_[id][EXTRA_TORQUE_DISABLE], false) ) WriteTorqueEnable(id, false);
-            if ( std::exchange(extra_u8_w_[id][EXTRA_REBOOT        ], false) ) Reboot(id);
+            if ( exchange(extra_u8_w_[id][EXTRA_TORQUE_ENABLE ], false) ) WriteTorqueEnable(id, true); 
+            if ( exchange(extra_u8_w_[id][EXTRA_TORQUE_DISABLE], false) ) WriteTorqueEnable(id, false);
+            if ( exchange(extra_u8_w_[id][EXTRA_REBOOT        ], false) ) Reboot(id);
         }
     // led の処理
     if ( extra_indice_write.count(EXTRA_LED_RED)  +
@@ -285,15 +284,12 @@ void DynamixelHandler::BulkWriteExtra_ram(set<ExtraIndex> extra_indice_write, co
     if ( extra_indice_write.count(EXTRA_BUS_WATCHDOG) ) {
         map<id_t, vector<DynamixelAddress>> id_addrs_map;
         map<id_t, vector<int64_t>> id_data_vec_map;
+        auto set_addr_val = [&](id_t id, const auto& addr, double val){
+            id_addrs_map[id] = {addr}; id_data_vec_map[id] = {addr.val2pulse(val, model_[id])};
+        };
         for ( auto id : updated_id_ex ) if (is_in(id, id_set_)) switch ( series_[id] ) {
-            case SERIES_X:
-                id_addrs_map[id] = {AddrX::bus_watchdog};
-                id_data_vec_map[id] = {AddrX::bus_watchdog.val2pulse(extra_db_w_[id][EXTRA_BUS_WATCHDOG], model_[id])};
-                break;
-            case SERIES_P:
-                id_addrs_map[id] = {AddrP::bus_watchdog};
-                id_data_vec_map[id] = {AddrP::bus_watchdog.val2pulse(extra_db_w_[id][EXTRA_BUS_WATCHDOG], model_[id])};
-                break;
+            case SERIES_X: set_addr_val(id, AddrX::bus_watchdog, extra_db_w_[id][EXTRA_BUS_WATCHDOG]); break;
+            case SERIES_P: set_addr_val(id, AddrP::bus_watchdog, extra_db_w_[id][EXTRA_BUS_WATCHDOG]); break;
             default: break; // PRO と dummy は bus_watchdog 非対応
         }
         if ( !id_data_vec_map.empty() ) BulkWrite_log(id_addrs_map, id_data_vec_map, verbose_["w_extra"]);
@@ -308,7 +304,7 @@ void DynamixelHandler::BulkWriteExtra_rom(set<ExtraIndex> extra_indice_write, co
         if ( e < _num_ex_db ) extra_db_r_[id][e] = extra_db_w_[id][e];
         else                  extra_u8_r_[id][e] = extra_u8_w_[id][e];
     }
-
+    // トルクの一時的なoff & restore 用 map の準備
     map<id_t, vector<DynamixelAddress>> id_addrs_map_tq;
     map<id_t, vector<int64_t>> id_data_vec_map_tq_off, id_data_vec_map_tq_restore;
     for ( auto id : updated_id_ex ) if (is_in(id, id_set_)) {
@@ -323,8 +319,8 @@ void DynamixelHandler::BulkWriteExtra_rom(set<ExtraIndex> extra_indice_write, co
     }
     if ( id_data_vec_map_tq_off.empty() ) return;
 
+    // config 値の格込み, トルク off/restore で挟む
     BulkWrite_log(id_addrs_map_tq, id_data_vec_map_tq_off, verbose_["w_extra"]);
-
     for ( auto e : extra_indice_write ) {
         map<id_t, vector<DynamixelAddress>> id_addrs_map;
         map<id_t, vector<int64_t>> id_data_vec_map;
@@ -364,7 +360,6 @@ void DynamixelHandler::BulkWriteExtra_rom(set<ExtraIndex> extra_indice_write, co
         }
         if ( !id_data_vec_map.empty() ) BulkWrite_log(id_addrs_map, id_data_vec_map, verbose_["w_extra"]);
     }
-
     BulkWrite_log(id_addrs_map_tq, id_data_vec_map_tq_restore, verbose_["w_extra"]);
 }
 

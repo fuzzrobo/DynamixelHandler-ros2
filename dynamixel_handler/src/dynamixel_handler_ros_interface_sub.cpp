@@ -163,7 +163,7 @@ void DynamixelHandler::CallbackCmd_X_Pwm(const DynamixelControlXPwm& msg) {
     StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_X) ) { // SERIES_X か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
+        ID = 0xFF; // 不適な series の場合はid=0xFFにして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_PWM;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -178,7 +178,7 @@ void DynamixelHandler::CallbackCmd_X_Position(const DynamixelControlXPosition& m
     StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_X) ) { // SERIES_X か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
+        ID = 0xFF; // 不適な series の場合はid=0xFFにして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_POSITION;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -195,7 +195,7 @@ void DynamixelHandler::CallbackCmd_X_Velocity(const DynamixelControlXVelocity& m
     StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_X) ) { // SERIES_X か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
+        ID = 0xFF; // 不適な series の場合はid=0xFFにして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_VELOCITY;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -211,7 +211,7 @@ void DynamixelHandler::CallbackCmd_X_Current(const DynamixelControlXCurrent& msg
     StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_X) ) { // SERIES_X か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
+        ID = 0xFF; // 不適な series の場合はid=0xFFにして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_CURRENT;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -226,7 +226,7 @@ void DynamixelHandler::CallbackCmd_X_CurrentBasePosition(const DynamixelControlX
     StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_X) ) { // SERIES_X か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
+        ID = 0xFF; // 不適な series の場合はid=0xFFにして，以降，無視されるようにする
     }
     vector<double> position_deg(msg.position_deg);
     if ( size_t N_rot=msg.rotation.size(); N_rot==0 || N_rot==id_list.size() ) {
@@ -251,7 +251,7 @@ void DynamixelHandler::CallbackCmd_X_ExtendedPosition(const DynamixelControlXExt
     StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_X) ) { // SERIES_X か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not X series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
+        ID = 0xFF; // 不適な series の場合はid=0xFFにして，以降，無視されるようにする
     }
     vector<double> position_deg(msg.position_deg);
     if ( size_t N_rot=msg.rotation.size(); N_rot==0 || N_rot==id_list.size() ) {
@@ -275,7 +275,7 @@ void DynamixelHandler::CallbackCmd_P_Pwm(const DynamixelControlPPwm& msg) {
     StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_P) ) { // SERIES_P か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
+        ID = 0xFF; // 不適な series の場合はid=0xFFにして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_PWM;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -290,7 +290,7 @@ void DynamixelHandler::CallbackCmd_P_Current(const DynamixelControlPCurrent& msg
     StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_P) ) { // SERIES_P か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
+        ID = 0xFF; // 不適な series の場合はid=0xFFにして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_CURRENT;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -305,7 +305,7 @@ void DynamixelHandler::CallbackCmd_P_Velocity(const DynamixelControlPVelocity& m
     StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_P) ) { // SERIES_P か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
+        ID = 0xFF; // 不適な series の場合はid=0xFFにして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_VELOCITY;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -322,7 +322,7 @@ void DynamixelHandler::CallbackCmd_P_Position(const DynamixelControlPPosition& m
     StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_P) ) { // SERIES_P か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
+        ID = 0xFF; // 不適な series の場合はid=0xFFにして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_POSITION;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -340,7 +340,7 @@ void DynamixelHandler::CallbackCmd_P_ExtendedPosition(const DynamixelControlPExt
     StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_P) ) { // SERIES_P か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not P series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
+        ID = 0xFF; // 不適な series の場合はid=0xFFにして，以降，無視されるようにする
     }
     vector<double> position_deg(msg.position_deg);
     if ( size_t N_rot=msg.rotation.size(); N_rot==0 || N_rot==id_list.size() ) {
@@ -368,7 +368,7 @@ void DynamixelHandler::CallbackCmd_Pro_Current(const DynamixelControlProCurrent&
     StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_PRO) ) { // SERIES_PRO か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not Pro series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
+        ID = 0xFF; // 不適な series の場合はid=0xFFにして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_CURRENT;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -383,7 +383,7 @@ void DynamixelHandler::CallbackCmd_Pro_Velocity(const DynamixelControlProVelocit
     StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_PRO) ) { // SERIES_PRO か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not Pro series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
+        ID = 0xFF; // 不適な series の場合はid=0xFFにして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_VELOCITY;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -400,7 +400,7 @@ void DynamixelHandler::CallbackCmd_Pro_Position(const DynamixelControlProPositio
     StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_PRO) ) { // SERIES_PRO か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not Pro series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
+        ID = 0xFF; // 不適な series の場合はid=0xFFにして，以降，無視されるようにする
     }
     for ( auto& ID : id_list ) op_mode_w_[ID] = OPERATING_MODE_POSITION;
     CallbackCmd_Goal(DynamixelGoal().set__id_list(id_list)
@@ -418,7 +418,7 @@ void DynamixelHandler::CallbackCmd_Pro_ExtendedPosition(const DynamixelControlPr
     StateLock lock(mutex_state_);
     for ( auto& ID : id_list ) if ( !check_series(ID, SERIES_PRO) ) { // SERIES_PRO か dummy であることを確認
         if(verbose_callback_) ROS_WARN("  ID [%d] is not Pro series", ID);
-        ID = 255; // 不適な series の場合はid=255にして，以降，無視されるようにする
+        ID = 0xFF; // 不適な series の場合はid=0xFFにして，以降，無視されるようにする
     }
     vector<double> position_deg(msg.position_deg);
     if ( size_t N_rot=msg.rotation.size(); N_rot==0 || N_rot==id_list.size() ) {

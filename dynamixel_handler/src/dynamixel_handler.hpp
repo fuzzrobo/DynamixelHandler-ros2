@@ -72,6 +72,8 @@ using std::min;
 using std::max;
 #include <tuple>
 using std::tuple;
+#include <utility>
+using std::exchange;
 
 /**
  * DynamixelをROSで動かすためのクラス．本pkgのメインクラス． 
@@ -272,11 +274,11 @@ class DynamixelHandler : public rclcpp::Node {
         static inline unordered_map<id_t, bool    > id_edit_;   // 各dynamixelの id について, true:add false:remove の指示
         static inline unordered_map<id_t, uint64_t> ping_err_;  // 各dynamixelの id と 連続でpingに応答しなかった回数のマップ
         static inline unordered_map<id_t, double  > bus_watch_; // 各dynamixelの id と CheckDynamixelsで使う bus_watchdog の目標値(ms)（<0: command未指定）
-        static inline unordered_map<id_t, bool    > tq_mode_w_;  // 各dynamixelの id と トルクON/OFF の書き込み値のマップ (~_r_と差をなくすように書き込む)
+        static inline unordered_map<id_t, bool    > tq_mode_w_;  // 各dynamixelの id と トルクON/OFF の書き込み値のマップ
         static inline unordered_map<id_t, bool    > tq_mode_r_;  // 各dynamixelの id と トルクON/OFF の読み込み値のマップ
-        static inline unordered_map<id_t, opmode_t> op_mode_w_;  // 各dynamixelの id と 制御モード の書き込み値のマップ (~_r_と差をなくすように書き込む)
+        static inline unordered_map<id_t, opmode_t> op_mode_w_;  // 各dynamixelの id と 制御モード の書き込み値のマップ
         static inline unordered_map<id_t, opmode_t> op_mode_r_;  // 各dynamixelの id と 制御モード の読み込み値のマップ
-        static inline unordered_map<id_t, bool    >  hw_err_w_;    // 各dynamixelの id と hardware error status をクリアするかどうかのマップ (~_r_と差をなくすように書き込む)
+        static inline unordered_map<id_t, bool    >  hw_err_w_;    // 各dynamixelの id と hardware error status をクリアするかどうかのマップ
         static inline unordered_map<id_t, bitset<8>> hw_err_r_;    // 各dynamixelの id と 読み込んだhardware error statusのマップ
         static inline unordered_map<id_t, array<double, _num_present>> present_r_; // 各dynamixelの id と サーボから読み込んだ状態のマップ
         static inline unordered_map<id_t, array<double, _num_goal   >> goal_w_;    // 各dynamixelの id と サーボへ書き込む目標状態のマップ
