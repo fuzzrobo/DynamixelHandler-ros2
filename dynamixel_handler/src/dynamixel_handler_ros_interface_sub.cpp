@@ -140,9 +140,9 @@ void DynamixelHandler::CallbackCmd_Status(const DynamixelStatus& msg) {
     }
     // 各IDに対して，msg内の指令をもとに処理を行う
     for (size_t i=0; i<msg.id_list.size(); i++) if ( auto ID = msg.id_list[i]; is_in(ID, valid_id_list) ) { // 順番がずれるのでわざとこの書き方をしている．
-        if ( has_ping   ) { id_edit_[ID] = msg.ping[i];                          }
+        if ( has_ping   ) { if(msg.ping[i] xor is_in(ID, id_set_)) id_edit_[ID] = 0xFF; }
         if ( has_error  ) { hw_err_w_[ID] = msg.error[i]; tq_mode_w_[ID] = true; } // エラー解除とトルクONはセットで．
-        if ( has_torque ) { tq_mode_w_[ID] = msg.torque[i];                      }
+        if ( has_torque ) { tq_mode_w_[ID] = msg.torque[i]; }
         if ( has_mode   ) {
                  if (msg.mode[i] == msg.CONTROL_PWM                  ) op_mode_w_[ID] = OPERATING_MODE_PWM              ;
             else if (msg.mode[i] == msg.CONTROL_CURRENT              ) op_mode_w_[ID] = OPERATING_MODE_CURRENT          ;

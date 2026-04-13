@@ -271,7 +271,7 @@ class DynamixelHandler : public rclcpp::Node {
         // 連結しているサーボの個々の状態を保持するunordered_map
         static inline unordered_map<id_t, model_t > model_;     // 各dynamixelの id と model のマップ
         static inline unordered_map<id_t, series_t> series_;    // 各dynamixelの id と series のマップ
-        static inline unordered_map<id_t, bool    > id_edit_;   // 各dynamixelの id について, true:add false:remove の指示
+        static inline unordered_map<id_t, id_t    > id_edit_;   // 各dynamixelの id について, IDの追加，削除，変更の指令のマップ
         static inline unordered_map<id_t, uint64_t> ping_err_;  // 各dynamixelの id と 連続でpingに応答しなかった回数のマップ
         static inline unordered_map<id_t, double  > bus_watch_; // 各dynamixelの id と CheckDynamixelsで使う bus_watchdog の目標値(ms)（<0: command未指定）
         static inline unordered_map<id_t, bool    > tq_mode_w_;  // 各dynamixelの id と トルクON/OFF の書き込み値のマップ
@@ -323,6 +323,7 @@ class DynamixelHandler : public rclcpp::Node {
         bool tryAddDynamixels(const set<id_t>& scan_id_set, uint32_t num_expected, uint32_t times_retry);
         bool AddDynamixel(id_t servo_id);
         bool RemoveDynamixel(id_t servo_id);
+        bool ChangeDynamixel(id_t servo_id_pre, id_t servo_id_next);
         bool DummyUpDynamixel(id_t servo_id);
         bool ClearHardwareError(id_t servo_id, bool use_offset = true);
         bool ChangeOperatingMode(id_t servo_id, opmode_t mode);
