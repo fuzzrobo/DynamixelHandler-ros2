@@ -11,3 +11,6 @@ string CONTROL_VELOCITY = "velocity"
 string CONTROL_POSITION = "position"
 string CONTROL_EXTENDED_POSITION = "ex_position"
 string CONTROL_CURRENT_BASE_POSITION = "cur_position"
+
+bool CLEAR_KEEP_ROT=true
+bool CLEAR=false

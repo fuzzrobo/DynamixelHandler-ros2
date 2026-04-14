@@ -496,6 +496,9 @@ status 関連を読み書きするためのトピック `/dynamixel/command/stat
    string CONTROL_POSITION              = "position"
    string CONTROL_EXTENDED_POSITION     = "ex_position"
    string CONTROL_CURRENT_BASE_POSITION = "cur_position"
+   #====== error field に指定できる定数 ======
+   bool CLEAR_KEEP_ROT = true
+   bool CLEAR          = false
    ```
 
 `mode` フィールドに指定可能な文字列は `DynamixelStatus` 型の定数として定義されており，プログラム内から扱う場合，以下の様に記述できる．
@@ -510,6 +513,14 @@ status 関連を読み書きするためのトピック `/dynamixel/command/stat
    dynamixel_handler_msgs::msg::DxlCommandsX cmd;
    cmd.status.id_list.push_back(1);
    cmd.status.mode.push_back(cmd.status.CONTROL_PWM);
+   ```
+
+`error` フィールドに指定する値も `DynamixelStatus` 型の定数として定義されている．
+`CLEAR_KEEP_ROT` は reboot 後に現在角が飛ばないように補正し，`CLEAR` は補正せずに解除する．
+   ```cpp
+   dynamixel_handler_msgs::msg::DynamixelStatus msg;
+   msg.id_list.push_back(1);
+   msg.error.push_back(msg.CLEAR_KEEP_ROT); // 複数回転している場合はこちらを推奨．
    ```
 
 #### `DynamixelGoal` type

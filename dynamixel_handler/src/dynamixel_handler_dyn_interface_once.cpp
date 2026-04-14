@@ -174,24 +174,23 @@ bool DynamixelHandler::ClearHardwareError(id_t id, bool use_offset){
         return false; // 指定間隔以内に再度クリアした場合は次回以降に回す
     }
 
-    double offset = NaN;
-    if ( use_offset ) {
-        const auto now_pos = ReadPresentPosition(id); // 失敗すると0が返って危ないので成功した場合だけリブート処理を行う
-        const bool pos_success = !dyn_comm_.timeout_last_read() && !dyn_comm_.comm_error_last_read();
-        const auto now_offset = ReadHomingOffset(id); // 失敗すると0が返って危ないので成功した場合だけリブート処理を行う
-        const bool offset_success = !dyn_comm_.timeout_last_read() && !dyn_comm_.comm_error_last_read();
-        if ( !pos_success || !offset_success ) return false; // 位置かオフセットのどちらかの読み取りに失敗した場合はリブート処理を行わない
-        int now_rot = (now_pos-now_offset+M_PI) / (2*M_PI);
-        if (now_pos < -M_PI) now_rot--;
-        offset = now_offset+now_rot*(2*M_PI);
-    }
-    /*リブート処理*/Reboot(id); //** RAMのデータが消えるが，この処理の後は電源喪失と同じ扱いなので，ここでは気にしない．
+    const auto pos_before = ReadPresentPosition(id); 
+    /*リブート処理*/ Reboot(id); //** RAMのデータが消えるが，この処理の後は電源喪失と同じ扱いなので，ここでは気にしない．
     when_hw_error_cleared_[id] = get_clock()->now().seconds();
-    if ( !std::isnan(offset) ) while ( !WriteHomingOffset(id, offset) && rclcpp::ok() ) rsleep(10);  // homing offsetが書き込めるまで待機する．
-    else                       while ( !dyn_comm_.Ping(id)            && rclcpp::ok() ) rsleep(10);
+    while ( !dyn_comm_.Ping(id) && rclcpp::ok() ) {rsleep(50);} rsleep(50); // sleepが足りないと pos_after がずれる．
+    const auto pos_after = ReadPresentPosition(id); 
+    if ( abs(pos_after - pos_before) > 180*DEG ) { // 適当に大きな角度ずれてたら回転数の喪失とみなす．
+        if ( use_offset ) { // reboot中の実回転や元のhoming offsetを残すため，回転数を算出して360deg単位で足す，
+            auto offset = ReadHomingOffset(id); 
+            offset += (2*M_PI) * std::round((pos_before - pos_after) / (2*M_PI));
+            if( WriteHomingOffset(id, offset) ) extra_db_r_[id][EXTRA_HOMING_OFFSET] = offset;
+            ROS_INFO("   ID [%d]'s offset changed to [%.1f] deg to keep pos",  id, offset/DEG);
+        } else { // エラー出すだけ．
+            ROS_WARN("   ID [%d]'s pos jumped [%.2f -> %.2f] deg by roboot",  id, pos_before/DEG, pos_after/DEG);
+    }   }
     tq_mode_r_[id] = false;
     // 結果を確認
-    hw_err_r_[id] = ReadHardwareError(id); // todo, ReadHardwareError(id)の内，extra_u8_r_[id][EXTRA_SHUTDOWN]で1な場所が0になっているかを確認するべきかもしれない．
+    hw_err_r_[id] = ReadHardwareError(id);
     if ( hw_err_r_[id].none() ) {ROS_INFO ("   ID [%d] is cleared error"     , id); return  true;}
     else                        {ROS_ERROR("   ID [%d] failed to clear error", id); return false;}
 }
