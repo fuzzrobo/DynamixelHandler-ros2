@@ -36,6 +36,7 @@ class DynamixelHandler::ExternalPort {
         ExternalPort(DynamixelHandler& parent); // コンストラクタ, 初期設定を行う
         ~ExternalPort(); // デストラクタ,  終了処理を行う
         void MainProcess(); // 本体のdynamixel_handlerのメインループで実行したい処理．
+        void Initialize(const set<id_t>& cached_ids);
 
         // DynamixelHandlerのインスタンスを保持するための変数
         DynamixelHandler& parent_;
