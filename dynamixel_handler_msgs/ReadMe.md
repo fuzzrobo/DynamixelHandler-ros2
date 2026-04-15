@@ -170,7 +170,7 @@ dynamixel_handler_msgs::msg::DxlCommandsX cmd;
 // id = 1,2,3 のサーボを **torque_on**.
 cmd.status.set__id_list( {1,2,3} )
            .set__torque( {true, true, true} );
-// id:1 のサーボを電流制御モードで50degに移動
+// id:1 のサーボを電流制限付き位置制御モードで50degに移動
 cmd.current_base_position_control.id_list.push_back(1);
 cmd.current_base_position_control.position_deg.push_back(50);
 // id:2 のサーボのdゲインを50に設定

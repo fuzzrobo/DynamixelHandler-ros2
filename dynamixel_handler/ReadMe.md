@@ -57,58 +57,7 @@ Dynamixelとやり取りを行うライブラリは[別のリポジトリ](https
 
 ## 残課題
  - `extra` の公開トピック仕様の整理
- - `ChangeOperatingMode()` の危険性整理と対策検討
-   - これは async 化とは別件の既存課題．
-   - `ChangeOperatingMode()` は operating mode の readback で成否を確定する前に，`goal_w_` / profile 系の値を書き戻している．
-   - そのため，利用者が「変更後モードでは停止するつもり」の command を出しても，mode 変更が失敗して旧モードのまま残ると，旧モード向けの goal が効いて動き始める組合せがある．
-   - ここで使う略記は以下とする．
-     - `p0`: `goal_pwm == 0`
-     - `c0`: `goal_current == 0`
-     - `v0`: `goal_velocity == 0`
-     - `x0`: `goal_position == present_position`
-     - `p* / c* / v* / x*`: 上記の逆で，その mode では動き得る値
-   - とくに危険なのは，旧モードが position 系 (`POSITION`, `EXTENDED_POSITION`, `CURRENT_BASE_POSITION`) で，変更後モードが non-position 系 (`PWM`, `CURRENT`, `VELOCITY`) の場合．
-     - 例: `pre = POSITION`, `after = PWM`, `goal_pwm = 0`, ただし `goal_position != present_position`
-     - 利用者の期待: PWM 0 なので停止
-     - 実際: mode 変更が成功すれば停止するが，失敗して old mode = POSITION のままだと `goal_position` が効いて動く
-   - 同型の危険例
-     - `POSITION / EXTENDED_POSITION / CURRENT_BASE_POSITION -> CURRENT` で `goal_current = 0` かつ `goal_position != present_position`
-     - `POSITION / EXTENDED_POSITION / CURRENT_BASE_POSITION -> VELOCITY` で `goal_velocity = 0` かつ `goal_position != present_position`
-   - 重要なのは，この危険は「その周期に新しく goal を受けた場合」だけではないこと．`goal_w_` に以前から残っていた値でも起きる．つまり mode-only request でも発生し得る．
-   - 一方で，`ChangeOperatingMode()` 単体で特に危険なのは旧モードが position 系のケースである．旧モードが `PWM/CURRENT/VELOCITY` のときは，この関数単体では旧モードの主 goal を再送しない．
-   - ただし，その後の通常の `SyncWriteGoal()` 経路まで含めると，old mode が `PWM/CURRENT/VELOCITY` の組合せにも別種の危険は残り得るので，`ChangeOperatingMode()` 単体の問題と `MainLoop()` 全体の問題を分けて整理すること．
-   - 対策案としては，少なくとも以下を比較検討する．
-     - readback mismatch を「通信失敗」ではなく「unsupported / semantic failure」とみなして retry を打ち切る
-     - mode 変更を試した周期は，当該 ID への `goal` 再送を抑止する
-     - `ChangeOperatingMode()` 内での goal/profile 書き戻し順序自体を見直す
- - `CallbackCmd_Status()` の `series_[ID] == P` フォールバック整理
-   - これも async 化とは別件の既存課題．
-   - 現状は `CURRENT_BASE_POSITION` を受けたときに，`series_[ID] == P` なら `EXTENDED_POSITION` へフォールバックしている．
-   - しかし operating mode の対応可否は series 単位ではなく model ごとの差が大きく，この実装は明らかに片手落ちである．
-   - 現状の問題点
-     - `P` series の 1 ケースだけ特別扱いしており，一貫した capability 判定になっていない
-     - `X` series 内でも model により対応 mode が異なり得るのに見ていない
-     - callback 側で暫定変換しているため，将来 `change_id` や `ping add + mode` などの同周期処理を見直すときに責務が曖昧になりやすい
-   - 今後この論点を触るときは，少なくとも次の方針を比較する．
-     - callback 側の `series` ベース fallback をやめ，model ベース capability table を持つ
-     - callback 側では変換せず raw request のまま保持し，write + readback 結果で supported / unsupported を判定する
-   - 少なくとも現状の `series_[ID] == P` だけの特殊処理は「暫定実装」と明記し続けること．
- - `ExternalPort::CallbackExternalPort()` の重複除去ロジック見直し
-   - 現状の重複除去は `(id, port)` の組ではなく，`id` と `port` を別々の list に積んで `is_in(id, valid_id_list) && is_in(port, valid_port_list)` で判定している．
-   - そのため，たとえば `(2,1)` と `(4,2)` を受理済みの同一 message 内で `(2,2)` が来ると，重複ではないのに重複扱いで捨てられる．
-   - 本来は `(id, port)` pair 単位で dedupe すべきであり，現在の実装は external port を 2 port 以上使う構成で機能バグになり得る．
-   - 自動 fixture では未検証なので，少なくとも手動 case を維持しつつ，将来的には pair 単位の回帰 test を追加すること．
- - write するタイミングの検討について
-   - 現在の方法：sub callback でストアしメインループで write
-     - [＋] write回数が抑えられる．
-       - 各IDへの command が別の topic に乗ってきても，node 側で 1/loop_rate [sec] 分の command をまとめてくれる
-     - [＋] write の周期が一定以下になり，read の圧迫や負荷の変動が起きづらい
-     - [－] 一度 command をストアするので，topic の sub から 最大 1/loop_rate [sec] の遅延が生じてしまう．
-       - 8ms未満くらいは遅れるが，そもそものtopicの遅延の方が支配的?(topic遅延が6ms，callback->writeが遅延2ms)
-   - もう一つの方法：sub callback で直接 write
-     - [＋] callback後の遅延は生じない
-     - [－] topic の pub の仕方によってはwrite回数が増えてしまう
-       - 例えば，ID:5へ指令する command topic と ID:6が別のノードからpubされているとすると，callbackは2回呼ばれる．一度ストアしてからまとめてWrite方式だとwriteは1回だが，callbackで直接Write方式だとwriteも2回
+ - Pro が`profile_vel_deg_s`をサポートしていないので，，`split_write=true` かつ `profile_vel_deg_s`をまたぐような組み合わせて command 送ると，書き込めないため弾かれる．
 
 ## 開発メモ
 
