@@ -258,7 +258,7 @@ topic の詳細については [Topic](#published-topics) の章を参照．
 ros2 topic echo --flow-style /dynamixel/state/present # status, goal, gain, limit, error... など． 
 ```
 ```yaml
----                                                    # 出力例
+--- # 出力例
 id_list: [5, 6]                                        # 認識されているサーボのID
 pwm_percent: [0.0, 0.0]                                # 現在のPWM値
 current_ma: [0.0, -2.69]                               # 現在の電流値
@@ -280,7 +280,7 @@ read & publish される情報の選択については [Parameters](#parameters)
 ros2 topic echo --flow-style /dynamixel/debug
 ```
 ```yaml
----             # 出力例
+--- # 出力例
 status:         # /dynamixel/state/status と同じ
   id_list: [1, 6, 7, 8, 9]                                                 # 認識されているサーボのID
   torque: [true, true, true, true, true]                                   # トルクがONかOFFか
@@ -1549,10 +1549,7 @@ Xシリーズの場合，`/dynamixel/commands/x`の`limit`フィールド or `/d
 > しかし，位置制御系のモードかつ，homing_offset が設定されている状態でこの動作停止処理が走るとなぜか homing_offsetだけ回転する．
 > firmwareのバグの模様，バージョンによってはこの問題が解消されているかもしれないが，危険なので位置制御系のモードで bus_watchdog を使うのは避けるべき．
 > 本パッケージの既定では，`term/servo_auto_stop=true` かつ PWM・電流・速度制御モードの場合に bus_watchdog を自動管理する（既定値は `default/bus_watchdog`）．
-> `command/extra.bus_watchdog_ms` を指定したIDは，`term/servo_auto_stop` の値に関わらず指定値を優先して管理される（`0` 指定は watchdog無効値として扱う）．
-> `0` 指定時の定期書き込みは `term/servo_auto_stop=true` のときのみ継続され，`false` のときは `command/extra` による単発書き込みのみとなる．
-> `command/extra.bus_watchdog_ms` は受信時に staging され，次回メインループ先頭の extra write で反映される．一方で，bus_watchdog の監視/解除/再設定は `pub_ratio/status` 周期で実行される．
-> したがって `pub_ratio/status=0` の場合，この監視/解除/再設定はメインループでは動作しない．
+> `command/extra.bus_watchdog_ms` を指定した場合は，`term/servo_auto_stop` の値に関わらず指定値を優先して管理される（`0` 指定は watchdog無効値として扱う）．
 
 ### サポート外
  - status_return_level :
